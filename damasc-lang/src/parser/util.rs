@@ -1,6 +1,6 @@
 use nom::{character::complete::multispace0, error::ParseError, sequence::delimited, IResult};
 
-pub(crate) fn ws<'a, F, O, E: ParseError<&'a str>>(
+pub fn ws<'a, F, O, E: ParseError<&'a str>>(
     inner: F,
 ) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
 where

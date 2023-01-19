@@ -5,6 +5,20 @@ pub struct Identifier<'a> {
     pub name: Cow<'a, str>,
 }
 
+impl<'a> Identifier<'a> {
+    pub fn new(name: &'a str) -> Self {
+        Self {
+            name: Cow::Borrowed(name),
+        }
+    }
+
+    pub fn new_owned(name: String) -> Self {
+        Self {
+            name: Cow::Owned(name),
+        }
+    }
+}
+
 impl Identifier<'_> {
     pub(crate) fn deep_clone<'y>(&self) -> Identifier<'y> {
         Identifier {

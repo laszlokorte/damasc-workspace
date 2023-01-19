@@ -10,7 +10,7 @@ use nom::{
 
 use crate::syntax::assignment::{Assignment, AssignmentSet};
 
-use super::{expression::{single_expression, expression}, pattern::pattern, util::ws};
+use super::{expression::expression, pattern::pattern, util::ws};
 
 pub fn assignment_set<'v, 'w>(input: &str) -> IResult<&str, AssignmentSet<'v, 'w>> {
     map(

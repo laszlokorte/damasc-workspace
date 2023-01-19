@@ -3,8 +3,8 @@ use std::borrow::Cow;
 use nom::{
     branch::alt,
     bytes::complete::{is_not, tag, take_until},
-    character::complete::space0,
-    combinator::{all_consuming, map, opt, recognize, value},
+    character::complete::{space0, alpha1},
+    combinator::{all_consuming, map, opt, recognize, value, not, peek},
     multi::{fold_many0, many0, separated_list0, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     IResult,
@@ -34,13 +34,13 @@ pub fn single_expression<'v>(input: &str) -> Option<Expression<'v>> {
 }
 
 pub fn multi_expressions<'v>(input: &str) -> IResult<&str, ExpressionSet<'v>> {
-    all_consuming(delimited(
+    delimited(
         space0,
         map(separated_list1(ws(tag(";")), expression), |expressions| {
             ExpressionSet { expressions }
         }),
-        alt((ws(tag(";")), space0)),
-    ))(input)
+        ws(opt(tag(";"))),
+    )(input)
 }
 
 fn array_item_expression<'v>(input: &str) -> IResult<&str, ArrayItem<'v>> {
@@ -266,7 +266,7 @@ fn expression_numeric_predicative<'v>(input: &str) -> IResult<&str, Expression<'
                 value(BinaryOperator::GreaterThan, tag(">")),
                 value(BinaryOperator::StrictEqual, tag("==")),
                 value(BinaryOperator::StrictNotEqual, tag("!=")),
-                value(BinaryOperator::In, tag("in")),
+                value(BinaryOperator::In, pair(tag("in"), peek(not(alpha1)))),
             ))),
             expression_numeric_additive,
         ),
@@ -425,6 +425,6 @@ fn expression_unary_numeric<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     )(input)
 }
 
-pub(crate) fn expression<'v>(input: &str) -> IResult<&str, Expression<'v>> {
+pub fn expression<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     alt((expression_logic_additive,))(input)
 }

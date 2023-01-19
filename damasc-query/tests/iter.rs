@@ -1,7 +1,7 @@
 #![feature(assert_matches)]
 
 use damasc_lang::{parser::{value::value_bag, pattern::full_pattern, expression::single_expression}, runtime::env::Environment, value::Value};
-use damasc_query::{predicate::{Predicate, PredicateError}, projection::ProjectionError};
+use damasc_query::{predicate::{Predicate, PredicateError}, projection::ProjectionError, capture::Capture};
 use damasc_query::iter::ProjectionIterator;
 use damasc_query::projection::Projection;
 use damasc_query::iter::PredicateIterator;
@@ -22,7 +22,7 @@ fn test_predicate_iteration() {
     };
 
     let pred = Predicate {
-        pattern,
+        capture: Capture { pattern },
         guard
     };
 
@@ -57,7 +57,7 @@ fn test_projection_constant_iteration() {
     };
 
     let predicate = Predicate {
-        pattern,
+        capture: Capture { pattern },
         guard
     };
 
@@ -98,7 +98,7 @@ fn test_projection_dynamic_iteration() {
     };
 
     let predicate = Predicate {
-        pattern,
+        capture: Capture { pattern },
         guard
     };
 
@@ -139,7 +139,7 @@ fn test_projection_eval_error_iteration() {
     };
 
     let predicate = Predicate {
-        pattern,
+        capture: Capture { pattern },
         guard
     };
 
@@ -180,7 +180,7 @@ fn test_projection_guard_error_iteration() {
     };
 
     let predicate = Predicate {
-        pattern,
+        capture: Capture { pattern },
         guard
     };
 
@@ -221,7 +221,7 @@ fn test_projection_pattern_error_iteration() {
     };
 
     let predicate = Predicate {
-        pattern,
+        capture: Capture { pattern },
         guard
     };
 

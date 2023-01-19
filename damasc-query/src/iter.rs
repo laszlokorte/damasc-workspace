@@ -1,8 +1,5 @@
 use damasc_lang::value::Value;
-use damasc_lang::runtime::matching::Matcher;
-use damasc_lang::runtime::matching::PatternFail;
 use damasc_lang::runtime::env::Environment;
-use damasc_lang::runtime::evaluation::Evaluation;
 use itertools::Permutations;
 
 use crate::predicate::PredicateError;
@@ -71,7 +68,7 @@ impl<'i, 's, 'v, It:Iterator> MultiPredicateIterator<'i, 's, 'v, It> where It::I
 
         Self {
             env,
-            iter: iter.permutations(predicate.patterns.len()),
+            iter: iter.permutations(predicate.capture.patterns.patterns.len()),
             predicate,
         }
     }
@@ -213,41 +210,19 @@ impl<'i, 's, 'v, It:Iterator> IndexedPredicateIterator<'i, 's, 'v, It> {
     }
 }
 
-impl<'i, 's:'v,'v,I:Iterator<Item = (usize, Value<'s, 'v>)>> Iterator for IndexedPredicateIterator<'i, 's, 'v,I> {
-    type Item = Result<(usize, Value<'s, 'v>), (usize, PredicateError)>;
+impl<'i, 's:'v,'v,I:Iterator<Item = (usize, &'v Value<'s, 'v>)>> Iterator for IndexedPredicateIterator<'i, 's, 'v,I> {
+    type Item = Result<(usize,  &'v Value<'s, 'v>), (usize, PredicateError)>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let Some((index, item)) = self.iter.next() else {
             return None;
         };
 
-        let mut matcher = Matcher::new(&self.env);
-        let env = match matcher.match_pattern(&self.predicate.pattern, &item) {
-            Ok(()) => matcher.into_env(),
-            Err(e) => {
-               match e {
-                PatternFail::EvalError => return Some(Err((index, PredicateError::PatternError))),
-                _ => return self.next(),
-            } 
-            },
-        };
-
-        let evaluation = Evaluation::new(&env);
-
-        match evaluation.eval_expr(&self.predicate.guard) {
-            Ok(Value::Boolean(b)) => {
-                if b {
-                    Some(Ok((index, item)))
-                } else {
-                    self.next()
-                }
-            },
-            Ok(_) => {
-                Some(Err((index, PredicateError::GuardError)))
-            }
-            Err(_) => {
-                Some(Err((index, PredicateError::GuardError)))
-            },
+        
+        match self.predicate.apply(&self.env, item) {
+            Ok(true) => Some(Ok((index, &item))),
+            Ok(false) => self.next(),
+            Err(e) => Some(Err((index, e))),
         }
     }
 }

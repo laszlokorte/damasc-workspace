@@ -2,14 +2,14 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     combinator::{all_consuming, map, opt, value},
-    multi::separated_list0,
+    multi::{separated_list0, separated_list1},
     sequence::{delimited, preceded, separated_pair, tuple},
-    IResult,
+    IResult, character::complete::space0,
 };
 
 use crate::syntax::{
     expression::PropertyKey,
-    pattern::{ArrayPatternItem, ObjectPropertyPattern, Pattern, PropertyPattern, Rest},
+    pattern::{ArrayPatternItem, ObjectPropertyPattern, Pattern, PropertyPattern, Rest, PatternSet},
 };
 
 use super::{
@@ -145,4 +145,15 @@ pub fn full_pattern<'v>(input: &str) -> Option<Pattern<'v>> {
         Ok((_, r)) => Some(r),
         Err(_) => None,
     }
+}
+
+
+pub fn multi_patterns<'v>(input: &str) -> IResult<&str, PatternSet<'v>> {
+    delimited(
+        space0,
+        map(separated_list1(ws(tag(";")), pattern), |patterns| {
+            PatternSet { patterns }
+        }),
+        ws(opt(tag(";"))),
+    )(input)
 }
