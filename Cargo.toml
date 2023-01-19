@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "damasc-lang",
+    "damasc-ui",
+]
