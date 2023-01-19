@@ -1,0 +1,255 @@
+5+5
+10
+---
+{foo: "bar",baz: "foo"}[[1,2,224,243,243,234,1,[true,false,["bar","baz"]],[132,1,[7,"foo"],23,123]][2^3-1][2][1]] in {foo: "bar",baz: "foo"}
+true
+---
+5+3*7-6*2
+14
+---
+[[3,2,1][-1], [3,2,1][-2], [3,2,1][-3]]
+[1,2,3]
+---
+!true
+false
+---
+!false
+true
+---
+!!false
+false
+---
+!!true
+true
+---
+"hello"[0]
+"h"
+---
+"hello"[-1]
+"o"
+---
+42+8 == 50
+true
+---
+3*6 > 6
+true
+---
+36-12 < 36
+true
+---
+100^2 > 99^2
+true
+---
+100^2 == 10000
+true
+---
+36 + 6 <= 42
+36 + 6 >= 42
+---
+36 + 6 == 42
+true
+---
+36 + 6 != 42
+false
+---
+-5 + 5
+0
+---
+true && true
+true
+---
+true && false
+false
+---
+false && false
+false
+---
+false && true
+false
+---
+true || true
+true
+---
+true || false
+true
+---
+false || false
+false
+---
+false || true
+true
+---
+"hello"[2] == "hello"[-2]
+true
+---
+null == 5
+false
+---
+null
+null
+---
+null!=null
+false
+---
+{x:{y:{z:{w:42}}}}.x.y.z.w
+42
+---
+{[["foo","bar"][0]]: 42}
+{foo: 42}
+---
+{...{x:3}, y:7, ...{x:5}, ...{y:42}, y: 25}
+{x: 5, y: 25, }
+---
+{a: 5,...{a:10,b:11,c:12},b: 22, ...{d:50, c:51}}
+{ a: 10, b: 22, c: 51, d: 50 }
+---
+[...[1,2,3],...[4,5,6],8,9,...[]]
+[1, 2, 3, 4, 5, 6, 8, 9, ]
+---
+null is Null
+true
+---
+true is Boolean
+true
+---
+false is Boolean
+true
+---
+42 is Integer
+true
+---
+-42 is Integer
+true
+---
+"Hello" is String
+true
+---
+[1,2,3] is Array
+true
+---
+{foo: 23} is Object
+true
+---
+("hello" is Object) is Boolean
+true
+---
+!("hello" is Object)
+true
+---
+length("You can count on me")
+19
+---
+length([4,8,15,23,42])
+5
+---
+length({foo:42, bar:23})
+2
+---
+type(true)
+Boolean
+---
+type(false)
+Boolean
+---
+type("foo")
+String
+---
+type(23)
+Integer
+---
+type(-42)
+Integer
+---
+type([1,2,3])
+Array
+---
+type({x:42, y:32})
+Object
+---
+type(null)
+Null
+---
+type(Integer)
+Type
+---
+type(type(true))
+Type
+---
+values({x:23, y:42})
+[23, 42, ]
+---
+keys({"1": "one", "2":"two", "3":"three"})
+["1","2","3"]
+---
+{"1": "one", "2":"two", "3":"three"}["3"]
+"three"
+---
+`hello, is ${["you","me"][1]} you are ${["looking","singing"][0]} for?`
+"hello, is me you are looking for?"
+---
+`I am ${9*9} years old`
+"I am 81 years old"
+---
+true as Integer
+1
+---
+false as Integer
+0
+---
+42 as String
+"42"
+---
+String as String
+"String"
+---
+null as String
+"null"
+---
+null as Boolean
+false
+---
+[7,8,9] as Integer
+3
+---
+{x:23,y:42} as Integer
+2
+---
+"hello" as Boolean
+true
+---
+[7,8,9] as Boolean
+true
+---
+{x:23,y:42} as Boolean
+true
+---
+[] as Boolean
+false
+---
+{} as Boolean
+false
+---
+"" as Boolean
+false
+---
+0 as Boolean
+false
+---
+42 as Boolean
+true
+---
+-23 as Boolean
+true
+---
+{#where : 10, #limit: 42, #into: 23}.#limit
+42
+---
+{"where" : 10, "limit": 42, "into": 23}.#into
+23
+---
+23+42;23*42
+65;966
+---
+23+42;23*42;
+65;966;
+---
