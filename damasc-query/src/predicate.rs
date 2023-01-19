@@ -1,25 +1,25 @@
 use damasc_lang::syntax::{pattern::Pattern, expression::Expression};
 
 #[derive(Clone, Debug)]
-pub(crate) struct Predicate<'s> {
-    pub(crate) pattern: Pattern<'s>,
-    pub(crate) guard: Expression<'s>,
+pub struct Predicate<'s> {
+    pub pattern: Pattern<'s>,
+    pub guard: Expression<'s>,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct MultiPredicate<'s> {
-    pub(crate) patterns: Vec<Pattern<'s>>,
-    pub(crate) guard: Expression<'s>,
+pub struct MultiPredicate<'s> {
+    pub patterns: Vec<Pattern<'s>>,
+    pub guard: Expression<'s>,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct Projection<'s> {
-    pub(crate) predicate: Predicate<'s>,
-    pub(crate) projection: Expression<'s>,
+pub struct Projection<'s> {
+    pub predicate: Predicate<'s>,
+    pub projection: Expression<'s>,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct MultiProjection<'s> {
-    pub(crate) predicate: MultiPredicate<'s>,
-    pub(crate) projections: Vec<Expression<'s>>,
+pub struct MultiProjection<'s> {
+    pub predicate: MultiPredicate<'s>,
+    pub projections: Vec<Expression<'s>>,
 }

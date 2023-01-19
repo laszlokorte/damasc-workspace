@@ -15,18 +15,24 @@ use nom::{
     IResult,
 };
 
-pub fn single_value<'v>(input: &str) -> IResult<&str, Value<'_, 'v>> {
-    all_consuming(value_literal)(input)
+pub fn single_value<'v>(input: &str) -> Option<Value<'_, 'v>> {
+    match all_consuming(value_literal)(input) {
+        Ok((_,r)) => Some(r),
+        Err(_) => None,
+    }
 }
 
-pub fn multi_value_bag<'v>(input: &str) -> IResult<&str, ValueBag<'_, 'v>> {
-    all_consuming(delimited(
+pub fn value_bag<'v>(input: &str) -> Option<ValueBag<'_, 'v>> {
+    match all_consuming(delimited(
         space0,
         map(separated_list1(ws(tag(";")), value_literal), |values| {
             ValueBag::new(values)
         }),
         alt((ws(tag(";")), space0)),
-    ))(input)
+    ))(input) {
+        Ok((_,r)) => Some(r),
+        Err(_) => None,
+    }
 }
 
 fn value_array<'v>(input: &str) -> IResult<&str, Value<'_, 'v>> {

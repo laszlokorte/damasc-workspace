@@ -1,3 +1,3 @@
-mod predicate;
-mod iter;
-mod error;
+pub mod iter;
+pub mod error;
+pub mod predicate;

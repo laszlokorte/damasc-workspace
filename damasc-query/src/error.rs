@@ -1,9 +1,11 @@
-pub(crate) enum PredicateError {
+#[derive(Debug)]
+pub enum PredicateError {
     PatternError,
     GuardError
 }
 
-pub(crate) enum ProjectionError {
+#[derive(Debug)]
+pub enum ProjectionError {
     PredicateError(PredicateError),
     EvalError
 }

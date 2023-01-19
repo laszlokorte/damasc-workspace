@@ -13,7 +13,7 @@ use crate::syntax::{
 };
 
 use super::{
-    expression::single_expression,
+    expression::expression,
     identifier::identifier,
     literal::{literal, literal_type_raw},
     util::ws,
@@ -45,7 +45,7 @@ fn object_prop_pattern<'v>(input: &str) -> IResult<&str, ObjectPropertyPattern<'
     alt((
         map(
             separated_pair(
-                delimited(ws(tag("[")), single_expression, ws(tag("]"))),
+                delimited(ws(tag("[")), expression, ws(tag("]"))),
                 ws(tag(":")),
                 pattern,
             ),
@@ -140,6 +140,9 @@ pub fn pattern<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
     ))(input)
 }
 
-pub fn full_pattern<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
-    all_consuming(pattern)(input)
+pub fn full_pattern<'v>(input: &str) -> Option<Pattern<'v>> {
+    match all_consuming(pattern)(input) {
+        Ok((_, r)) => Some(r),
+        Err(_) => None,
+    }
 }

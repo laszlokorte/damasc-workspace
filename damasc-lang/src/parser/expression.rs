@@ -26,8 +26,11 @@ use super::{
     util::ws,
 };
 
-pub fn single_expression<'v>(input: &str) -> IResult<&str, Expression<'v>> {
-    all_consuming(expression)(input)
+pub fn single_expression<'v>(input: &str) -> Option<Expression<'v>> {
+    match all_consuming(expression)(input) {
+        Ok((_,r)) => Some(r),
+        Err(_) => None,
+    }
 }
 
 pub fn multi_expressions<'v>(input: &str) -> IResult<&str, ExpressionSet<'v>> {
@@ -422,6 +425,6 @@ fn expression_unary_numeric<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     )(input)
 }
 
-fn expression<'v>(input: &str) -> IResult<&str, Expression<'v>> {
+pub(crate) fn expression<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     alt((expression_logic_additive,))(input)
 }
