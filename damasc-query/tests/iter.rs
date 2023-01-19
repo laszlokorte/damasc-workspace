@@ -1,8 +1,11 @@
 #![feature(assert_matches)]
 
 use damasc_lang::{parser::{value::value_bag, pattern::full_pattern, expression::single_expression}, runtime::env::Environment, value::Value};
-use damasc_query::{predicate::{Predicate, Projection}, iter::{PredicateIterator, ProjectionIterator}, error::{ProjectionError, PredicateError}};
-use std::{assert_matches::assert_matches};
+use damasc_query::{predicate::{Predicate, PredicateError}, projection::ProjectionError};
+use damasc_query::iter::ProjectionIterator;
+use damasc_query::projection::Projection;
+use damasc_query::iter::PredicateIterator;
+use std::assert_matches::assert_matches;
 
 
 #[test]

@@ -1,10 +1,16 @@
-use std::iter;
-
-use damasc_lang::{value::Value, runtime::{matching::{Matcher, PatternFail}, env::Environment}};
+use damasc_lang::value::Value;
+use damasc_lang::runtime::matching::Matcher;
+use damasc_lang::runtime::matching::PatternFail;
+use damasc_lang::runtime::env::Environment;
 use damasc_lang::runtime::evaluation::Evaluation;
 use itertools::Permutations;
 
-use crate::{predicate::{Predicate, MultiPredicate, Projection, MultiProjection}, error::{PredicateError, ProjectionError}};
+use crate::predicate::PredicateError;
+use crate::projection::MultiProjection;
+use crate::projection::Projection;
+use crate::predicate::Predicate;
+use crate::predicate::MultiPredicate;
+use crate::projection::ProjectionError;
 
 pub struct PredicateIterator<'i, 's, 'v, It:Iterator>  {
     env: Environment<'i, 's, 'v>,
@@ -36,34 +42,13 @@ impl<'i, 's:'v,'v,I:Iterator<Item = &'v Value<'s, 'v>>> Iterator for PredicateIt
             return None;
         };
 
-        let mut matcher = Matcher::new(&self.env);
-        let env = match matcher.match_pattern(&self.predicate.pattern, &item) {
-            Ok(()) => matcher.into_env(),
-            Err(e) => {
-               match e {
-                PatternFail::EvalError => return Some(Err(PredicateError::PatternError)),
-                _ => return self.next(),
-            } 
-            },
-        };
-
-        let evaluation = Evaluation::new(&env);
-
-        match evaluation.eval_expr(&self.predicate.guard) {
-            Ok(Value::Boolean(b)) => {
-                if b {
-                    Some(Ok(item))
-                } else {
-                    self.next()
-                }
-            },
-            Ok(_) => {
-                Some(Err(PredicateError::GuardError))
-            }
-            Err(_) => {
-                Some(Err(PredicateError::GuardError))
-            },
+        
+        match self.predicate.apply(&self.env, item) {
+            Ok(true) => Some(Ok(&item)),
+            Ok(false) => self.next(),
+            Err(e) => Some(Err(e)),
         }
+        
     }
 }
 
@@ -100,35 +85,10 @@ impl<'i, 's:'v,'v,I:Iterator<Item = Value<'s, 'v>>> Iterator for MultiPredicateI
             return None;
         };
 
-        let mut matcher = Matcher::new(&self.env);
-        let zipped = iter::zip(self.predicate.patterns.iter(), items.iter());
-        let result = zipped.fold(Ok(()), |prev, (pat, val)| prev.and(matcher.match_pattern(&pat, &val)));
-        let env = match result {
-            Ok(()) => matcher.into_env(),
-            Err(e) => {
-               match e {
-                PatternFail::EvalError => return Some(Err(PredicateError::PatternError)),
-                _ => return self.next(),
-            } 
-            },
-        };
-
-        let evaluation = Evaluation::new(&env);
-
-        match evaluation.eval_expr(&self.predicate.guard) {
-            Ok(Value::Boolean(b)) => {
-                if b {
-                    Some(Ok(items))
-                } else {
-                    self.next()
-                }
-            },
-            Ok(_) => {
-                Some(Err(PredicateError::GuardError))
-            }
-            Err(_) => {
-                Some(Err(PredicateError::GuardError))
-            },
+        match self.predicate.apply(&self.env, items.iter()) {
+            Ok(true) => Some(Ok(items)),
+            Ok(false) => self.next(),
+            Err(e) => Some(Err(e)),
         }
     }
 }
@@ -171,37 +131,10 @@ impl<'i, 's:'v,'v,I:Iterator<Item = &'v Value<'s, 'v>>> Iterator for ProjectionI
             return None;
         };
 
-        let mut matcher = Matcher::new(&self.env);
-        let env = match matcher.match_pattern(&self.projection.predicate.pattern, &item) {
-            Ok(()) => matcher.into_env(),
-            Err(e) => {
-               match e {
-                PatternFail::EvalError => return Some(Err(ProjectionError::PredicateError(PredicateError::PatternError))),
-                _ => return self.next(),
-            } 
-            },
-        };
-
-        let evaluation = Evaluation::new(&env);
-
-        match evaluation.eval_expr(&self.projection.predicate.guard) {
-            Ok(Value::Boolean(b)) => {
-                if b {
-                    let Ok(result) = evaluation.eval_expr(&self.projection.projection) else {
-                        return Some(Err(ProjectionError::EvalError));
-                    };
-
-                    return Some(Ok(result));
-                } else {
-                    self.next()
-                }
-            },
-            Ok(_) => {
-                Some(Err(ProjectionError::PredicateError(PredicateError::GuardError)))
-            }
-            Err(_) => {
-                Some(Err(ProjectionError::PredicateError(PredicateError::GuardError)))
-            },
+        match self.projection.apply(&self.env, item) {
+            Ok(Some(v)) => Some(Ok(v)),
+            Ok(None) => self.next(),
+            Err(e) => Some(Err(e)),
         }
     }
 }
@@ -242,37 +175,10 @@ impl<'i, 's:'v,'v,I:Iterator<Item = Vec<Value<'s, 'v>>>> Iterator for MultiProje
             return None;
         };
 
-        let mut matcher = Matcher::new(&self.env);
-        let zipped = iter::zip(self.projection.predicate.patterns.iter(), items.iter());
-        let result = zipped.fold(Ok(()), |prev, (pat, val)| prev.and(matcher.match_pattern(&pat, &val)));
-        let env = match result {
-            Ok(()) => matcher.into_env(),
-            Err(e) => {
-               match e {
-                PatternFail::EvalError => return Some(Err(ProjectionError::PredicateError(PredicateError::PatternError))),
-                _ => return self.next(),
-            } 
-            },
-        };
-
-        let evaluation = Evaluation::new(&env);
-
-        match evaluation.eval_expr(&self.projection.predicate.guard) {
-            Ok(Value::Boolean(b)) => {
-                if b {
-                    Some(self.projection.projections.iter().map(|p| {
-                        evaluation.eval_expr(&p).map_err(|_| ProjectionError::EvalError)
-                    }).collect())
-                } else {
-                    self.next()
-                }
-            },
-            Ok(_) => {
-                Some(Err(ProjectionError::PredicateError(PredicateError::GuardError)))
-            }
-            Err(_) => {
-                Some(Err(ProjectionError::PredicateError(PredicateError::GuardError)))
-            },
+        match self.projection.apply(&self.env, &mut items.iter()) {
+            Ok(Some(vs)) => Some(Ok(vs)),
+            Ok(None) => self.next(),
+            Err(e) => Some(Err(e)),
         }
     }
 }
