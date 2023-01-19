@@ -2,7 +2,6 @@ use std::borrow::Cow;
 
 use crate::value::ValueType;
 
-
 #[derive(Clone, Debug)]
 pub enum Literal<'s> {
     Null,

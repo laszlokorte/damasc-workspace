@@ -1,9 +1,19 @@
-use std::{collections::{BTreeSet, BTreeMap, btree_map::Entry}, borrow::Cow};
+use std::{
+    borrow::Cow,
+    collections::{btree_map::Entry, BTreeMap, BTreeSet},
+};
 
-use crate::{value::{Value, ValueObjectMap}, syntax::{pattern::{Pattern, ObjectPropertyPattern, PropertyPattern, Rest, ArrayPatternItem}, expression::PropertyKey}, literal::Literal, identifier::Identifier};
+use crate::{
+    identifier::Identifier,
+    literal::Literal,
+    syntax::{
+        expression::PropertyKey,
+        pattern::{ArrayPatternItem, ObjectPropertyPattern, Pattern, PropertyPattern, Rest},
+    },
+    value::{Value, ValueObjectMap},
+};
 
 use super::{env::Environment, evaluation::Evaluation};
-
 
 #[derive(Debug)]
 pub enum PatternFail {
@@ -24,9 +34,8 @@ pub struct Matcher<'i, 's, 'v, 'e> {
     pub local_env: Environment<'i, 's, 'v>,
 }
 
-
 impl<'i, 's, 'v, 'e> Matcher<'i, 's, 'v, 'e> {
-    pub fn into_env<'x>(self) -> Environment<'i, 's, 'v> {
+    pub fn into_env(self) -> Environment<'i, 's, 'v> {
         self.local_env
     }
 
@@ -202,9 +211,9 @@ impl<'i, 's, 'v, 'e> Matcher<'i, 's, 'v, 'e> {
             Err(PatternFail::LiteralMismatch)
         }
     }
-    pub fn new<'x:'e>(env: &'x Environment<'i, 's, 'v>) -> Self {
+    pub fn new<'x: 'e>(env: &'x Environment<'i, 's, 'v>) -> Self {
         Self {
-            outer_env: &env,
+            outer_env: env,
             local_env: Environment::new(),
         }
     }

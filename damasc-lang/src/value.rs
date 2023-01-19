@@ -12,6 +12,16 @@ pub enum Value<'s, 'v> {
     Type(ValueType),
 }
 
+pub struct ValueBag<'s, 'v> {
+    pub values: Vec<Value<'s, 'v>>,
+}
+
+impl<'s, 'v> ValueBag<'s, 'v> {
+    pub fn new(values: Vec<Value<'s, 'v>>) -> Self {
+        Self { values }
+    }
+}
+
 pub(crate) type ValueObjectMap<'s, 'v> = BTreeMap<Cow<'s, str>, Cow<'v, Value<'s, 'v>>>;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]

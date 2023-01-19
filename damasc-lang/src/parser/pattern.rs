@@ -1,8 +1,23 @@
-use nom::{IResult, combinator::{all_consuming, value, map, opt}, bytes::complete::tag, sequence::{preceded, separated_pair, delimited, tuple}, branch::alt, multi::separated_list0};
+use nom::{
+    branch::alt,
+    bytes::complete::tag,
+    combinator::{all_consuming, map, opt, value},
+    multi::separated_list0,
+    sequence::{delimited, preceded, separated_pair, tuple},
+    IResult,
+};
 
-use crate::syntax::{pattern::{Pattern, ObjectPropertyPattern, PropertyPattern, Rest, ArrayPatternItem}, expression::PropertyKey};
+use crate::syntax::{
+    expression::PropertyKey,
+    pattern::{ArrayPatternItem, ObjectPropertyPattern, Pattern, PropertyPattern, Rest},
+};
 
-use super::{util::ws, literal::{literal_type_raw, literal}, identifier::identifier, expression::single_expression};
+use super::{
+    expression::single_expression,
+    identifier::identifier,
+    literal::{literal, literal_type_raw},
+    util::ws,
+};
 
 fn pattern_discard<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
     value(Pattern::Discard, tag("_"))(input)
@@ -109,10 +124,7 @@ fn pattern_capture<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
 }
 
 fn pattern_atom<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
-    map(
-        literal,
-        Pattern::Literal,
-    )(input)
+    map(literal, Pattern::Literal)(input)
 }
 
 pub fn pattern<'v>(input: &str) -> IResult<&str, Pattern<'v>> {

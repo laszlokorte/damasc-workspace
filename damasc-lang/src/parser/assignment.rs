@@ -1,8 +1,16 @@
-use nom::{IResult, sequence::{terminated, separated_pair}, combinator::map, multi::separated_list1, bytes::complete::tag, character::complete::space0, branch::alt};
+use nom::{
+    branch::alt,
+    bytes::complete::tag,
+    character::complete::space0,
+    combinator::map,
+    multi::separated_list1,
+    sequence::{separated_pair, terminated},
+    IResult,
+};
 
-use crate::syntax::assignment::{AssignmentSet, Assignment};
+use crate::syntax::assignment::{Assignment, AssignmentSet};
 
-use super::{util::ws, pattern::pattern, expression::single_expression};
+use super::{expression::single_expression, pattern::pattern, util::ws};
 
 pub fn assignment_set<'v, 'w>(input: &str) -> IResult<&str, AssignmentSet<'v, 'w>> {
     map(

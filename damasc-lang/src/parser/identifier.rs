@@ -1,6 +1,14 @@
 use std::borrow::Cow;
 
-use nom::{combinator::{verify, map, recognize}, bytes::complete::tag, multi::{many1_count, many0_count}, branch::alt, IResult, sequence::{pair, preceded}, character::complete::{alphanumeric1, alpha1}};
+use nom::{
+    branch::alt,
+    bytes::complete::tag,
+    character::complete::{alpha1, alphanumeric1},
+    combinator::{map, recognize, verify},
+    multi::{many0_count, many1_count},
+    sequence::{pair, preceded},
+    IResult,
+};
 
 use crate::identifier::Identifier;
 
@@ -22,7 +30,6 @@ fn non_keyword_identifier<'v>(input: &str) -> IResult<&str, Identifier<'v>> {
         }
     })(input)
 }
-
 
 fn raw_identifier<'v>(input: &str) -> IResult<&str, Identifier<'v>> {
     map(preceded(tag("#"), identifier_name), |name: &str| {

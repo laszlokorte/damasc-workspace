@@ -1,11 +1,30 @@
 use std::borrow::Cow;
 
-use nom::{IResult, sequence::{delimited, pair, preceded, terminated, separated_pair, tuple}, combinator::{all_consuming, map, opt, recognize, value}, character::complete::space0, multi::{separated_list1, separated_list0, many0, fold_many0}, bytes::complete::{tag, take_until, is_not}, branch::alt};
+use nom::{
+    branch::alt,
+    bytes::complete::{is_not, tag, take_until},
+    character::complete::space0,
+    combinator::{all_consuming, map, opt, recognize, value},
+    multi::{fold_many0, many0, separated_list0, separated_list1},
+    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
+    IResult,
+};
 
-use crate::{syntax::expression::{Expression, ExpressionSet, CallExpression, ArrayItem, ObjectProperty, Property, PropertyKey, StringTemplatePart, StringTemplate, LogicalOperator, LogicalExpression, BinaryOperator, BinaryExpression, MemberExpression, UnaryOperator, UnaryExpression}, identifier::Identifier, literal::Literal};
+use crate::{
+    identifier::Identifier,
+    literal::Literal,
+    syntax::expression::{
+        ArrayItem, BinaryExpression, BinaryOperator, CallExpression, Expression, ExpressionSet,
+        LogicalExpression, LogicalOperator, MemberExpression, ObjectProperty, Property,
+        PropertyKey, StringTemplate, StringTemplatePart, UnaryExpression, UnaryOperator,
+    },
+};
 
-use super::{util::ws, identifier::identifier, literal::{literal_string_raw, literal}};
-
+use super::{
+    identifier::identifier,
+    literal::{literal, literal_string_raw},
+    util::ws,
+};
 
 pub fn single_expression<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     all_consuming(expression)(input)
@@ -20,7 +39,6 @@ pub fn multi_expressions<'v>(input: &str) -> IResult<&str, ExpressionSet<'v>> {
         alt((ws(tag(";")), space0)),
     ))(input)
 }
-
 
 fn array_item_expression<'v>(input: &str) -> IResult<&str, ArrayItem<'v>> {
     alt((
@@ -121,16 +139,12 @@ fn expression_literal<'v>(input: &str) -> IResult<&str, Expression<'v>> {
 }
 
 fn expression_atom<'v>(input: &str) -> IResult<&str, Expression<'v>> {
-    map(
-        literal,
-        Expression::Literal,
-    )(input)
+    map(literal, Expression::Literal)(input)
 }
 
 fn expression_identifier<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     map(identifier, Expression::Identifier)(input)
 }
-
 
 fn string_template_part<'v>(input: &str) -> IResult<&str, StringTemplatePart<'v>> {
     map(
@@ -160,7 +174,6 @@ fn expression_string_template<'v>(input: &str) -> IResult<&str, Expression<'v>> 
         },
     )(input)
 }
-
 
 fn expression_logic_additive<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     let (input, init) = expression_logic_multiplicative(input)?;
@@ -199,7 +212,6 @@ fn expression_logic_multiplicative<'v>(input: &str) -> IResult<&str, Expression<
         },
     )(input)
 }
-
 
 fn expression_type_predicate<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     let (input, init) = expression_type_additive(input)?;

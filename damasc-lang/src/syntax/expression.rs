@@ -30,70 +30,89 @@ impl std::fmt::Display for Expression<'_> {
                     }
                 }
                 write!(f, "[")
-            },
-            Expression::Binary(BinaryExpression {operator, left, right}) => {
-                write!(f, "({left} {} {right})", match operator {
-                    BinaryOperator::StrictEqual => "==",
-                    BinaryOperator::StrictNotEqual => "!=",
-                    BinaryOperator::LessThan => "<",
-                    BinaryOperator::GreaterThan => ">",
-                    BinaryOperator::LessThanEqual => "<=",
-                    BinaryOperator::GreaterThanEqual => ">=",
-                    BinaryOperator::Plus => "+",
-                    BinaryOperator::Minus => "-",
-                    BinaryOperator::Times => "*",
-                    BinaryOperator::Over => "/",
-                    BinaryOperator::Mod => "%",
-                    BinaryOperator::In => "in",
-                    BinaryOperator::PowerOf => "^",
-                    BinaryOperator::Is => "is",
-                    BinaryOperator::Cast => "cast",
-                })
-            },
+            }
+            Expression::Binary(BinaryExpression {
+                operator,
+                left,
+                right,
+            }) => {
+                write!(
+                    f,
+                    "({left} {} {right})",
+                    match operator {
+                        BinaryOperator::StrictEqual => "==",
+                        BinaryOperator::StrictNotEqual => "!=",
+                        BinaryOperator::LessThan => "<",
+                        BinaryOperator::GreaterThan => ">",
+                        BinaryOperator::LessThanEqual => "<=",
+                        BinaryOperator::GreaterThanEqual => ">=",
+                        BinaryOperator::Plus => "+",
+                        BinaryOperator::Minus => "-",
+                        BinaryOperator::Times => "*",
+                        BinaryOperator::Over => "/",
+                        BinaryOperator::Mod => "%",
+                        BinaryOperator::In => "in",
+                        BinaryOperator::PowerOf => "^",
+                        BinaryOperator::Is => "is",
+                        BinaryOperator::Cast => "cast",
+                    }
+                )
+            }
             Expression::Identifier(id) => write!(f, "{id}"),
-            Expression::Logical(LogicalExpression{left, right, operator}) => {
-                write!(f, "({left} {} {right})", match operator {
-                    LogicalOperator::Or => "||",
-                    LogicalOperator::And => "&&",
-                })
-            },
-            Expression::Member(MemberExpression{ object, property }) => {
+            Expression::Logical(LogicalExpression {
+                left,
+                right,
+                operator,
+            }) => {
+                write!(
+                    f,
+                    "({left} {} {right})",
+                    match operator {
+                        LogicalOperator::Or => "||",
+                        LogicalOperator::And => "&&",
+                    }
+                )
+            }
+            Expression::Member(MemberExpression { object, property }) => {
                 write!(f, "{object}[{property}]")
-            },
+            }
             Expression::Object(props) => {
                 write!(f, "{{")?;
                 for prop in props {
                     match prop {
                         ObjectProperty::Single(id) => write!(f, "{id},")?,
-                        ObjectProperty::Property(Property{ key, value }) => {
+                        ObjectProperty::Property(Property { key, value }) => {
                             match key {
                                 PropertyKey::Identifier(id) => write!(f, "{id}: {value},"),
                                 PropertyKey::Expression(expr) => write!(f, "[{expr}]: {value},"),
                             }?;
-                        },
+                        }
                         ObjectProperty::Spread(expr) => write!(f, "...({expr}),")?,
                     }
                 }
                 write!(f, "}}")
-            },
-            Expression::Unary(UnaryExpression { operator, argument  }) => {
-                write!(f, "({} {argument})", match operator {
-                    UnaryOperator::Minus => "-",
-                    UnaryOperator::Plus => "+",
-                    UnaryOperator::Not => "!",
-                })
-            },
-            Expression::Call(CallExpression { function, argument  }) => {
+            }
+            Expression::Unary(UnaryExpression { operator, argument }) => {
+                write!(
+                    f,
+                    "({} {argument})",
+                    match operator {
+                        UnaryOperator::Minus => "-",
+                        UnaryOperator::Plus => "+",
+                        UnaryOperator::Not => "!",
+                    }
+                )
+            }
+            Expression::Call(CallExpression { function, argument }) => {
                 write!(f, "{function}({argument})")
-            },
+            }
             Expression::Template(StringTemplate { parts, suffix }) => {
                 write!(f, "$`")?;
                 for p in parts {
                     write!(f, "{}${{{}}}", p.fixed_start, p.dynamic_end)?;
                 }
                 write!(f, "{suffix}`")
-            },
-            
+            }
         }
     }
 }

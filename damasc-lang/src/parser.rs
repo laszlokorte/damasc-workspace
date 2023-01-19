@@ -1,7 +1,8 @@
-pub mod expression;
-pub mod pattern;
+mod util;
+
 pub mod assignment;
-pub mod value;
+pub mod expression;
 pub mod identifier;
 pub mod literal;
-mod util;
+pub mod pattern;
+pub mod value;

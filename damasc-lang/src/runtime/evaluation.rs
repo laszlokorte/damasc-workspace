@@ -1,9 +1,17 @@
 use std::{borrow::Cow, collections::BTreeMap};
 
-use crate::{syntax::expression::{Expression, BinaryExpression, LogicalExpression, MemberExpression, UnaryExpression, CallExpression, BinaryOperator, LogicalOperator, StringTemplate, ArrayItem, ObjectProperty, PropertyKey, Property, ObjectExpression, UnaryOperator}, value::{Value, ValueType}, literal::Literal, identifier::Identifier};
+use crate::{
+    identifier::Identifier,
+    literal::Literal,
+    syntax::expression::{
+        ArrayItem, BinaryExpression, BinaryOperator, CallExpression, Expression, LogicalExpression,
+        LogicalOperator, MemberExpression, ObjectExpression, ObjectProperty, Property, PropertyKey,
+        StringTemplate, UnaryExpression, UnaryOperator,
+    },
+    value::{Value, ValueType},
+};
 
 use super::env::Environment;
-
 
 #[derive(Debug)]
 pub enum EvalError {
@@ -19,14 +27,12 @@ pub enum EvalError {
 }
 
 pub struct Evaluation<'e, 'i, 's, 'v> {
-    env: &'e Environment<'i, 's, 'v>
+    env: &'e Environment<'i, 's, 'v>,
 }
 
 impl<'e, 'i, 's, 'v> Evaluation<'e, 'i, 's, 'v> {
     pub fn new(env: &'e Environment<'i, 's, 'v>) -> Self {
-        Self {
-            env
-        }
+        Self { env }
     }
 
     pub fn eval_expr<'x>(

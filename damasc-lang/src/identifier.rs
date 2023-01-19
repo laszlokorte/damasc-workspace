@@ -6,8 +6,10 @@ pub struct Identifier<'a> {
 }
 
 impl Identifier<'_> {
-    pub(crate) fn deep_clone<'x,'y>(&'x self) -> Identifier<'y> {
-        Identifier { name: Cow::Owned(self.name.as_ref().into()) }
+    pub(crate) fn deep_clone<'y>(&self) -> Identifier<'y> {
+        Identifier {
+            name: Cow::Owned(self.name.as_ref().into()),
+        }
     }
 }
 

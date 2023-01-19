@@ -1,10 +1,14 @@
 use std::borrow::Cow;
 
-use nom::{IResult, combinator::{recognize, map, value}, branch::alt, bytes::complete::{tag, take_until}, sequence::delimited};
+use nom::{
+    branch::alt,
+    bytes::complete::{tag, take_until},
+    combinator::{map, recognize, value},
+    sequence::delimited,
+    IResult,
+};
 
 use crate::{literal::Literal, value::ValueType};
-
-
 
 fn literal_null<'v>(input: &str) -> IResult<&str, Literal<'v>> {
     value(Literal::Null, tag("null"))(input)
@@ -34,7 +38,7 @@ fn literal_number<'v>(input: &str) -> IResult<&str, Literal<'v>> {
     })(input)
 }
 
-pub(crate) fn literal<'v>(input:&str) -> IResult<&str, Literal<'v>> {
+pub(crate) fn literal<'v>(input: &str) -> IResult<&str, Literal<'v>> {
     alt((
         literal_null,
         literal_string,
@@ -55,7 +59,6 @@ pub(crate) fn literal_type_raw(input: &str) -> IResult<&str, ValueType> {
         value(ValueType::String, tag("String")),
     ))(input)
 }
-
 
 fn literal_type<'v>(input: &str) -> IResult<&str, Literal<'v>> {
     map(literal_type_raw, Literal::Type)(input)

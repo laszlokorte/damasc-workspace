@@ -2,21 +2,22 @@ use std::collections::HashSet;
 
 use crate::identifier::Identifier;
 
-
 pub(crate) trait Node {
-    type InputIter<'s> : Iterator<Item = &'s Identifier<'s>> where Self: 's;
-    type OutputIter<'s> : Iterator<Item = &'s Identifier<'s>> where Self: 's;
-    fn input_identifiers<'x>(&'x self) -> Self::InputIter<'x>;
-    fn output_identifiers<'x>(&'x self) -> Self::OutputIter<'x>;
+    type InputIter<'s>: Iterator<Item = &'s Identifier<'s>>
+    where
+        Self: 's;
+    type OutputIter<'s>: Iterator<Item = &'s Identifier<'s>>
+    where
+        Self: 's;
 
+    fn input_identifiers(&self) -> Self::InputIter<'_>;
+    fn output_identifiers(&self) -> Self::OutputIter<'_>;
 }
 
 #[derive(Debug)]
 pub enum TopologyError<'s> {
     Cycle(HashSet<Identifier<'s>>),
 }
-
-
 
 impl<'s> std::fmt::Display for TopologyError<'s> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -77,14 +78,13 @@ pub(crate) fn sort_topological<'x, I: Node + Clone>(
                 .cloned()
                 .collect();
 
-            let cycle: HashSet<_> = input_ids.intersection(&output_ids).map(|i| i.deep_clone()).collect();
+            let cycle: HashSet<_> = input_ids
+                .intersection(&output_ids)
+                .map(|i| i.deep_clone())
+                .collect();
             return Err(TopologyError::Cycle(cycle));
         } else {
-            return Ok(result
-                .into_iter()
-                .map(|i| items[i].clone())
-                .collect()
-            );
+            return Ok(result.into_iter().map(|i| items[i].clone()).collect());
         }
     }
 }

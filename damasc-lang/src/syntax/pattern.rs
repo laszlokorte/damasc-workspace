@@ -1,8 +1,7 @@
-use crate::syntax::expression::PropertyKey;
 use crate::identifier::Identifier;
 use crate::literal::Literal;
+use crate::syntax::expression::PropertyKey;
 use crate::value::ValueType;
-
 
 #[derive(Clone, Debug)]
 pub enum Pattern<'s> {
@@ -80,8 +79,6 @@ impl<'a> std::fmt::Display for Pattern<'a> {
         write!(f, "")
     }
 }
-
-
 
 #[derive(Clone, Debug)]
 pub enum Rest<'s> {
