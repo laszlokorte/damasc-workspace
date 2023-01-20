@@ -1,5 +1,5 @@
 use damasc_lang::{parser::{util::ws, expression::{multi_expressions, expression}, pattern::{multi_patterns}}, syntax::{expression::{ExpressionSet, Expression}, pattern::{Pattern, PatternSet}}, literal::Literal, identifier::Identifier};
-use nom::{sequence::{delimited, separated_pair, preceded, tuple, pair}, IResult, bytes::complete::tag, combinator::{map, opt, all_consuming}};
+use nom::{sequence::{delimited, preceded, tuple, pair}, IResult, bytes::complete::tag, combinator::{map, opt, all_consuming}};
 
 use crate::{transformation::Transformation, projection::MultiProjection, predicate::{MultiPredicate}, capture::MultiCapture};
 
@@ -25,7 +25,7 @@ pub fn projection(input: &str) -> IResult<&str, MultiProjection> {
             patterns: pats.patterns.into_iter().enumerate().map(|(i, p)| Pattern::Capture(Identifier::new_owned(format!("${i}")), Box::new(p))).collect(),
         };
         let auto_projection = ExpressionSet { 
-            expressions: auto_named_pats.patterns.iter().enumerate().map(|(i, p)| Expression::Identifier(Identifier::new_owned(format!("${i}")))).collect()
+            expressions: (0..auto_named_pats.patterns.len()).map(|i| Expression::Identifier(Identifier::new_owned(format!("${i}")))).collect()
         };
         MultiProjection {
             predicate: MultiPredicate {
@@ -47,6 +47,17 @@ fn transformation(input: &str) -> IResult<&str, Transformation> {
 
 pub fn single_transformation(input: &str) -> Option<Transformation> {
     match all_consuming(transformation)(input) {
+        Ok((_,r)) => Some(r),
+        Err(e) => {
+            dbg!(e);
+            None
+        },
+    }
+}
+
+
+pub fn single_bag(input: &str) -> Option<ExpressionSet> {
+    match all_consuming(bag)(input) {
         Ok((_,r)) => Some(r),
         Err(e) => {
             dbg!(e);

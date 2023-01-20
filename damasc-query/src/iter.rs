@@ -140,7 +140,7 @@ impl<'i, 's:'v,'v,I:Iterator<Item = &'v Value<'s, 'v>>> Iterator for ProjectionI
 pub struct MultiProjectionIterator<'i, 's, 'v, It:Iterator>  {
     env: Environment<'i, 's, 'v>,
     projection: MultiProjection<'s>,
-    iter: It,
+    iter: Permutations<It>,
 }
 
 
@@ -155,16 +155,18 @@ impl<'i, 's, 'v, It:Iterator+Clone> Clone for MultiProjectionIterator<'i, 's, 'v
 }
 
 impl<'i, 's, 'v, It:Iterator> MultiProjectionIterator<'i, 's, 'v, It> {
-    pub fn new(env: Environment<'i, 's, 'v>, projection: MultiProjection<'s>, iter: It) -> Self {
+    pub fn new(env: Environment<'i, 's, 'v>, projection: MultiProjection<'s>, iter: It) -> Self where It::Item: Clone {
+        use itertools::Itertools;
+
         Self {
             env,
+            iter: iter.permutations(projection.predicate.capture.patterns.patterns.len()),
             projection,
-            iter,
         }
     }
 }
 
-impl<'i, 's:'v,'v,I:Iterator<Item = Vec<Value<'s, 'v>>>> Iterator for MultiProjectionIterator<'i, 's, 'v,I> {
+impl<'i, 's:'v,'v,I:Iterator<Item = Value<'s, 'v>>> Iterator for MultiProjectionIterator<'i, 's, 'v,I> {
     type Item = Result<Vec<Value<'s, 'v>>, ProjectionError>;
 
     fn next(&mut self) -> Option<Self::Item> {

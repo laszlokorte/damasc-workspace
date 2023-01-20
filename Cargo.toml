@@ -2,5 +2,8 @@
 
 members = [
     "damasc-lang",
-    "damasc-ui",
+    "damasc-cli",
+    "damasc-query",
+    "damasc-repl",
+    "damasc-wasm",
 ]

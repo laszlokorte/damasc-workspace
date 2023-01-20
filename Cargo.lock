@@ -3,6 +3,14 @@
 version = 3
 
 [[package]]
+name = "damasc-cli"
+version = "0.1.0"
+dependencies = [
+ "damasc-lang",
+ "damasc-query",
+]
+
+[[package]]
 name = "damasc-lang"
 version = "0.1.0"
 dependencies = [
@@ -20,12 +28,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "damasc-ui"
+name = "damasc-repl"
 version = "0.1.0"
-dependencies = [
- "damasc-lang",
- "damasc-query",
-]
+
+[[package]]
+name = "damasc-wasm"
+version = "0.1.0"
 
 [[package]]
 name = "either"

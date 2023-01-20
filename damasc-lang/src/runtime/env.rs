@@ -18,7 +18,7 @@ impl<'i, 's, 'v> Environment<'i, 's, 'v> {
 }
 
 impl Environment<'_, '_, '_> {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             bindings: BTreeMap::new(),
         }

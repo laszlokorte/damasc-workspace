@@ -30,6 +30,14 @@ pub struct Evaluation<'e, 'i, 's, 'v> {
     env: &'e Environment<'i, 's, 'v>,
 }
 
+const EMPTY_ENV : &Environment = &Environment::new();
+
+impl Default for Evaluation<'static, 'static, 'static, 'static> {
+    fn default() -> Self {
+        Self { env: EMPTY_ENV }
+    }
+}
+
 impl<'e, 'i, 's, 'v> Evaluation<'e, 'i, 's, 'v> {
     pub fn new(env: &'e Environment<'i, 's, 'v>) -> Self {
         Self { env }
