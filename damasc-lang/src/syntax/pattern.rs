@@ -80,7 +80,6 @@ impl<'a> std::fmt::Display for Pattern<'a> {
     }
 }
 
-
 #[derive(Clone, Debug)]
 pub struct PatternSet<'s> {
     pub patterns: Vec<Pattern<'s>>,

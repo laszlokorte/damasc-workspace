@@ -1,17 +1,17 @@
 use std::{borrow::Cow, collections::BTreeMap};
 
+use super::env::Environment;
+use crate::value::Value;
+use crate::value::ValueType;
 use crate::{
     identifier::Identifier,
     literal::Literal,
-    syntax::{expression::{
+    syntax::expression::{
         ArrayItem, BinaryExpression, BinaryOperator, CallExpression, Expression, LogicalExpression,
         LogicalOperator, MemberExpression, ObjectExpression, ObjectProperty, Property, PropertyKey,
         StringTemplate, UnaryExpression, UnaryOperator,
-    }},
+    },
 };
-use crate::value::Value;
-use crate::value::ValueType;
-use super::env::Environment;
 
 #[derive(Debug)]
 pub enum EvalError {
@@ -30,7 +30,7 @@ pub struct Evaluation<'e, 'i, 's, 'v> {
     env: &'e Environment<'i, 's, 'v>,
 }
 
-const EMPTY_ENV : &Environment = &Environment::new();
+const EMPTY_ENV: &Environment = &Environment::new();
 
 impl Default for Evaluation<'static, 'static, 'static, 'static> {
     fn default() -> Self {
@@ -472,6 +472,4 @@ impl<'e, 'i, 's, 'v> Evaluation<'e, 'i, 's, 'v> {
 
         return Ok(Value::String(Cow::Owned(joined.join(""))));
     }
-
-    
 }

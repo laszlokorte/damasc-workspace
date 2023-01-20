@@ -16,10 +16,10 @@ pub struct ValueBag<'s, 'v> {
     pub values: Vec<Value<'s, 'v>>,
 }
 
-impl std::fmt::Display for ValueBag<'_,'_> {
+impl std::fmt::Display for ValueBag<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for v in &self.values {
-            writeln!(f,"{v};")?;
+            writeln!(f, "{v};")?;
         }
         Ok(())
     }

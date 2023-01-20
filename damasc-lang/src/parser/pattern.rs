@@ -1,15 +1,18 @@
 use nom::{
     branch::alt,
     bytes::complete::tag,
+    character::complete::space0,
     combinator::{all_consuming, map, opt, value},
     multi::{separated_list0, separated_list1},
     sequence::{delimited, preceded, separated_pair, tuple},
-    IResult, character::complete::space0,
+    IResult,
 };
 
 use crate::syntax::{
     expression::PropertyKey,
-    pattern::{ArrayPatternItem, ObjectPropertyPattern, Pattern, PropertyPattern, Rest, PatternSet},
+    pattern::{
+        ArrayPatternItem, ObjectPropertyPattern, Pattern, PatternSet, PropertyPattern, Rest,
+    },
 };
 
 use super::{
@@ -146,7 +149,6 @@ pub fn full_pattern<'v>(input: &str) -> Option<Pattern<'v>> {
         Err(_) => None,
     }
 }
-
 
 pub fn multi_patterns<'v>(input: &str) -> IResult<&str, PatternSet<'v>> {
     delimited(

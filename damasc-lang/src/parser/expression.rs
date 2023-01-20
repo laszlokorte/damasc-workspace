@@ -3,8 +3,8 @@ use std::borrow::Cow;
 use nom::{
     branch::alt,
     bytes::complete::{is_not, tag, take_until},
-    character::complete::{space0, alpha1},
-    combinator::{all_consuming, map, opt, recognize, value, not, peek},
+    character::complete::{alpha1, space0},
+    combinator::{all_consuming, map, not, opt, peek, recognize, value},
     multi::{fold_many0, many0, separated_list0, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     IResult,
@@ -28,7 +28,7 @@ use super::{
 
 pub fn single_expression<'v>(input: &str) -> Option<Expression<'v>> {
     match all_consuming(expression)(input) {
-        Ok((_,r)) => Some(r),
+        Ok((_, r)) => Some(r),
         Err(_) => None,
     }
 }

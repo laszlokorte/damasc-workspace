@@ -7,10 +7,12 @@ use crate::{
     identifier::Identifier,
     literal::Literal,
     syntax::{
+        assignment::{Assignment, AssignmentSet},
         expression::PropertyKey,
-        pattern::{ArrayPatternItem, ObjectPropertyPattern, Pattern, PropertyPattern, Rest}, assignment::{AssignmentSet, Assignment},
+        pattern::{ArrayPatternItem, ObjectPropertyPattern, Pattern, PropertyPattern, Rest},
     },
-    value::{Value, ValueObjectMap}, topology::TopologyError,
+    topology::TopologyError,
+    value::{Value, ValueObjectMap},
 };
 
 use super::{env::Environment, evaluation::Evaluation};
@@ -220,14 +222,23 @@ impl<'i, 's, 'v, 'e> Matcher<'i, 's, 'v, 'e> {
         }
     }
 
-    pub fn eval_assigment_set<'a:'s,'b>(&self, assignments: AssignmentSet<'a,'b>) -> Result<Environment<'i, 's, 'v>, AssignmentError> {
+    pub fn eval_assigment_set<'a: 's, 'b>(
+        &self,
+        assignments: AssignmentSet<'a, 'b>,
+    ) -> Result<Environment<'i, 's, 'v>, AssignmentError> {
         match assignments.sort_topological(self.outer_env.identifiers()) {
             Ok(sorted_set) => {
                 let mut local_env = self.outer_env.clone();
-                local_env.bindings.append(&mut &mut self.local_env.bindings.clone());
+                local_env
+                    .bindings
+                    .append(&mut self.local_env.bindings.clone());
                 let mut collected_env = Environment::default();
 
-                for Assignment{ pattern, expression } in sorted_set.assignments {
+                for Assignment {
+                    pattern,
+                    expression,
+                } in sorted_set.assignments
+                {
                     let mut matcher = Matcher::new(&local_env);
                     let evaluation = Evaluation::new(&local_env);
                     let Ok(value) = evaluation.eval_expr(&expression) else {
@@ -235,18 +246,18 @@ impl<'i, 's, 'v, 'e> Matcher<'i, 's, 'v, 'e> {
                     };
                     match matcher.match_pattern(&pattern, &value) {
                         Ok(()) => {
-                            collected_env.bindings.append(&mut matcher.local_env.bindings.clone());
+                            collected_env
+                                .bindings
+                                .append(&mut matcher.local_env.bindings.clone());
                             local_env = matcher.into_env();
-                        },
+                        }
                         Err(_) => return Err(AssignmentError::MatchError),
                     }
                 }
 
                 Ok(collected_env)
-            },
-            Err(TopologyError::Cycle(c)) => {
-                Err(AssignmentError::TopologyError)
-            },
+            }
+            Err(TopologyError::Cycle(_c)) => Err(AssignmentError::TopologyError),
         }
     }
 }

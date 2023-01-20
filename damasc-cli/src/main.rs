@@ -1,8 +1,10 @@
-use damasc_repl::{state::{State, ReplOutput}, parser};
-use rustyline::{Editor, error::ReadlineError};
+use damasc_repl::{
+    parser,
+    state::{ReplOutput, State},
+};
+use rustyline::{error::ReadlineError, Editor};
 
-const HISTORY_FILE : &str = "history.txt";
-
+const HISTORY_FILE: &str = "history.txt";
 
 fn main() -> rustyline::Result<()> {
     let mut repl = State::default();
@@ -28,7 +30,7 @@ fn main() -> rustyline::Result<()> {
                     Ok(ReplOutput::Values(v)) => println!("{v}"),
                     Ok(ReplOutput::Bindings(e)) => {
                         println!("{e}")
-                    },
+                    }
                     Ok(ReplOutput::Write(_)) => println!("Write"),
                     Err(_) => eprintln!("ERR"),
                 }

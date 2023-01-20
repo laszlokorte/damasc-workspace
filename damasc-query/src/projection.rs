@@ -1,23 +1,22 @@
 use damasc_lang::identifier::Identifier;
 use damasc_lang::literal::Literal;
+use damasc_lang::runtime::env::Environment;
+use damasc_lang::runtime::evaluation::Evaluation;
 use damasc_lang::syntax::expression::Expression;
 use damasc_lang::syntax::expression::ExpressionSet;
 use damasc_lang::syntax::pattern::Pattern;
 use damasc_lang::syntax::pattern::PatternSet;
 use damasc_lang::value::Value;
-use damasc_lang::runtime::env::Environment;
-use damasc_lang::runtime::evaluation::Evaluation;
 
 use crate::capture::MultiCapture;
 use crate::predicate::MultiPredicate;
 use crate::predicate::Predicate;
 use crate::predicate::PredicateError;
 
-
 #[derive(Debug)]
 pub enum ProjectionError {
     PredicateError(PredicateError),
-    EvalError
+    EvalError,
 }
 
 #[derive(Clone, Debug)]
@@ -27,11 +26,19 @@ pub struct Projection<'s> {
 }
 
 impl<'s> Projection<'s> {
-    pub fn apply<'v,'i,'e>(&self, env: &Environment<'i, 's, 'v>, value: &'v Value<'s, 'v>) -> Result<Option<Value<'s, 'v>>, ProjectionError> {
+    pub fn apply<'v, 'i, 'e>(
+        &self,
+        env: &Environment<'i, 's, 'v>,
+        value: &'v Value<'s, 'v>,
+    ) -> Result<Option<Value<'s, 'v>>, ProjectionError> {
         let env = match self.predicate.capture.apply(env, value) {
             Ok(Some(env)) => env,
             Ok(None) => return Ok(None),
-            Err(_e) => return Err(ProjectionError::PredicateError(PredicateError::PatternError)),
+            Err(_e) => {
+                return Err(ProjectionError::PredicateError(
+                    PredicateError::PatternError,
+                ))
+            }
         };
 
         let evaluation = Evaluation::new(&env);
@@ -43,17 +50,13 @@ impl<'s> Projection<'s> {
                         return Err(ProjectionError::EvalError);
                     };
 
-                    return Ok(Some(result));
+                    Ok(Some(result))
                 } else {
                     Ok(None)
                 }
-            },
-            Ok(_) => {
-                Err(ProjectionError::PredicateError(PredicateError::GuardError))
             }
-            Err(_) => {
-                Err(ProjectionError::PredicateError(PredicateError::GuardError))
-            },
+            Ok(_) => Err(ProjectionError::PredicateError(PredicateError::GuardError)),
+            Err(_) => Err(ProjectionError::PredicateError(PredicateError::GuardError)),
         }
     }
 }
@@ -66,28 +69,36 @@ pub struct MultiProjection<'s> {
 
 impl Default for MultiProjection<'_> {
     fn default() -> Self {
-        Self { 
-            predicate: MultiPredicate { 
+        Self {
+            predicate: MultiPredicate {
                 capture: MultiCapture {
                     patterns: PatternSet {
-                        patterns: vec![Pattern::Identifier(Identifier::new("$$"))]
+                        patterns: vec![Pattern::Identifier(Identifier::new("$$"))],
                     },
-                }, 
-                guard: Expression::Literal(Literal::Boolean(true)) 
-            }, 
+                },
+                guard: Expression::Literal(Literal::Boolean(true)),
+            },
             projections: ExpressionSet {
-                expressions: vec![Expression::Identifier(Identifier::new("$$"))]
-            } 
+                expressions: vec![Expression::Identifier(Identifier::new("$$"))],
+            },
         }
     }
 }
 
 impl<'s> MultiProjection<'s> {
-    pub fn apply<'v:'x,'i,'e,'x>(&self, env: &Environment<'i, 's, 'v>, values: impl Iterator<Item=&'x Value<'s, 'v>>) -> Result<Option<Vec<Value<'s, 'v>>>, ProjectionError> {
-        let env = match self.predicate.capture.apply(&env, values) {
+    pub fn apply<'v: 'x, 'i, 'e, 'x>(
+        &self,
+        env: &Environment<'i, 's, 'v>,
+        values: impl Iterator<Item = &'x Value<'s, 'v>>,
+    ) -> Result<Option<Vec<Value<'s, 'v>>>, ProjectionError> {
+        let env = match self.predicate.capture.apply(env, values) {
             Ok(Some(e)) => e,
             Ok(None) => return Ok(None),
-            Err(_e) => return Err(ProjectionError::PredicateError(PredicateError::PatternError)),
+            Err(_e) => {
+                return Err(ProjectionError::PredicateError(
+                    PredicateError::PatternError,
+                ))
+            }
         };
 
         let evaluation = Evaluation::new(&env);
@@ -95,21 +106,22 @@ impl<'s> MultiProjection<'s> {
         match evaluation.eval_expr(&self.predicate.guard) {
             Ok(Value::Boolean(b)) => {
                 if b {
-                    self.projections.expressions.iter().map(|p| {
-                        evaluation.eval_expr(&p).map_err(|_| ProjectionError::EvalError)
-                    }).collect::<Result<Vec<Value>, ProjectionError>>().map(Some)
+                    self.projections
+                        .expressions
+                        .iter()
+                        .map(|p| {
+                            evaluation
+                                .eval_expr(p)
+                                .map_err(|_| ProjectionError::EvalError)
+                        })
+                        .collect::<Result<Vec<Value>, ProjectionError>>()
+                        .map(Some)
                 } else {
-                    return Ok(None)
+                    Ok(None)
                 }
-            },
-            Ok(_) => {
-                Err(ProjectionError::PredicateError(PredicateError::GuardError))
             }
-            Err(_) => {
-                Err(ProjectionError::PredicateError(PredicateError::GuardError))
-            },
+            Ok(_) => Err(ProjectionError::PredicateError(PredicateError::GuardError)),
+            Err(_) => Err(ProjectionError::PredicateError(PredicateError::GuardError)),
         }
     }
 }
-
-

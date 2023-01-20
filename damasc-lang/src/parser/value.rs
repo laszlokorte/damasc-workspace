@@ -17,7 +17,7 @@ use nom::{
 
 pub fn single_value<'v>(input: &str) -> Option<Value<'_, 'v>> {
     match all_consuming(value_literal)(input) {
-        Ok((_,r)) => Some(r),
+        Ok((_, r)) => Some(r),
         Err(_) => None,
     }
 }
@@ -29,8 +29,9 @@ pub fn value_bag<'v>(input: &str) -> Option<ValueBag<'_, 'v>> {
             ValueBag::new(values)
         }),
         alt((ws(tag(";")), space0)),
-    ))(input) {
-        Ok((_,r)) => Some(r),
+    ))(input)
+    {
+        Ok((_, r)) => Some(r),
         Err(_) => None,
     }
 }

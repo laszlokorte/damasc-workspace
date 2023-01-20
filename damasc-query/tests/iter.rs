@@ -1,12 +1,19 @@
 #![feature(assert_matches)]
 
-use damasc_lang::{parser::{value::value_bag, pattern::full_pattern, expression::single_expression}, runtime::env::Environment, value::Value};
-use damasc_query::{predicate::{Predicate, PredicateError}, projection::ProjectionError, capture::Capture};
+use damasc_lang::{
+    parser::{expression::single_expression, pattern::full_pattern, value::value_bag},
+    runtime::env::Environment,
+    value::Value,
+};
+use damasc_query::iter::PredicateIterator;
 use damasc_query::iter::ProjectionIterator;
 use damasc_query::projection::Projection;
-use damasc_query::iter::PredicateIterator;
+use damasc_query::{
+    capture::Capture,
+    predicate::{Predicate, PredicateError},
+    projection::ProjectionError,
+};
 use std::assert_matches::assert_matches;
-
 
 #[test]
 fn test_predicate_iteration() {
@@ -23,7 +30,7 @@ fn test_predicate_iteration() {
 
     let pred = Predicate {
         capture: Capture { pattern },
-        guard
+        guard,
     };
 
     let iter = bag.values.iter();
@@ -37,7 +44,6 @@ fn test_predicate_iteration() {
 
     assert_eq!(bag.values.len(), 17);
     assert_eq!(pred_iter.count(), 4);
-
 }
 
 #[test]
@@ -58,7 +64,7 @@ fn test_projection_constant_iteration() {
 
     let predicate = Predicate {
         capture: Capture { pattern },
-        guard
+        guard,
     };
 
     let projection = Projection {
@@ -77,9 +83,7 @@ fn test_projection_constant_iteration() {
 
     assert_eq!(bag.values.len(), 17);
     assert_eq!(pred_iter.count(), 4);
-
 }
-
 
 #[test]
 fn test_projection_dynamic_iteration() {
@@ -99,7 +103,7 @@ fn test_projection_dynamic_iteration() {
 
     let predicate = Predicate {
         capture: Capture { pattern },
-        guard
+        guard,
     };
 
     let projection = Projection {
@@ -118,9 +122,7 @@ fn test_projection_dynamic_iteration() {
 
     assert_eq!(bag.values.len(), 17);
     assert_eq!(pred_iter.count(), 3);
-
 }
-
 
 #[test]
 fn test_projection_eval_error_iteration() {
@@ -140,7 +142,7 @@ fn test_projection_eval_error_iteration() {
 
     let predicate = Predicate {
         capture: Capture { pattern },
-        guard
+        guard,
     };
 
     let projection = Projection {
@@ -159,9 +161,7 @@ fn test_projection_eval_error_iteration() {
 
     assert_eq!(bag.values.len(), 17);
     assert_eq!(pred_iter.count(), 4);
-
 }
-
 
 #[test]
 fn test_projection_guard_error_iteration() {
@@ -181,7 +181,7 @@ fn test_projection_guard_error_iteration() {
 
     let predicate = Predicate {
         capture: Capture { pattern },
-        guard
+        guard,
     };
 
     let projection = Projection {
@@ -195,14 +195,15 @@ fn test_projection_guard_error_iteration() {
     let pred_iter = ProjectionIterator::new(env, projection, iter);
 
     for v in pred_iter.clone() {
-        assert_matches!(v, Err(ProjectionError::PredicateError(PredicateError::GuardError)));
+        assert_matches!(
+            v,
+            Err(ProjectionError::PredicateError(PredicateError::GuardError))
+        );
     }
 
     assert_eq!(bag.values.len(), 17);
     assert_eq!(pred_iter.count(), 4);
-
 }
-
 
 #[test]
 fn test_projection_pattern_error_iteration() {
@@ -222,7 +223,7 @@ fn test_projection_pattern_error_iteration() {
 
     let predicate = Predicate {
         capture: Capture { pattern },
-        guard
+        guard,
     };
 
     let projection = Projection {
@@ -236,10 +237,14 @@ fn test_projection_pattern_error_iteration() {
     let pred_iter = ProjectionIterator::new(env, projection, iter);
 
     for v in pred_iter.clone() {
-        assert_matches!(v, Err(ProjectionError::PredicateError(PredicateError::PatternError)));
+        assert_matches!(
+            v,
+            Err(ProjectionError::PredicateError(
+                PredicateError::PatternError
+            ))
+        );
     }
 
     assert_eq!(bag.values.len(), 17);
     assert_eq!(pred_iter.count(), 1);
-
 }

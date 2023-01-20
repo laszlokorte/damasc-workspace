@@ -1,27 +1,31 @@
-use damasc_lang::value::Value;
 use damasc_lang::runtime::env::Environment;
+use damasc_lang::value::Value;
 use itertools::Permutations;
 
+use crate::predicate::MultiPredicate;
+use crate::predicate::Predicate;
 use crate::predicate::PredicateError;
 use crate::projection::MultiProjection;
 use crate::projection::Projection;
-use crate::predicate::Predicate;
-use crate::predicate::MultiPredicate;
 use crate::projection::ProjectionError;
 
-pub struct PredicateIterator<'i, 's, 'v, It:Iterator>  {
+pub struct PredicateIterator<'i, 's, 'v, It: Iterator> {
     env: Environment<'i, 's, 'v>,
     predicate: Predicate<'s>,
     iter: It,
 }
 
-impl<'i, 's, 'v, It:Iterator+Clone> Clone for PredicateIterator<'i, 's, 'v, It> {
+impl<'i, 's, 'v, It: Iterator + Clone> Clone for PredicateIterator<'i, 's, 'v, It> {
     fn clone(&self) -> Self {
-        Self { env: self.env.clone(), predicate: self.predicate.clone(), iter: self.iter.clone() }
+        Self {
+            env: self.env.clone(),
+            predicate: self.predicate.clone(),
+            iter: self.iter.clone(),
+        }
     }
 }
 
-impl<'i, 's, 'v, It:Iterator> PredicateIterator<'i, 's, 'v, It> {
+impl<'i, 's, 'v, It: Iterator> PredicateIterator<'i, 's, 'v, It> {
     pub fn new(env: Environment<'i, 's, 'v>, predicate: Predicate<'s>, iter: It) -> Self {
         Self {
             env,
@@ -31,7 +35,9 @@ impl<'i, 's, 'v, It:Iterator> PredicateIterator<'i, 's, 'v, It> {
     }
 }
 
-impl<'i, 's:'v,'v,I:Iterator<Item = &'v Value<'s, 'v>>> Iterator for PredicateIterator<'i, 's, 'v,I> {
+impl<'i, 's: 'v, 'v, I: Iterator<Item = &'v Value<'s, 'v>>> Iterator
+    for PredicateIterator<'i, 's, 'v, I>
+{
     type Item = Result<&'v Value<'s, 'v>, PredicateError>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -39,30 +45,37 @@ impl<'i, 's:'v,'v,I:Iterator<Item = &'v Value<'s, 'v>>> Iterator for PredicateIt
             return None;
         };
 
-        
         match self.predicate.apply(&self.env, item) {
-            Ok(true) => Some(Ok(&item)),
+            Ok(true) => Some(Ok(item)),
             Ok(false) => self.next(),
             Err(e) => Some(Err(e)),
         }
-        
     }
 }
 
-
-pub struct MultiPredicateIterator<'i, 's, 'v, It:Iterator>  {
+pub struct MultiPredicateIterator<'i, 's, 'v, It: Iterator> {
     env: Environment<'i, 's, 'v>,
     predicate: MultiPredicate<'s>,
     iter: Permutations<It>,
 }
 
-impl<'i, 's, 'v, It:Iterator+Clone> Clone for MultiPredicateIterator<'i, 's, 'v, It> where It::Item:Clone {
+impl<'i, 's, 'v, It: Iterator + Clone> Clone for MultiPredicateIterator<'i, 's, 'v, It>
+where
+    It::Item: Clone,
+{
     fn clone(&self) -> Self {
-        Self { env: self.env.clone(), predicate: self.predicate.clone(), iter: self.iter.clone() }
+        Self {
+            env: self.env.clone(),
+            predicate: self.predicate.clone(),
+            iter: self.iter.clone(),
+        }
     }
 }
 
-impl<'i, 's, 'v, It:Iterator> MultiPredicateIterator<'i, 's, 'v, It> where It::Item: Clone {
+impl<'i, 's, 'v, It: Iterator> MultiPredicateIterator<'i, 's, 'v, It>
+where
+    It::Item: Clone,
+{
     pub fn new(env: Environment<'i, 's, 'v>, predicate: MultiPredicate<'s>, iter: It) -> Self {
         use itertools::Itertools;
 
@@ -74,7 +87,9 @@ impl<'i, 's, 'v, It:Iterator> MultiPredicateIterator<'i, 's, 'v, It> where It::I
     }
 }
 
-impl<'i, 's:'v,'v,I:Iterator<Item = Value<'s, 'v>>> Iterator for MultiPredicateIterator<'i, 's, 'v,I> {
+impl<'i, 's: 'v, 'v, I: Iterator<Item = Value<'s, 'v>>> Iterator
+    for MultiPredicateIterator<'i, 's, 'v, I>
+{
     type Item = Result<Vec<Value<'s, 'v>>, PredicateError>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -90,27 +105,26 @@ impl<'i, 's:'v,'v,I:Iterator<Item = Value<'s, 'v>>> Iterator for MultiPredicateI
     }
 }
 
-
-
-
-
-pub struct ProjectionIterator<'i, 's, 'v, It:Iterator>  {
+pub struct ProjectionIterator<'i, 's, 'v, It: Iterator> {
     env: Environment<'i, 's, 'v>,
     projection: Projection<'s>,
     iter: It,
 }
 
-impl<'i, 's, 'v, It:Iterator+Clone> Clone for ProjectionIterator<'i, 's, 'v, It> where It::Item:Clone {
+impl<'i, 's, 'v, It: Iterator + Clone> Clone for ProjectionIterator<'i, 's, 'v, It>
+where
+    It::Item: Clone,
+{
     fn clone(&self) -> Self {
-        Self { 
-            env: self.env.clone(), 
-            projection: self.projection.clone(), 
-            iter: self.iter.clone() 
+        Self {
+            env: self.env.clone(),
+            projection: self.projection.clone(),
+            iter: self.iter.clone(),
         }
     }
 }
 
-impl<'i, 's, 'v, It:Iterator> ProjectionIterator<'i, 's, 'v, It> {
+impl<'i, 's, 'v, It: Iterator> ProjectionIterator<'i, 's, 'v, It> {
     pub fn new(env: Environment<'i, 's, 'v>, projection: Projection<'s>, iter: It) -> Self {
         Self {
             env,
@@ -120,7 +134,9 @@ impl<'i, 's, 'v, It:Iterator> ProjectionIterator<'i, 's, 'v, It> {
     }
 }
 
-impl<'i, 's:'v,'v,I:Iterator<Item = &'v Value<'s, 'v>>> Iterator for ProjectionIterator<'i, 's, 'v,I> {
+impl<'i, 's: 'v, 'v, I: Iterator<Item = &'v Value<'s, 'v>>> Iterator
+    for ProjectionIterator<'i, 's, 'v, I>
+{
     type Item = Result<Value<'s, 'v>, ProjectionError>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -136,26 +152,30 @@ impl<'i, 's:'v,'v,I:Iterator<Item = &'v Value<'s, 'v>>> Iterator for ProjectionI
     }
 }
 
-
-pub struct MultiProjectionIterator<'i, 's, 'v, It:Iterator>  {
+pub struct MultiProjectionIterator<'i, 's, 'v, It: Iterator> {
     env: Environment<'i, 's, 'v>,
     projection: MultiProjection<'s>,
     iter: Permutations<It>,
 }
 
-
-impl<'i, 's, 'v, It:Iterator+Clone> Clone for MultiProjectionIterator<'i, 's, 'v, It> where It::Item:Clone {
+impl<'i, 's, 'v, It: Iterator + Clone> Clone for MultiProjectionIterator<'i, 's, 'v, It>
+where
+    It::Item: Clone,
+{
     fn clone(&self) -> Self {
-        Self { 
-            env: self.env.clone(), 
-            projection: self.projection.clone(), 
-            iter: self.iter.clone() 
+        Self {
+            env: self.env.clone(),
+            projection: self.projection.clone(),
+            iter: self.iter.clone(),
         }
     }
 }
 
-impl<'i, 's, 'v, It:Iterator> MultiProjectionIterator<'i, 's, 'v, It> {
-    pub fn new(env: Environment<'i, 's, 'v>, projection: MultiProjection<'s>, iter: It) -> Self where It::Item: Clone {
+impl<'i, 's, 'v, It: Iterator> MultiProjectionIterator<'i, 's, 'v, It> {
+    pub fn new(env: Environment<'i, 's, 'v>, projection: MultiProjection<'s>, iter: It) -> Self
+    where
+        It::Item: Clone,
+    {
         use itertools::Itertools;
 
         Self {
@@ -166,7 +186,9 @@ impl<'i, 's, 'v, It:Iterator> MultiProjectionIterator<'i, 's, 'v, It> {
     }
 }
 
-impl<'i, 's:'v,'v,I:Iterator<Item = Value<'s, 'v>>> Iterator for MultiProjectionIterator<'i, 's, 'v,I> {
+impl<'i, 's: 'v, 'v, I: Iterator<Item = Value<'s, 'v>>> Iterator
+    for MultiProjectionIterator<'i, 's, 'v, I>
+{
     type Item = Result<Vec<Value<'s, 'v>>, ProjectionError>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -182,27 +204,26 @@ impl<'i, 's:'v,'v,I:Iterator<Item = Value<'s, 'v>>> Iterator for MultiProjection
     }
 }
 
-
-
-
-pub struct IndexedPredicateIterator<'i, 's, 'v, It:Iterator>  {
+pub struct IndexedPredicateIterator<'i, 's, 'v, It: Iterator> {
     env: Environment<'i, 's, 'v>,
     predicate: Predicate<'s>,
     iter: It,
 }
 
-
-impl<'i, 's, 'v, It:Iterator+Clone> Clone for IndexedPredicateIterator<'i, 's, 'v, It> where It::Item:Clone {
+impl<'i, 's, 'v, It: Iterator + Clone> Clone for IndexedPredicateIterator<'i, 's, 'v, It>
+where
+    It::Item: Clone,
+{
     fn clone(&self) -> Self {
-        Self { 
-            env: self.env.clone(), 
-            predicate: self.predicate.clone(), 
-            iter: self.iter.clone() 
+        Self {
+            env: self.env.clone(),
+            predicate: self.predicate.clone(),
+            iter: self.iter.clone(),
         }
     }
 }
 
-impl<'i, 's, 'v, It:Iterator> IndexedPredicateIterator<'i, 's, 'v, It> {
+impl<'i, 's, 'v, It: Iterator> IndexedPredicateIterator<'i, 's, 'v, It> {
     pub fn new(env: Environment<'i, 's, 'v>, predicate: Predicate<'s>, iter: It) -> Self {
         Self {
             env,
@@ -212,21 +233,20 @@ impl<'i, 's, 'v, It:Iterator> IndexedPredicateIterator<'i, 's, 'v, It> {
     }
 }
 
-impl<'i, 's:'v,'v,I:Iterator<Item = (usize, &'v Value<'s, 'v>)>> Iterator for IndexedPredicateIterator<'i, 's, 'v,I> {
-    type Item = Result<(usize,  &'v Value<'s, 'v>), (usize, PredicateError)>;
+impl<'i, 's: 'v, 'v, I: Iterator<Item = (usize, &'v Value<'s, 'v>)>> Iterator
+    for IndexedPredicateIterator<'i, 's, 'v, I>
+{
+    type Item = Result<(usize, &'v Value<'s, 'v>), (usize, PredicateError)>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let Some((index, item)) = self.iter.next() else {
             return None;
         };
 
-        
         match self.predicate.apply(&self.env, item) {
-            Ok(true) => Some(Ok((index, &item))),
+            Ok(true) => Some(Ok((index, item))),
             Ok(false) => self.next(),
             Err(e) => Some(Err((index, e))),
         }
     }
 }
-
-
