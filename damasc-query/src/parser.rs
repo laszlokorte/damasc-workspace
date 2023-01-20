@@ -4,7 +4,7 @@ use nom::{sequence::{delimited, preceded, tuple, pair}, IResult, bytes::complete
 use crate::{transformation::Transformation, projection::MultiProjection, predicate::{MultiPredicate}, capture::MultiCapture};
 
 
-pub fn bag(input: &str) -> IResult<&str, ExpressionSet> {
+pub fn bag<'s>(input: &str) -> IResult<&str, ExpressionSet<'s>> {
     delimited(
         ws(tag(r"{")), 
         multi_expressions, 
@@ -20,7 +20,7 @@ pub fn bag_allow_empty(input: &str) -> IResult<&str, ExpressionSet> {
     )(input)
 }
 
-pub fn projection(input: &str) -> IResult<&str, MultiProjection> {
+pub fn projection<'s>(input: &str) -> IResult<&str, MultiProjection<'s>> {
     map(preceded(ws(tag("|>")), tuple((
         opt(preceded(ws(tag("map")), ws(multi_patterns))),
         opt(preceded(ws(tag("where")), ws(expression))),
@@ -45,7 +45,7 @@ pub fn projection(input: &str) -> IResult<&str, MultiProjection> {
     })(input)
 }
 
-pub fn transformation(input: &str) -> IResult<&str, Transformation> {
+pub fn transformation<'a,'b>(input: &str) -> IResult<&str, Transformation<'a,'b>> {
     all_consuming(map(pair(
         bag, opt(projection))
     , |(bag, projection)| Transformation {
@@ -53,7 +53,7 @@ pub fn transformation(input: &str) -> IResult<&str, Transformation> {
     }))(input)
 }
 
-pub fn single_transformation(input: &str) -> Option<Transformation> {
+pub fn single_transformation<'a,'b>(input: &str) -> Option<Transformation<'a,'b>> {
     match all_consuming(transformation)(input) {
         Ok((_,r)) => Some(r),
         Err(e) => {

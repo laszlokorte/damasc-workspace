@@ -1,4 +1,4 @@
-use damasc_repl::state::{State, ReplOutput};
+use damasc_repl::{state::{State, ReplOutput}, parser};
 use rustyline::{Editor, error::ReadlineError};
 
 const HISTORY_FILE : &str = "history.txt";
@@ -17,12 +17,18 @@ fn main() -> rustyline::Result<()> {
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
+                let Some(cmd) = parser::full_command(&line) else {
+                    eprintln!("Parse error");
+                    continue;
+                };
 
-                match repl.eval(&line) {
+                match repl.eval(cmd) {
                     Ok(ReplOutput::Ok) => println!("Ok"),
                     Ok(ReplOutput::Exit) => break,
                     Ok(ReplOutput::Values(v)) => println!("{v}"),
-                    Ok(ReplOutput::Bindings(_)) => println!("Bindings"),
+                    Ok(ReplOutput::Bindings(e)) => {
+                        println!("{e}")
+                    },
                     Ok(ReplOutput::Write(_)) => println!("Write"),
                     Err(_) => eprintln!("ERR"),
                 }

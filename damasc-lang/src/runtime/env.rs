@@ -25,6 +25,15 @@ impl Environment<'_, '_, '_> {
     }
 }
 
+impl std::fmt::Display for Environment<'_, '_, '_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (id, v) in &self.bindings {
+            writeln!(f,"{id} = {v};")?;
+        }
+        Ok(())
+    }
+}
+
 impl Default for Environment<'_, '_, '_> {
     fn default() -> Self {
         Self::new()

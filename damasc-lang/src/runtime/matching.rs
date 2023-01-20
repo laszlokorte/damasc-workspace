@@ -8,9 +8,9 @@ use crate::{
     literal::Literal,
     syntax::{
         expression::PropertyKey,
-        pattern::{ArrayPatternItem, ObjectPropertyPattern, Pattern, PropertyPattern, Rest},
+        pattern::{ArrayPatternItem, ObjectPropertyPattern, Pattern, PropertyPattern, Rest}, assignment::{AssignmentSet, Assignment},
     },
-    value::{Value, ValueObjectMap},
+    value::{Value, ValueObjectMap}, topology::TopologyError,
 };
 
 use super::{env::Environment, evaluation::Evaluation};
@@ -219,4 +219,40 @@ impl<'i, 's, 'v, 'e> Matcher<'i, 's, 'v, 'e> {
             local_env: Environment::new(),
         }
     }
+
+    pub fn eval_assigment_set<'a:'s,'b>(&self, assignments: AssignmentSet<'a,'b>) -> Result<Environment<'i, 's, 'v>, AssignmentError> {
+        match assignments.sort_topological(self.outer_env.identifiers()) {
+            Ok(sorted_set) => {
+                let mut local_env = self.outer_env.clone();
+                local_env.bindings.append(&mut &mut self.local_env.bindings.clone());
+                let mut collected_env = Environment::default();
+
+                for Assignment{ pattern, expression } in sorted_set.assignments {
+                    let mut matcher = Matcher::new(&local_env);
+                    let evaluation = Evaluation::new(&local_env);
+                    let Ok(value) = evaluation.eval_expr(&expression) else {
+                        return Err(AssignmentError::EvalError);
+                    };
+                    match matcher.match_pattern(&pattern, &value) {
+                        Ok(()) => {
+                            collected_env.bindings.append(&mut matcher.local_env.bindings.clone());
+                            local_env = matcher.into_env();
+                        },
+                        Err(_) => return Err(AssignmentError::MatchError),
+                    }
+                }
+
+                Ok(collected_env)
+            },
+            Err(TopologyError::Cycle(c)) => {
+                Err(AssignmentError::TopologyError)
+            },
+        }
+    }
+}
+
+pub enum AssignmentError {
+    TopologyError,
+    EvalError,
+    MatchError,
 }

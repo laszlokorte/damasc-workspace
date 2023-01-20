@@ -13,7 +13,7 @@ use nom::{
 use crate::identifier::Identifier;
 
 fn no_keyword(input: &str) -> bool {
-    !matches!(input, "where" | "into" | "limit")
+    !matches!(input, "where" | "into" | "limit" | "with")
 }
 
 fn identifier_name(input: &str) -> IResult<&str, &str> {
