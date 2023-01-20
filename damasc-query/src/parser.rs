@@ -1,4 +1,4 @@
-use damasc_lang::{parser::{util::ws, expression::{multi_expressions, expression}, pattern::{multi_patterns}}, syntax::{expression::{ExpressionSet, Expression}, pattern::{Pattern, PatternSet}}, literal::Literal, identifier::Identifier};
+use damasc_lang::{parser::{util::ws, expression::{multi_expressions, expression, multi0_expressions}, pattern::{multi_patterns}}, syntax::{expression::{ExpressionSet, Expression}, pattern::{Pattern, PatternSet}}, literal::Literal, identifier::Identifier};
 use nom::{sequence::{delimited, preceded, tuple, pair}, IResult, bytes::complete::tag, combinator::{map, opt, all_consuming}};
 
 use crate::{transformation::Transformation, projection::MultiProjection, predicate::{MultiPredicate}, capture::MultiCapture};
@@ -8,6 +8,14 @@ pub fn bag(input: &str) -> IResult<&str, ExpressionSet> {
     delimited(
         ws(tag(r"{")), 
         multi_expressions, 
+        ws(tag(r"}"))
+    )(input)
+}
+
+pub fn bag_allow_empty(input: &str) -> IResult<&str, ExpressionSet> {
+    delimited(
+        ws(tag(r"{")), 
+        multi0_expressions, 
         ws(tag(r"}"))
     )(input)
 }
@@ -37,7 +45,7 @@ pub fn projection(input: &str) -> IResult<&str, MultiProjection> {
     })(input)
 }
 
-fn transformation(input: &str) -> IResult<&str, Transformation> {
+pub fn transformation(input: &str) -> IResult<&str, Transformation> {
     all_consuming(map(pair(
         bag, opt(projection))
     , |(bag, projection)| Transformation {
@@ -58,6 +66,16 @@ pub fn single_transformation(input: &str) -> Option<Transformation> {
 
 pub fn single_bag(input: &str) -> Option<ExpressionSet> {
     match all_consuming(bag)(input) {
+        Ok((_,r)) => Some(r),
+        Err(e) => {
+            dbg!(e);
+            None
+        },
+    }
+}
+
+pub fn single_bag_allow_empty(input: &str) -> Option<ExpressionSet> {
+    match all_consuming(bag_allow_empty)(input) {
         Ok((_,r)) => Some(r),
         Err(e) => {
             dbg!(e);

@@ -43,6 +43,16 @@ pub fn multi_expressions<'v>(input: &str) -> IResult<&str, ExpressionSet<'v>> {
     )(input)
 }
 
+pub fn multi0_expressions<'v>(input: &str) -> IResult<&str, ExpressionSet<'v>> {
+    delimited(
+        space0,
+        map(separated_list0(ws(tag(";")), expression), |expressions| {
+            ExpressionSet { expressions }
+        }),
+        ws(opt(tag(";"))),
+    )(input)
+}
+
 fn array_item_expression<'v>(input: &str) -> IResult<&str, ArrayItem<'v>> {
     alt((
         map(preceded(ws(tag("...")), expression), ArrayItem::Spread),

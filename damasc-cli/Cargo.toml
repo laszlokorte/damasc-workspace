@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 damasc-lang = { path = "../damasc-lang" }
 damasc-query = { path = "../damasc-query" }
+damasc-repl = { path = "../damasc-repl" }
+rustyline = "10.1.1"

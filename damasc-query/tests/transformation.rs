@@ -1,8 +1,10 @@
 #![feature(iter_array_chunks)]
 
-use damasc_lang::{runtime::{evaluation::{self, Evaluation}, env::Environment}, value::Value};
-use damasc_query::{parser, iter::MultiProjectionIterator};
-use itertools::Itertools;
+use damasc_lang::runtime::evaluation::Evaluation;
+use damasc_lang::value::Value;
+use damasc_lang::runtime::env::Environment;
+use damasc_query::parser;
+use damasc_query::iter::MultiProjectionIterator;
 
 #[test]
 fn test_transformation() {
@@ -14,7 +16,7 @@ fn test_transformation() {
             unreachable!("Transformation parse error");
         };
 
-        let Some(result) = parser::single_bag(res) else {
+        let Some(result) = parser::single_bag_allow_empty(res) else {
             unreachable!("Transformation parse error");
         };
 

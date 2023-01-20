@@ -19,7 +19,7 @@ impl std::fmt::Display for Assignment<'_, '_> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct AssignmentSet<'a, 'b> {
     pub assignments: Vec<Assignment<'a, 'b>>,
 }
