@@ -10,26 +10,12 @@ use damasc_lang::{
 use damasc_query::iter::MultiProjectionIterator;
 
 use crate::command::Command;
+use crate::io::{ReplOutput, ReplError};
 
 #[derive(Default)]
 pub struct State<'i, 's, 'v> {
     environment: Environment<'i, 's, 'v>,
 }
-
-pub enum ReplOutput<'i, 's, 'v> {
-    Ok,
-    Write(String),
-    Values(ValueBag<'s, 'v>),
-    Bindings(Environment<'i, 's, 'v>),
-    Exit,
-}
-pub enum ReplError {
-    ParseError,
-    EvalError,
-    MatchError,
-    TopologyError,
-}
-
 
 
 impl<'i, 's, 'v> State<'i, 's, 'v> {

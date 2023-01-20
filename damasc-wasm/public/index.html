@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <title>Damasc Repl</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="shortcut icon" href="favicon.svg">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+  <body>
+    <fieldset id="app-root" disabled class="app">
+      <h1 class="app-titel"><a class="inherit" href="/"><img src="./logo.svg" height="28" width="126" alt="Damasc" /></a></h1>
+
+      <p>
+      Welcome to Damasc. Damasc is an expression language inspired by a subset of ES6. </p>
+      <p><a href="https://github.com/laszlokorte/damasc">Damasc on Github</a></p>
+
+      <details class="explainer" open>
+        <summary class="explainer-head">Examples</summary>
+
+        <form id="example-list" data-repl class="example-list" action="." method="post">
+        </form>
+      </details>
+      
+      <div class="repl-output-container">
+        <div class="repl-output" id="repl-output"></div>
+        <button class="clear-button" onclick="window.damascOutput.clear()">clear</button>
+      </div>
+
+      <form data-repl class="repl-line" action="." method="post">
+        <input autocapitalize="none" id="repl-input-field" data-repl-clear class="repl-input" autofocus autocomplete="off" name="statement" value="" type="text">
+        <button class="repl-button">Eval</button>
+        <span class="repl-outline"></span>
+        <span class="repl-prompt">&gt;&gt;</span>
+      </form>
+    </fieldset>
+
+    <template id="error-template">
+      <div class="out-row error">
+        <div class="out-cmd"></div>
+        <div class="out-result"></div>
+        <button class="out-copy">Reuse</button>
+      </div>
+    </template>
+
+    <template id="result-template">
+      <div class="out-row success">
+        <div class="out-cmd"></div>
+        <div class="out-result"></div>
+        <button class="out-copy">Reuse</button>
+      </div>
+    </template>
+
+    <template id="example-button-template">
+        <button class="example-button" name="statement"></button>
+    </template>
+
+    <script type="module">
+      import init, { WasmRepl } from "./wasm/damasc_wasm.js";
+      const exampleSnippets = [
+      'true',
+      'true && false',
+      '5*5',
+      '[1,2,3]',
+      '{x:32,y:42}',
+      '"hello"',
+      '[_,m,_]=[1,2,3]',
+      't=type(x);{x:[_ is Integer, x]}={x:[23,true]}',
+      'let [x,y] = [23,42]',
+      ];
+      init().then(() => {
+        const r = new WasmRepl();
+        const outElement = document.getElementById("repl-output");
+        const appRoot = document.getElementById("app-root");
+        const resultTemplate = document.getElementById('result-template')
+        const errorTemplate = document.getElementById('error-template')
+        const exampleButtonTemplate = document.getElementById('example-button-template')
+        const exampleButtonList = document.getElementById('example-list')
+        const to_clear = Array.prototype.map.call(document.querySelectorAll('[data-repl-clear]'), (e) => {
+          return e
+        });
+        const inputField = document.getElementById('repl-input-field');
+        appRoot.removeAttribute("disabled");
+
+        for (const ex of exampleSnippets) {
+            const button = exampleButtonTemplate.content.cloneNode(true);
+            button.children[0].innerText = ex;
+            button.children[0].value = ex;
+            exampleButtonList.appendChild(button);
+        }
+
+        window.damascOutput = {
+          printError(cmd, str) {
+            const el = errorTemplate.content.cloneNode(true);
+            el.children[0].children[0].innerText = cmd;
+            el.children[0].children[1].innerText = str;
+            el.children[0].children[2].setAttribute('data-copy-paste', cmd);
+            outElement.appendChild(el);
+            outElement.lastElementChild.scrollIntoView();
+          },
+          printResult(cmd, str) {
+            const el = resultTemplate.content.cloneNode(true);
+            el.children[0].children[0].innerText = cmd;
+            el.children[0].children[1].innerText = str;
+            el.children[0].children[2].setAttribute('data-copy-paste', cmd);
+            outElement.appendChild(el);
+
+            to_clear.forEach((e) => {
+              e.value = "";
+            })
+
+            outElement.lastElementChild.scrollIntoView();
+          },
+          clear() {
+            outElement.innerHTML = "";
+          }
+        }
+
+        document.addEventListener('click', (evt) => {
+          const target = evt.target;
+          if (target.hasAttribute('data-copy-paste')) {
+            const toPaste = target.getAttribute('data-copy-paste');
+            if (toPaste) {
+              inputField.value = toPaste;
+              inputField.focus()
+            }
+          }
+        })
+        
+        document.addEventListener("submit", (evt) => {
+          const target = evt.target;
+          evt.preventDefault();
+          if(target.hasAttribute("data-repl")) {
+            evt.preventDefault();
+            const formData = new FormData(target);
+            const active = evt.submitter;
+            if(active && active.name) {
+              formData.append(active.name, active.value);
+            } else {
+              inputField.focus();
+            }
+            const statement = String(formData.get('statement'))
+            if (statement.trim().toLocaleLowerCase() === ".clear") {
+              window.damascOutput.clear();
+              to_clear.forEach((e) => {
+                e.value = "";
+              })
+            } 
+            r.eval(statement)
+          }
+        })
+      });
+    </script>
+  </body>
+</html>

@@ -1,6 +1,6 @@
 use damasc_repl::{
     parser,
-    state::{ReplOutput, State},
+    state::{State}, io::ReplOutput,
 };
 use rustyline::{error::ReadlineError, Editor};
 
