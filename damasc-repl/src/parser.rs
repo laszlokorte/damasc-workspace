@@ -3,7 +3,7 @@ use damasc_query::parser::transformation;
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    combinator::{all_consuming, map, opt, value, cut},
+    combinator::{all_consuming, map, opt, value},
     sequence::{pair, preceded}, character::complete::space0, error::context, Finish,
 };
 
@@ -15,17 +15,16 @@ pub(crate) fn command<'a, 'b>(input: ParserInput) -> ParserResult<Command<'a, 'b
         value(Command::Help, alt((tag(".help"), tag(".h")))),
         value(Command::Exit, alt((tag(".exit"), tag(".quit")))),
         value(Command::ShowEnv, tag(".env")),
-
-        map(preceded(ws(tag("let ")), cut(assignment_set1)), Command::Assign),
+        map(transformation, Command::Transform),
+        map(preceded(ws(tag("let ")), assignment_set1), Command::Assign),
         map(assignment_set1, Command::Match),
         map(
-            cut(pair(
+            pair(
                 expression_many1,
                 opt(preceded(ws(tag("with ")), assignment_set1)),
-            )),
+            ),
             |(expression, assignments)| Command::Eval(assignments.unwrap_or_default(), expression),
         ),
-        map(cut(transformation), Command::Transform),
     )))(input)
 }
 
