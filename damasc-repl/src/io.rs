@@ -16,7 +16,7 @@ impl std::fmt::Display for ReplOutput<'_,'_,'_> {
             ReplOutput::Ok => writeln!(f, "OK."),
             ReplOutput::Write(msg) => writeln!(f, "{msg}"),
             ReplOutput::Values(vals) => writeln!(f, "{vals}"),
-            ReplOutput::Bindings(env) => writeln!(f, "Ok.\n\n{env}"),
+            ReplOutput::Bindings(env) => writeln!(f, "{env}"),
             ReplOutput::Exit => Ok(()),
         }
     }

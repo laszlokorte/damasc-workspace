@@ -39,3 +39,5 @@ impl Default for Environment<'_, '_, '_> {
         Self::new()
     }
 }
+
+pub static EMPTY_ENVIRONMENT: Environment<'static,'static,'static> = Environment::new();

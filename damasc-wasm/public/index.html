@@ -15,7 +15,7 @@
       Welcome to Damasc. Damasc is an expression language inspired by a subset of ES6. </p>
       <p><a href="https://github.com/laszlokorte/damasc">Damasc on Github</a></p>
 
-      <details class="explainer" open>
+      <details class="explainer">
         <summary class="explainer-head">Examples</summary>
 
         <form id="example-list" data-repl class="example-list" action="." method="post">
@@ -145,8 +145,9 @@
               to_clear.forEach((e) => {
                 e.value = "";
               })
-            } 
-            r.eval(statement)
+            }  else {
+              r.eval(statement)
+            }
           }
         })
       });

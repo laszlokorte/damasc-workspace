@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use crate::{
     identifier::Identifier,
     topology::{sort_topological, Node, TopologyError},
@@ -27,9 +25,8 @@ pub struct AssignmentSet<'a, 'b> {
 impl<'a, 'b> AssignmentSet<'a, 'b> {
     pub fn sort_topological<'x>(
         self,
-        external_ids: HashSet<&'x Identifier>,
     ) -> Result<AssignmentSet<'a, 'b>, TopologyError<'x>> {
-        let sorted = sort_topological(self.assignments, external_ids)?;
+        let sorted = sort_topological(self.assignments)?;
         Ok(AssignmentSet {
             assignments: sorted,
         })

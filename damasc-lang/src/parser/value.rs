@@ -12,7 +12,7 @@ use nom::{
     combinator::{all_consuming, map, opt},
     multi::{separated_list0, separated_list1},
     sequence::{delimited, separated_pair, terminated},
-    IResult,
+    IResult, error::context,
 };
 
 pub fn single_value<'v>(input: &str) -> Option<Value<'_, 'v>> {
@@ -37,7 +37,7 @@ pub fn value_bag<'v>(input: &str) -> Option<ValueBag<'_, 'v>> {
 }
 
 fn value_array<'v>(input: &str) -> IResult<&str, Value<'_, 'v>> {
-    delimited(
+    context("value_array", delimited(
         ws(tag("[")),
         terminated(
             map(
@@ -47,11 +47,11 @@ fn value_array<'v>(input: &str) -> IResult<&str, Value<'_, 'v>> {
             opt(ws(tag(","))),
         ),
         ws(tag("]")),
-    )(input)
+    ))(input)
 }
 
 fn value_object<'v>(input: &str) -> IResult<&str, Value<'_, 'v>> {
-    map(
+    context("value_object", map(
         delimited(
             ws(tag("{")),
             terminated(
@@ -67,19 +67,19 @@ fn value_object<'v>(input: &str) -> IResult<&str, Value<'_, 'v>> {
             ws(tag("}")),
         ),
         |props| Value::Object(props.into_iter().collect()),
-    )(input)
+    ))(input)
 }
 
 fn value_literal<'v>(input: &str) -> IResult<&str, Value<'_, 'v>> {
-    alt((value_object, value_array, value_literal_atom))(input)
+    context("value_literal", alt((value_object, value_array, value_literal_atom)))(input)
 }
 
 fn value_literal_atom<'v>(input: &str) -> IResult<&str, Value<'_, 'v>> {
-    map(literal, |l| match l {
+    context("value_lteral_atom", map(literal, |l| match l {
         Literal::Null => Value::Null,
         Literal::String(s) => Value::String(s),
         Literal::Number(n) => Value::Integer(n.parse().unwrap()),
         Literal::Boolean(b) => Value::Boolean(b),
         Literal::Type(t) => Value::Type(t),
-    })(input)
+    }))(input)
 }

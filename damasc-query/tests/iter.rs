@@ -1,7 +1,7 @@
 #![feature(assert_matches)]
 
 use damasc_lang::{
-    parser::{expression::single_expression, pattern::full_pattern, value::value_bag},
+    parser::{expression::expression_all_consuming, pattern::pattern_all_consuming, value::value_bag},
     runtime::env::Environment,
     value::Value,
 };
@@ -21,10 +21,10 @@ fn test_predicate_iteration() {
     let Some(bag) = value_bag(values) else {
         unreachable!("Values could not be read.");
     };
-    let Some(pattern) = full_pattern("[_,_]") else {
+    let Some(pattern) = pattern_all_consuming("[_,_]") else {
         unreachable!("Pattern parse error");
     };
-    let Some(guard) = single_expression("true") else {
+    let Some(guard) = expression_all_consuming("true") else {
         unreachable!("Pattern parse error");
     };
 
@@ -52,13 +52,13 @@ fn test_projection_constant_iteration() {
     let Some(bag) = value_bag(values) else {
         unreachable!("Values could not be read.");
     };
-    let Some(pattern) = full_pattern("[_,_]") else {
+    let Some(pattern) = pattern_all_consuming("[_,_]") else {
         unreachable!("Pattern parse error");
     };
-    let Some(guard) = single_expression("true") else {
+    let Some(guard) = expression_all_consuming("true") else {
         unreachable!("Guard parse error");
     };
-    let Some(proj_expression) = single_expression("42") else {
+    let Some(proj_expression) = expression_all_consuming("42") else {
         unreachable!("Projection parse error");
     };
 
@@ -91,13 +91,13 @@ fn test_projection_dynamic_iteration() {
     let Some(bag) = value_bag(values) else {
         unreachable!("Values could not be read.");
     };
-    let Some(pattern) = full_pattern("[x,y]") else {
+    let Some(pattern) = pattern_all_consuming("[x,y]") else {
         unreachable!("Pattern parse error");
     };
-    let Some(guard) = single_expression("x != y") else {
+    let Some(guard) = expression_all_consuming("x != y") else {
         unreachable!("Guard parse error");
     };
-    let Some(proj_expression) = single_expression("x+y") else {
+    let Some(proj_expression) = expression_all_consuming("x+y") else {
         unreachable!("Projection parse error");
     };
 
@@ -130,13 +130,13 @@ fn test_projection_eval_error_iteration() {
     let Some(bag) = value_bag(values) else {
         unreachable!("Values could not be read.");
     };
-    let Some(pattern) = full_pattern("[x,y]") else {
+    let Some(pattern) = pattern_all_consuming("[x,y]") else {
         unreachable!("Pattern parse error");
     };
-    let Some(guard) = single_expression("true") else {
+    let Some(guard) = expression_all_consuming("true") else {
         unreachable!("Guard parse error");
     };
-    let Some(proj_expression) = single_expression("z+y") else {
+    let Some(proj_expression) = expression_all_consuming("z+y") else {
         unreachable!("Projection parse error");
     };
 
@@ -169,13 +169,13 @@ fn test_projection_guard_error_iteration() {
     let Some(bag) = value_bag(values) else {
         unreachable!("Values could not be read.");
     };
-    let Some(pattern) = full_pattern("[x,y]") else {
+    let Some(pattern) = pattern_all_consuming("[x,y]") else {
         unreachable!("Pattern parse error");
     };
-    let Some(guard) = single_expression("x > z") else {
+    let Some(guard) = expression_all_consuming("x > z") else {
         unreachable!("Guard parse error");
     };
-    let Some(proj_expression) = single_expression("x+y") else {
+    let Some(proj_expression) = expression_all_consuming("x+y") else {
         unreachable!("Projection parse error");
     };
 
@@ -211,13 +211,13 @@ fn test_projection_pattern_error_iteration() {
     let Some(bag) = value_bag(values) else {
         unreachable!("Values could not be read.");
     };
-    let Some(pattern) = full_pattern(r"{[x]: 42}") else {
+    let Some(pattern) = pattern_all_consuming(r"{[x]: 42}") else {
         unreachable!("Pattern parse error");
     };
-    let Some(guard) = single_expression("x > z") else {
+    let Some(guard) = expression_all_consuming("x > z") else {
         unreachable!("Guard parse error");
     };
-    let Some(proj_expression) = single_expression("x+y") else {
+    let Some(proj_expression) = expression_all_consuming("x+y") else {
         unreachable!("Projection parse error");
     };
 

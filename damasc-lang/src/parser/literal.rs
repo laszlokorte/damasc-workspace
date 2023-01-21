@@ -5,13 +5,13 @@ use nom::{
     bytes::complete::{tag, take_until},
     combinator::{map, recognize, value},
     sequence::delimited,
-    IResult,
+    IResult, error::context,
 };
 
 use crate::{literal::Literal, value::ValueType};
 
 fn literal_null<'v>(input: &str) -> IResult<&str, Literal<'v>> {
-    value(Literal::Null, tag("null"))(input)
+    context("literal_null", value(Literal::Null, tag("null")))(input)
 }
 
 pub(crate) fn literal_string_raw<'v>(input: &str) -> IResult<&str, Cow<'v, str>> {
@@ -22,30 +22,30 @@ pub(crate) fn literal_string_raw<'v>(input: &str) -> IResult<&str, Cow<'v, str>>
 }
 
 fn literal_string<'v>(input: &str) -> IResult<&str, Literal<'v>> {
-    map(literal_string_raw, Literal::String)(input)
+    context("literal_string", map(literal_string_raw, Literal::String))(input)
 }
 
 fn literal_bool<'v>(input: &str) -> IResult<&str, Literal<'v>> {
-    alt((
+    context("literal_bool", alt((
         value(Literal::Boolean(true), tag("true")),
         value(Literal::Boolean(false), tag("false")),
-    ))(input)
+    )))(input)
 }
 
 fn literal_number<'v>(input: &str) -> IResult<&str, Literal<'v>> {
-    map(recognize(nom::character::complete::i64), |s: &str| {
+    context("literal_number", map(recognize(nom::character::complete::i64), |s: &str| {
         Literal::Number(Cow::Owned(s.to_owned()))
-    })(input)
+    }))(input)
 }
 
 pub(crate) fn literal<'v>(input: &str) -> IResult<&str, Literal<'v>> {
-    alt((
+    context("literal", alt((
         literal_null,
         literal_string,
         literal_bool,
         literal_number,
         literal_type,
-    ))(input)
+    )))(input)
 }
 
 pub(crate) fn literal_type_raw(input: &str) -> IResult<&str, ValueType> {
@@ -61,5 +61,5 @@ pub(crate) fn literal_type_raw(input: &str) -> IResult<&str, ValueType> {
 }
 
 fn literal_type<'v>(input: &str) -> IResult<&str, Literal<'v>> {
-    map(literal_type_raw, Literal::Type)(input)
+    context("literal_type", map(literal_type_raw, Literal::Type))(input)
 }

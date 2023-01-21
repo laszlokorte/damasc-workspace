@@ -7,7 +7,7 @@ use nom::{
     combinator::{all_consuming, map, not, opt, peek, recognize, value},
     multi::{fold_many0, many0, separated_list0, separated_list1},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
-    IResult,
+    IResult, error::context,
 };
 
 use crate::{
@@ -26,14 +26,14 @@ use super::{
     util::ws,
 };
 
-pub fn single_expression<'v>(input: &str) -> Option<Expression<'v>> {
+pub fn expression_all_consuming<'v>(input: &str) -> Option<Expression<'v>> {
     match all_consuming(expression)(input) {
         Ok((_, r)) => Some(r),
         Err(_) => None,
     }
 }
 
-pub fn multi_expressions<'v>(input: &str) -> IResult<&str, ExpressionSet<'v>> {
+pub fn expression_many1<'v>(input: &str) -> IResult<&str, ExpressionSet<'v>> {
     delimited(
         space0,
         map(separated_list1(ws(tag(";")), expression), |expressions| {
@@ -43,7 +43,21 @@ pub fn multi_expressions<'v>(input: &str) -> IResult<&str, ExpressionSet<'v>> {
     )(input)
 }
 
-pub fn multi0_expressions<'v>(input: &str) -> IResult<&str, ExpressionSet<'v>> {
+pub fn expression_many1_all_consuming<'v>(input: &str) -> Option<ExpressionSet<'v>> {
+    match all_consuming(expression_many1)(input) {
+        Ok((_, r)) => Some(r),
+        Err(_) => None,
+    }
+}
+
+pub fn expression_many0_all_consuming<'v>(input: &str) -> Option<ExpressionSet<'v>> {
+    match all_consuming(expression_many0)(input) {
+        Ok((_, r)) => Some(r),
+        Err(_) => None,
+    }
+}
+
+pub fn expression_many0<'v>(input: &str) -> IResult<&str, ExpressionSet<'v>> {
     delimited(
         space0,
         map(separated_list0(ws(tag(";")), expression), |expressions| {
@@ -53,15 +67,15 @@ pub fn multi0_expressions<'v>(input: &str) -> IResult<&str, ExpressionSet<'v>> {
     )(input)
 }
 
-fn array_item_expression<'v>(input: &str) -> IResult<&str, ArrayItem<'v>> {
-    alt((
+fn expression_array_item<'v>(input: &str) -> IResult<&str, ArrayItem<'v>> {
+    context("expression_array_item", alt((
         map(preceded(ws(tag("...")), expression), ArrayItem::Spread),
         map(expression, ArrayItem::Single),
-    ))(input)
+    )))(input)
 }
 
 fn expression_call<'v>(input: &str) -> IResult<&str, Expression<'v>> {
-    map(
+    context("expression_call", map(
         pair(
             identifier,
             delimited(ws(tag("(")), expression, ws(tag(")"))),
@@ -72,25 +86,25 @@ fn expression_call<'v>(input: &str) -> IResult<&str, Expression<'v>> {
                 argument: Box::new(arg),
             })
         },
-    )(input)
+    ))(input)
 }
 
 fn expression_array<'v>(input: &str) -> IResult<&str, Expression<'v>> {
-    delimited(
+    context("expression_array", delimited(
         ws(tag("[")),
         terminated(
             map(
-                separated_list0(ws(tag(",")), array_item_expression),
+                separated_list0(ws(tag(",")), expression_array_item),
                 Expression::Array,
             ),
             opt(ws(tag(","))),
         ),
         ws(tag("]")),
-    )(input)
+    ))(input)
 }
 
-fn object_prop_expression<'v>(input: &str) -> IResult<&str, ObjectProperty<'v>> {
-    alt((
+fn expression_object_property<'v>(input: &str) -> IResult<&str, ObjectProperty<'v>> {
+    context("expression_object_property", alt((
         map(
             separated_pair(
                 delimited(ws(tag("[")), expression, ws(tag("]"))),
@@ -124,43 +138,43 @@ fn object_prop_expression<'v>(input: &str) -> IResult<&str, ObjectProperty<'v>> 
         ),
         map(preceded(ws(tag("...")), expression), ObjectProperty::Spread),
         map(identifier, ObjectProperty::Single),
-    ))(input)
+    )))(input)
 }
 
 fn expression_object<'v>(input: &str) -> IResult<&str, Expression<'v>> {
-    delimited(
+    context("expression_object", delimited(
         ws(tag("{")),
         terminated(
             map(
-                separated_list0(ws(ws(tag(","))), object_prop_expression),
+                separated_list0(ws(ws(tag(","))), expression_object_property),
                 Expression::Object,
             ),
             opt(ws(tag(","))),
         ),
         ws(tag("}")),
-    )(input)
+    ))(input)
 }
 
 fn expression_literal<'v>(input: &str) -> IResult<&str, Expression<'v>> {
-    alt((
+    context("expression_literal", alt((
         expression_object,
         expression_array,
         expression_string_template,
         expression_call,
         expression_atom,
-    ))(input)
+    )))(input)
 }
 
 fn expression_atom<'v>(input: &str) -> IResult<&str, Expression<'v>> {
-    map(literal, Expression::Literal)(input)
+    context("expression_atom", map(literal, Expression::Literal))(input)
 }
 
 fn expression_identifier<'v>(input: &str) -> IResult<&str, Expression<'v>> {
-    map(identifier, Expression::Identifier)(input)
+    context("expression_identifier", map(identifier, Expression::Identifier))(input)
 }
 
 fn string_template_part<'v>(input: &str) -> IResult<&str, StringTemplatePart<'v>> {
-    map(
+    context("expression_string_template_part", map(
         tuple((
             recognize(take_until("${")),
             delimited(tag("${"), expression, tag("}")),
@@ -169,11 +183,11 @@ fn string_template_part<'v>(input: &str) -> IResult<&str, StringTemplatePart<'v>
             fixed_start: Cow::Owned(fixed_start.into()),
             dynamic_end: Box::new(dynamic_end),
         },
-    )(input)
+    ))(input)
 }
 
 fn expression_string_template<'v>(input: &str) -> IResult<&str, Expression<'v>> {
-    map(
+    context("expression_string_template", map(
         delimited(
             tag("`"),
             tuple((many0(string_template_part), recognize(many0(is_not("`"))))),
@@ -185,7 +199,11 @@ fn expression_string_template<'v>(input: &str) -> IResult<&str, Expression<'v>> 
                 suffix: Cow::Owned(s.to_string()),
             })
         },
-    )(input)
+    ))(input)
+}
+
+fn expression_logic_additive_operator(input: &str) -> IResult<&str, LogicalOperator> {
+    context("expression_logic_operator", alt((value(LogicalOperator::Or, tag("||")),)))(input)
 }
 
 fn expression_logic_additive<'v>(input: &str) -> IResult<&str, Expression<'v>> {
@@ -193,7 +211,7 @@ fn expression_logic_additive<'v>(input: &str) -> IResult<&str, Expression<'v>> {
 
     fold_many0(
         pair(
-            ws(alt((value(LogicalOperator::Or, tag("||")),))),
+            ws(expression_logic_additive_operator),
             expression_logic_multiplicative,
         ),
         move || init.clone(),
@@ -207,12 +225,19 @@ fn expression_logic_additive<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     )(input)
 }
 
+
+fn expression_logic_multiplicative_operator(input: &str) -> IResult<&str, LogicalOperator> {
+    context("expression_logic_operator", 
+    alt((value(LogicalOperator::And, tag("&&")),)))(input)
+}
+
+
 fn expression_logic_multiplicative<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     let (input, init) = expression_type_predicate(input)?;
 
     fold_many0(
         pair(
-            ws(alt((value(LogicalOperator::And, tag("&&")),))),
+            ws(expression_logic_multiplicative_operator),
             expression_type_predicate,
         ),
         move || init.clone(),
@@ -226,12 +251,16 @@ fn expression_logic_multiplicative<'v>(input: &str) -> IResult<&str, Expression<
     )(input)
 }
 
+fn expression_type_predicate_operator(input: &str) -> IResult<&str, BinaryOperator> {
+    context("expression_type_predicate_operator", alt((
+        value(BinaryOperator::Is, tag("is")),
+    )))(input)
+}
+
 fn expression_type_predicate<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     let (input, init) = expression_type_additive(input)?;
 
-    let Ok((input, (op, t))) = tuple((ws(alt((
-        value(BinaryOperator::Is, tag("is")),
-    ))), expression_numeric_predicative))(input) else {
+    let Ok((input, (op, t))) = tuple((ws(expression_type_predicate_operator), expression_numeric_predicative))(input) else {
         return Ok((input, init));
     };
 
@@ -245,12 +274,18 @@ fn expression_type_predicate<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     ))
 }
 
+fn expression_type_additive_operator(input: &str) -> IResult<&str, BinaryOperator> {
+    context("expression_type_additive_operator", alt((
+        value(BinaryOperator::Cast, tag("as")),
+    )))(input)
+}
+
 fn expression_type_additive<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     let (input, init) = expression_numeric_predicative(input)?;
 
     fold_many0(
         pair(
-            ws(alt((value(BinaryOperator::Cast, tag("as")),))),
+            ws(expression_type_additive_operator),
             expression_numeric_predicative,
         ),
         move || init.clone(),
@@ -264,20 +299,24 @@ fn expression_type_additive<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     )(input)
 }
 
+fn expression_numeric_predicative_operator(input: &str) -> IResult<&str, BinaryOperator> {
+    context("expression_numeric_predicative_operator", alt((
+        value(BinaryOperator::GreaterThanEqual, tag(">=")),
+        value(BinaryOperator::LessThanEqual, tag("<=")),
+        value(BinaryOperator::LessThan, tag("<")),
+        value(BinaryOperator::GreaterThan, tag(">")),
+        value(BinaryOperator::StrictEqual, tag("==")),
+        value(BinaryOperator::StrictNotEqual, tag("!=")),
+        value(BinaryOperator::In, pair(tag("in"), peek(not(alpha1)))),
+    )))(input)
+}
+
 fn expression_numeric_predicative<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     let (input, init) = expression_numeric_additive(input)?;
 
     fold_many0(
         pair(
-            ws(alt((
-                value(BinaryOperator::GreaterThanEqual, tag(">=")),
-                value(BinaryOperator::LessThanEqual, tag("<=")),
-                value(BinaryOperator::LessThan, tag("<")),
-                value(BinaryOperator::GreaterThan, tag(">")),
-                value(BinaryOperator::StrictEqual, tag("==")),
-                value(BinaryOperator::StrictNotEqual, tag("!=")),
-                value(BinaryOperator::In, pair(tag("in"), peek(not(alpha1)))),
-            ))),
+            ws(expression_numeric_predicative_operator),
             expression_numeric_additive,
         ),
         move || init.clone(),
@@ -291,15 +330,20 @@ fn expression_numeric_predicative<'v>(input: &str) -> IResult<&str, Expression<'
     )(input)
 }
 
+
+fn expression_numeric_additive_operator(input: &str) -> IResult<&str, BinaryOperator> {
+    context("expression_numeric_additive_operator", alt((
+        value(BinaryOperator::Plus, tag("+")),
+        value(BinaryOperator::Minus, tag("-")),
+    )))(input)
+}
+
 fn expression_numeric_additive<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     let (input, init) = expression_numeric_multiplicative(input)?;
 
     fold_many0(
         pair(
-            ws(alt((
-                value(BinaryOperator::Plus, tag("+")),
-                value(BinaryOperator::Minus, tag("-")),
-            ))),
+            ws(expression_numeric_additive_operator),
             expression_numeric_multiplicative,
         ),
         move || init.clone(),
@@ -313,16 +357,21 @@ fn expression_numeric_additive<'v>(input: &str) -> IResult<&str, Expression<'v>>
     )(input)
 }
 
+
+fn expression_numeric_multiplicative_operator(input: &str) -> IResult<&str, BinaryOperator> {
+    context("expression_numeric_multiplicative_operator", alt((
+        value(BinaryOperator::Times, tag("*")),
+        value(BinaryOperator::Over, tag("/")),
+        value(BinaryOperator::Mod, tag("%")),
+    )))(input)
+}
+
 fn expression_numeric_multiplicative<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     let (input, init) = expression_numeric_exponential(input)?;
 
     fold_many0(
         pair(
-            ws(alt((
-                value(BinaryOperator::Times, tag("*")),
-                value(BinaryOperator::Over, tag("/")),
-                value(BinaryOperator::Mod, tag("%")),
-            ))),
+            ws(expression_numeric_multiplicative_operator),
             expression_numeric_exponential,
         ),
         move || init.clone(),
@@ -336,12 +385,18 @@ fn expression_numeric_multiplicative<'v>(input: &str) -> IResult<&str, Expressio
     )(input)
 }
 
+
+fn expression_numeric_exponential_operator(input: &str) -> IResult<&str, BinaryOperator> {
+    context("expression_numeric_exponential_operator", 
+    alt((value(BinaryOperator::PowerOf, tag("^")),)))(input)
+}
+
 fn expression_numeric_exponential<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     let (input, init) = expression_indexed(input)?;
 
     fold_many0(
         pair(
-            ws(alt((value(BinaryOperator::PowerOf, tag("^")),))),
+            ws(expression_numeric_exponential_operator),
             expression_indexed,
         ),
         move || init.clone(),
@@ -395,17 +450,22 @@ fn expression_primary<'v>(input: &str) -> IResult<&str, Expression<'v>> {
 }
 
 fn expression_with_paren<'v>(input: &str) -> IResult<&str, Expression<'v>> {
-    delimited(tag("("), expression, tag(")"))(input)
+    context("expression_with_paren", delimited(tag("("), expression, tag(")")))(input)
 }
 
 fn expression_unary<'v>(input: &str) -> IResult<&str, Expression<'v>> {
-    alt((expression_unary_logic, expression_unary_numeric))(input)
+    context("expression_unary", alt((expression_unary_logic, expression_unary_numeric)))(input)
+}
+
+fn expression_unary_logic_operator(input: &str) -> IResult<&str, UnaryOperator> {
+    context("expression_unary_logic_operator", 
+    alt((value(UnaryOperator::Not, tag("!")),)))(input)
 }
 
 fn expression_unary_logic<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     map(
         pair(
-            ws(alt((value(UnaryOperator::Not, tag("!")),))),
+            ws(expression_unary_logic_operator),
             expression_primary,
         ),
         |(operator, argument)| {
@@ -417,13 +477,19 @@ fn expression_unary_logic<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     )(input)
 }
 
+
+fn expression_unary_numeric_operator(input: &str) -> IResult<&str, UnaryOperator> {
+    context("expression_unary_numeric_operator", 
+    alt((
+        value(UnaryOperator::Minus, tag("-")),
+        value(UnaryOperator::Plus, tag("+")),
+    )))(input)
+}
+
 fn expression_unary_numeric<'v>(input: &str) -> IResult<&str, Expression<'v>> {
     map(
         pair(
-            ws(alt((
-                value(UnaryOperator::Minus, tag("-")),
-                value(UnaryOperator::Plus, tag("+")),
-            ))),
+            ws(expression_unary_numeric_operator ),
             alt((expression_indexed,)),
         ),
         |(operator, argument)| {
@@ -436,5 +502,5 @@ fn expression_unary_numeric<'v>(input: &str) -> IResult<&str, Expression<'v>> {
 }
 
 pub fn expression<'v>(input: &str) -> IResult<&str, Expression<'v>> {
-    alt((expression_logic_additive,))(input)
+    context("expression", expression_logic_additive)(input)
 }

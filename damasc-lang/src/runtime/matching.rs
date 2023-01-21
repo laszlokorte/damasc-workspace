@@ -15,7 +15,7 @@ use crate::{
     value::{Value, ValueObjectMap},
 };
 
-use super::{env::Environment, evaluation::Evaluation};
+use super::{env::{Environment, EMPTY_ENVIRONMENT}, evaluation::Evaluation};
 
 #[derive(Debug)]
 pub enum PatternFail {
@@ -226,7 +226,7 @@ impl<'i, 's, 'v, 'e> Matcher<'i, 's, 'v, 'e> {
         &self,
         assignments: AssignmentSet<'a, 'b>,
     ) -> Result<Environment<'i, 's, 'v>, AssignmentError> {
-        match assignments.sort_topological(self.outer_env.identifiers()) {
+        match assignments.sort_topological() {
             Ok(sorted_set) => {
                 let mut local_env = self.outer_env.clone();
                 local_env
@@ -262,6 +262,17 @@ impl<'i, 's, 'v, 'e> Matcher<'i, 's, 'v, 'e> {
     }
 }
 
+impl Default for Matcher<'_, '_, '_, 'static> {
+
+    fn default() -> Self {
+        Self {
+            outer_env: &EMPTY_ENVIRONMENT,
+            local_env: Environment::new(),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum AssignmentError {
     TopologyError,
     EvalError,

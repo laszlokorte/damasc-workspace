@@ -233,6 +233,7 @@ footer {
 
 .explainer-head {
     padding: 0.5em;
+    cursor: pointer;
 }
 
 .binding-list {

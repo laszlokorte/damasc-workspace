@@ -12,11 +12,11 @@ fn test_transformation() {
 
     for [trans, res, delimiter] in lines.array_chunks() {
         assert_eq!(delimiter, "---");
-        let Some(transformation) = parser::single_transformation(trans) else {
+        let Some(transformation) = parser::transformation_all_consuming(trans) else {
             unreachable!("Transformation parse error");
         };
 
-        let Some(result) = parser::single_bag_allow_empty(res) else {
+        let Some(result) = parser::query_bag_allow_empty_all_consuming(res) else {
             unreachable!("Transformation parse error");
         };
 

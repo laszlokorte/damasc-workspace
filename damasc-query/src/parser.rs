@@ -2,8 +2,8 @@ use damasc_lang::{
     identifier::Identifier,
     literal::Literal,
     parser::{
-        expression::{expression, multi0_expressions, multi_expressions},
-        pattern::multi_patterns,
+        expression::{expression, expression_many0, expression_many1},
+        pattern::many1_pattern,
         util::ws,
     },
     syntax::{
@@ -15,7 +15,7 @@ use nom::{
     bytes::complete::tag,
     combinator::{all_consuming, map, opt},
     sequence::{delimited, pair, preceded, tuple},
-    IResult,
+    IResult, error::context,
 };
 
 use crate::{
@@ -23,22 +23,22 @@ use crate::{
     transformation::Transformation,
 };
 
-pub fn bag<'s>(input: &str) -> IResult<&str, ExpressionSet<'s>> {
-    delimited(ws(tag(r"{")), multi_expressions, ws(tag(r"}")))(input)
+pub fn query_bag<'s>(input: &str) -> IResult<&str, ExpressionSet<'s>> {
+    context("query_bag", delimited(ws(tag(r"{")), expression_many1, ws(tag(r"}"))))(input)
 }
 
-pub fn bag_allow_empty(input: &str) -> IResult<&str, ExpressionSet> {
-    delimited(ws(tag(r"{")), multi0_expressions, ws(tag(r"}")))(input)
+pub fn query_bag_allow_empty(input: &str) -> IResult<&str, ExpressionSet> {
+    context("query_bag_allow_empty", delimited(ws(tag(r"{")), expression_many0, ws(tag(r"}"))))(input)
 }
 
 pub fn projection<'s>(input: &str) -> IResult<&str, MultiProjection<'s>> {
-    map(
+    context("query_projection", map(
         preceded(
             ws(tag("|>")),
             tuple((
-                opt(preceded(ws(tag("map")), ws(multi_patterns))),
-                opt(preceded(ws(tag("where")), ws(expression))),
-                opt(preceded(ws(tag("into")), ws(multi_expressions))),
+                opt(preceded(ws(tag("map")), context("query_projection_map", ws(many1_pattern)))),
+                opt(preceded(ws(tag("where")), context("query_projection_predicate", ws(expression)))),
+                opt(preceded(ws(tag("into")), context("query_projection_expression", ws(expression_many1)))),
             )),
         ),
         |(patterns, guard, proj)| {
@@ -70,11 +70,11 @@ pub fn projection<'s>(input: &str) -> IResult<&str, MultiProjection<'s>> {
                 projections: proj.unwrap_or(auto_projection),
             }
         },
-    )(input)
+    ))(input)
 }
 
 pub fn transformation<'a, 'b>(input: &str) -> IResult<&str, Transformation<'a, 'b>> {
-    all_consuming(map(pair(bag, opt(projection)), |(bag, projection)| {
+    context("transformation", map(pair(query_bag, opt(projection)), |(bag, projection)| {
         Transformation {
             bag,
             projection: projection.unwrap_or_default(),
@@ -82,7 +82,7 @@ pub fn transformation<'a, 'b>(input: &str) -> IResult<&str, Transformation<'a, '
     }))(input)
 }
 
-pub fn single_transformation<'a, 'b>(input: &str) -> Option<Transformation<'a, 'b>> {
+pub fn transformation_all_consuming<'a, 'b>(input: &str) -> Option<Transformation<'a, 'b>> {
     match all_consuming(transformation)(input) {
         Ok((_, r)) => Some(r),
         Err(e) => {
@@ -92,8 +92,8 @@ pub fn single_transformation<'a, 'b>(input: &str) -> Option<Transformation<'a, '
     }
 }
 
-pub fn single_bag(input: &str) -> Option<ExpressionSet> {
-    match all_consuming(bag)(input) {
+pub fn query_bag_all_consuming(input: &str) -> Option<ExpressionSet> {
+    match all_consuming(query_bag)(input) {
         Ok((_, r)) => Some(r),
         Err(e) => {
             dbg!(e);
@@ -102,8 +102,8 @@ pub fn single_bag(input: &str) -> Option<ExpressionSet> {
     }
 }
 
-pub fn single_bag_allow_empty(input: &str) -> Option<ExpressionSet> {
-    match all_consuming(bag_allow_empty)(input) {
+pub fn query_bag_allow_empty_all_consuming(input: &str) -> Option<ExpressionSet> {
+    match all_consuming(query_bag_allow_empty)(input) {
         Ok((_, r)) => Some(r),
         Err(e) => {
             dbg!(e);

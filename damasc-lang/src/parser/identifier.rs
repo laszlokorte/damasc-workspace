@@ -7,7 +7,7 @@ use nom::{
     combinator::{map, recognize, verify},
     multi::{many0_count, many1_count},
     sequence::{pair, preceded},
-    IResult,
+    IResult, error::context,
 };
 
 use crate::identifier::Identifier;
@@ -23,22 +23,22 @@ fn identifier_name(input: &str) -> IResult<&str, &str> {
     )))(input)
 }
 
-fn non_keyword_identifier<'v>(input: &str) -> IResult<&str, Identifier<'v>> {
-    map(verify(identifier_name, no_keyword), |name: &str| {
+fn identifier_no_keyword<'v>(input: &str) -> IResult<&str, Identifier<'v>> {
+    context("identifier_plain", map(verify(identifier_name, no_keyword), |name: &str| {
         Identifier {
             name: Cow::Owned(name.to_string()),
         }
-    })(input)
+    }))(input)
 }
 
-fn raw_identifier<'v>(input: &str) -> IResult<&str, Identifier<'v>> {
-    map(preceded(tag("#"), identifier_name), |name: &str| {
+fn identifier_raw<'v>(input: &str) -> IResult<&str, Identifier<'v>> {
+    context("identifier_raw", map(preceded(tag("#"), identifier_name), |name: &str| {
         Identifier {
             name: Cow::Owned(name.to_string()),
         }
-    })(input)
+    }))(input)
 }
 
 pub(crate) fn identifier<'v>(input: &str) -> IResult<&str, Identifier<'v>> {
-    alt((raw_identifier, non_keyword_identifier))(input)
+    context("identifier", alt((identifier_raw, identifier_no_keyword)))(input)
 }

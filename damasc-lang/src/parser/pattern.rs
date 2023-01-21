@@ -5,7 +5,7 @@ use nom::{
     combinator::{all_consuming, map, opt, value},
     multi::{separated_list0, separated_list1},
     sequence::{delimited, preceded, separated_pair, tuple},
-    IResult,
+    IResult, error::context,
 };
 
 use crate::syntax::{
@@ -23,29 +23,29 @@ use super::{
 };
 
 fn pattern_discard<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
-    value(Pattern::Discard, tag("_"))(input)
+    context("pattern_discard", value(Pattern::Discard, tag("_")))(input)
 }
 
 fn pattern_typed_discard<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
-    map(
+    context("pattern_typed_discard", map(
         preceded(ws(tag("_ is ")), literal_type_raw),
         Pattern::TypedDiscard,
-    )(input)
+    ))(input)
 }
 
 fn pattern_identifier<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
-    map(identifier, Pattern::Identifier)(input)
+    context("pattern_identifier", map(identifier, Pattern::Identifier))(input)
 }
 
 fn pattern_typed_identifier<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
-    map(
+    context("pattern_typed_identifier", map(
         separated_pair(identifier, tag(" is "), literal_type_raw),
         |(i, t)| Pattern::TypedIdentifier(i, t),
-    )(input)
+    ))(input)
 }
 
-fn object_prop_pattern<'v>(input: &str) -> IResult<&str, ObjectPropertyPattern<'v>> {
-    alt((
+fn pattern_object_prop<'v>(input: &str) -> IResult<&str, ObjectPropertyPattern<'v>> {
+    context("pattern_object_prop", alt((
         map(
             separated_pair(
                 delimited(ws(tag("[")), expression, ws(tag("]"))),
@@ -69,37 +69,37 @@ fn object_prop_pattern<'v>(input: &str) -> IResult<&str, ObjectPropertyPattern<'
             },
         ),
         map(identifier, ObjectPropertyPattern::Single),
-    ))(input)
+    )))(input)
 }
 
 fn pattern_object<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
-    delimited(
+    context("pattern_object", delimited(
         ws(tag("{")),
         alt((
             map(pattern_rest, |r| Pattern::Object(vec![], r)),
             map(
                 tuple((
-                    separated_list0(ws(ws(tag(","))), object_prop_pattern),
+                    separated_list0(ws(ws(tag(","))), pattern_object_prop),
                     opt(preceded(ws(tag(",")), opt(pattern_rest))),
                 )),
                 |(props, rest)| Pattern::Object(props, rest.flatten().unwrap_or(Rest::Exact)),
             ),
         )),
         ws(tag("}")),
-    )(input)
+    ))(input)
 }
 
 fn pattern_rest<'v>(input: &str) -> IResult<&str, Rest<'v>> {
-    alt((
+    context("pattern_rest", alt((
         map(preceded(ws(tag("...")), pattern), |r| {
             Rest::Collect(Box::new(r))
         }),
         value(Rest::Discard, ws(tag("..."))),
-    ))(input)
+    )))(input)
 }
 
 fn pattern_array<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
-    delimited(
+    context("pattern_array", delimited(
         ws(tag("[")),
         alt((
             map(pattern_rest, |r| Pattern::Array(vec![], r)),
@@ -112,26 +112,26 @@ fn pattern_array<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
             ),
         )),
         ws(tag("]")),
-    )(input)
+    ))(input)
 }
 
 fn pattern_capture<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
-    map(
+    context("pattern_capture", map(
         separated_pair(
             ws(identifier),
             ws(tag("@")),
             alt((pattern_atom, pattern_array, pattern_object)),
         ),
         |(id, pat)| Pattern::Capture(id, Box::new(pat)),
-    )(input)
+    ))(input)
 }
 
 fn pattern_atom<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
-    map(literal, Pattern::Literal)(input)
+    context("pattern_atom", map(literal, Pattern::Literal))(input)
 }
 
 pub fn pattern<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
-    alt((
+    context("pattern", alt((
         pattern_atom,
         pattern_capture,
         pattern_array,
@@ -140,17 +140,28 @@ pub fn pattern<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
         pattern_identifier,
         pattern_discard,
         pattern_object,
-    ))(input)
+    )))(input)
 }
 
-pub fn full_pattern<'v>(input: &str) -> Option<Pattern<'v>> {
+pub fn pattern_all_consuming<'v>(input: &str) -> Option<Pattern<'v>> {
     match all_consuming(pattern)(input) {
         Ok((_, r)) => Some(r),
         Err(_) => None,
     }
 }
 
-pub fn multi_patterns<'v>(input: &str) -> IResult<&str, PatternSet<'v>> {
+pub fn many0_pattern<'v>(input: &str) -> IResult<&str, PatternSet<'v>> {
+    delimited(
+        space0,
+        map(separated_list0(ws(tag(";")), pattern), |patterns| {
+            PatternSet { patterns }
+        }),
+        ws(opt(tag(";"))),
+    )(input)
+}
+
+
+pub fn many1_pattern<'v>(input: &str) -> IResult<&str, PatternSet<'v>> {
     delimited(
         space0,
         map(separated_list1(ws(tag(";")), pattern), |patterns| {

@@ -28,6 +28,9 @@ impl<'i, 's, 'v> State<'i, 's, 'v> {
             Command::Exit => Ok(ReplOutput::Exit),
             Command::Help => Ok(ReplOutput::Ok),
             Command::Cancel => Ok(ReplOutput::Ok),
+            Command::ShowEnv => {
+                Ok(ReplOutput::Bindings(self.environment.clone()))
+            }
             Command::Transform(transformation) => {
                 let evaluation = Evaluation::new(&self.environment);
                 let iter = transformation

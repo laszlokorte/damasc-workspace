@@ -6,6 +6,7 @@ pub enum Command<'a, 'b> {
     Help,
     Cancel,
     Exit,
+    ShowEnv,
     Transform(Transformation<'a, 'b>),
     Assign(AssignmentSet<'a, 'b>),
     Match(AssignmentSet<'a, 'b>),

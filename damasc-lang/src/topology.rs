@@ -38,7 +38,6 @@ impl<'s> std::fmt::Display for TopologyError<'s> {
 
 pub(crate) fn sort_topological<'x, I: Node + Clone>(
     items: Vec<I>,
-    external_ids: HashSet<&'x Identifier>,
 ) -> Result<Vec<I>, TopologyError<'x>> {
     let mut known_ids = HashSet::new();
     let mut result: Vec<usize> = Vec::with_capacity(items.len());
@@ -51,7 +50,6 @@ pub(crate) fn sort_topological<'x, I: Node + Clone>(
 
             if assignment
                 .input_identifiers()
-                .filter(|id| !external_ids.contains(id))
                 .filter(|id| !known_ids.contains(id))
                 .count()
                 == 0
@@ -82,7 +80,12 @@ pub(crate) fn sort_topological<'x, I: Node + Clone>(
                 .intersection(&output_ids)
                 .map(|i| i.deep_clone())
                 .collect();
-            return Err(TopologyError::Cycle(cycle));
+
+            if cycle.is_empty() {
+                return Ok(items)
+            } else {
+                return Err(TopologyError::Cycle(cycle))
+            }
         } else {
             return Ok(result.into_iter().map(|i| items[i].clone()).collect());
         }

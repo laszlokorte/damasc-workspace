@@ -37,7 +37,7 @@ impl WasmRepl {
 
     #[wasm_bindgen]
     pub fn eval(&mut self, input: &str) {
-        let Some(cmd) = parser::full_command(input) else {
+        let Some(cmd) = parser::command_all_consuming(input) else {
             return show_error(input, &format!("read error"));
         };
 
