@@ -4,15 +4,14 @@ use nom::{
     character::complete::space0,
     combinator::{map, all_consuming},
     multi::{separated_list1, separated_list0},
-    sequence::{separated_pair, terminated},
-    IResult, error::context,
+    sequence::{separated_pair, terminated}, error::context,
 };
 
 use crate::syntax::assignment::{Assignment, AssignmentSet};
 
-use super::{expression::expression, pattern::pattern, util::ws};
+use super::{expression::expression, pattern::pattern, util::ws, io::{ParserResult, ParserInput}};
 
-pub fn assignment_set0<'v, 'w>(input: &str) -> IResult<&str, AssignmentSet<'v, 'w>> {
+pub fn assignment_set0<'v, 'w>(input: ParserInput) -> ParserResult<AssignmentSet<'v, 'w>> {
     context("assignment_set", map(
         terminated(
             separated_list0(
@@ -32,7 +31,7 @@ pub fn assignment_set0<'v, 'w>(input: &str) -> IResult<&str, AssignmentSet<'v, '
 }
 
 
-pub fn assignment_set1<'v, 'w>(input: &str) -> IResult<&str, AssignmentSet<'v, 'w>> {
+pub fn assignment_set1<'v, 'w>(input: ParserInput) -> ParserResult<AssignmentSet<'v, 'w>> {
     context("assignment_set", map(
         terminated(
             separated_list1(
@@ -51,7 +50,7 @@ pub fn assignment_set1<'v, 'w>(input: &str) -> IResult<&str, AssignmentSet<'v, '
     ))(input)
 }
 
-pub fn assignment<'v, 'w>(input: &str) -> IResult<&str, Assignment<'v, 'w>> {
+pub fn assignment<'v, 'w>(input: ParserInput) -> ParserResult<Assignment<'v, 'w>> {
     context("assignment", map(
         separated_pair(pattern, ws(tag("=")), expression),
         |(pattern, expression)| Assignment {
@@ -61,14 +60,14 @@ pub fn assignment<'v, 'w>(input: &str) -> IResult<&str, Assignment<'v, 'w>> {
     ))(input)
 }
 
-pub fn assignment_all_consuming(input: &str) -> Option<Assignment<'_, '_>> {
+pub fn assignment_all_consuming(input: ParserInput) -> Option<Assignment<'_, '_>> {
     let Ok((_,r)) = all_consuming(assignment)(input) else {
         return None
     };
     Some(r)
 }
 pub fn assignment_set1_all_consuming(input: &str) -> Option<AssignmentSet<'_, '_>> {
-    let Ok((_,r)) = all_consuming(assignment_set1)(input) else {
+    let Ok((_,r)) = all_consuming(assignment_set1)(ParserInput::new(input)) else {
         return None
     };
     Some(r)

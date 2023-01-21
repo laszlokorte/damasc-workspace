@@ -1,10 +1,12 @@
 use nom::{character::complete::multispace0, error::ParseError, sequence::delimited, IResult};
 
-pub fn ws<'a, F, O, E: ParseError<&'a str>>(
+use super::io::ParserInput;
+
+pub fn ws<'a, F, O, E: ParseError<ParserInput<'a>>>(
     inner: F,
-) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
+) -> impl FnMut(ParserInput<'a>) -> IResult<ParserInput<'a>, O, E>
 where
-    F: FnMut(&'a str) -> IResult<&'a str, O, E>,
+    F: FnMut(ParserInput<'a>) -> IResult<ParserInput<'a>, O, E>,
 {
     delimited(multispace0, inner, multispace0)
 }

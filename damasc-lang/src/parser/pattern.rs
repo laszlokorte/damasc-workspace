@@ -4,8 +4,7 @@ use nom::{
     character::complete::space0,
     combinator::{all_consuming, map, opt, value},
     multi::{separated_list0, separated_list1},
-    sequence::{delimited, preceded, separated_pair, tuple},
-    IResult, error::context,
+    sequence::{delimited, preceded, separated_pair, tuple}, error::context,
 };
 
 use crate::syntax::{
@@ -19,32 +18,32 @@ use super::{
     expression::expression,
     identifier::identifier,
     literal::{literal, literal_type_raw},
-    util::ws,
+    util::ws, io::{ParserResult, ParserInput},
 };
 
-fn pattern_discard<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
+fn pattern_discard<'v>(input: ParserInput) -> ParserResult<Pattern<'v>> {
     context("pattern_discard", value(Pattern::Discard, tag("_")))(input)
 }
 
-fn pattern_typed_discard<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
+fn pattern_typed_discard<'v>(input: ParserInput) -> ParserResult<Pattern<'v>> {
     context("pattern_typed_discard", map(
         preceded(ws(tag("_ is ")), literal_type_raw),
         Pattern::TypedDiscard,
     ))(input)
 }
 
-fn pattern_identifier<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
+fn pattern_identifier<'v>(input: ParserInput) -> ParserResult<Pattern<'v>> {
     context("pattern_identifier", map(identifier, Pattern::Identifier))(input)
 }
 
-fn pattern_typed_identifier<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
+fn pattern_typed_identifier<'v>(input: ParserInput) -> ParserResult<Pattern<'v>> {
     context("pattern_typed_identifier", map(
         separated_pair(identifier, tag(" is "), literal_type_raw),
         |(i, t)| Pattern::TypedIdentifier(i, t),
     ))(input)
 }
 
-fn pattern_object_prop<'v>(input: &str) -> IResult<&str, ObjectPropertyPattern<'v>> {
+fn pattern_object_prop<'v>(input: ParserInput) -> ParserResult<ObjectPropertyPattern<'v>> {
     context("pattern_object_prop", alt((
         map(
             separated_pair(
@@ -72,7 +71,7 @@ fn pattern_object_prop<'v>(input: &str) -> IResult<&str, ObjectPropertyPattern<'
     )))(input)
 }
 
-fn pattern_object<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
+fn pattern_object<'v>(input: ParserInput) -> ParserResult<Pattern<'v>> {
     context("pattern_object", delimited(
         ws(tag("{")),
         alt((
@@ -89,7 +88,7 @@ fn pattern_object<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
     ))(input)
 }
 
-fn pattern_rest<'v>(input: &str) -> IResult<&str, Rest<'v>> {
+fn pattern_rest<'v>(input: ParserInput) -> ParserResult<Rest<'v>> {
     context("pattern_rest", alt((
         map(preceded(ws(tag("...")), pattern), |r| {
             Rest::Collect(Box::new(r))
@@ -98,7 +97,7 @@ fn pattern_rest<'v>(input: &str) -> IResult<&str, Rest<'v>> {
     )))(input)
 }
 
-fn pattern_array<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
+fn pattern_array<'v>(input: ParserInput) -> ParserResult<Pattern<'v>> {
     context("pattern_array", delimited(
         ws(tag("[")),
         alt((
@@ -115,7 +114,7 @@ fn pattern_array<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
     ))(input)
 }
 
-fn pattern_capture<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
+fn pattern_capture<'v>(input: ParserInput) -> ParserResult<Pattern<'v>> {
     context("pattern_capture", map(
         separated_pair(
             ws(identifier),
@@ -126,11 +125,11 @@ fn pattern_capture<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
     ))(input)
 }
 
-fn pattern_atom<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
+fn pattern_atom<'v>(input: ParserInput) -> ParserResult<Pattern<'v>> {
     context("pattern_atom", map(literal, Pattern::Literal))(input)
 }
 
-pub fn pattern<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
+pub fn pattern<'v>(input: ParserInput) -> ParserResult<Pattern<'v>> {
     context("pattern", alt((
         pattern_atom,
         pattern_capture,
@@ -144,13 +143,13 @@ pub fn pattern<'v>(input: &str) -> IResult<&str, Pattern<'v>> {
 }
 
 pub fn pattern_all_consuming<'v>(input: &str) -> Option<Pattern<'v>> {
-    match all_consuming(pattern)(input) {
+    match all_consuming(pattern)(ParserInput::new(input)) {
         Ok((_, r)) => Some(r),
         Err(_) => None,
     }
 }
 
-pub fn many0_pattern<'v>(input: &str) -> IResult<&str, PatternSet<'v>> {
+pub fn many0_pattern<'v>(input: ParserInput) -> ParserResult<PatternSet<'v>> {
     delimited(
         space0,
         map(separated_list0(ws(tag(";")), pattern), |patterns| {
@@ -161,7 +160,7 @@ pub fn many0_pattern<'v>(input: &str) -> IResult<&str, PatternSet<'v>> {
 }
 
 
-pub fn many1_pattern<'v>(input: &str) -> IResult<&str, PatternSet<'v>> {
+pub fn many1_pattern<'v>(input: ParserInput) -> ParserResult<PatternSet<'v>> {
     delimited(
         space0,
         map(separated_list1(ws(tag(";")), pattern), |patterns| {

@@ -1,5 +1,6 @@
 export function show_error(cmd, str) {
     if (window.damascOutput) {
+        console.error(str);
         window.damascOutput.printError(cmd, str)
     } else {
         console.error(">>"+cmd+"\n"+str)

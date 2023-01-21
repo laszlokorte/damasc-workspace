@@ -19,9 +19,12 @@ fn main() -> rustyline::Result<()> {
         match readline {
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
-                let Some(cmd) = parser::command_all_consuming(&line) else {
-                    eprintln!("Parse error");
-                    continue;
+                let cmd = match parser::command_all_consuming(&line) {
+                    Ok(cmd) => cmd,
+                    Err(e) => {
+                        eprintln!("{e:?}");
+                        continue;
+                    }
                 };
 
                 match repl.eval(cmd) {

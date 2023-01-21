@@ -4,7 +4,7 @@ use damasc_lang::{
     parser::{
         expression::{expression, expression_many0, expression_many1},
         pattern::many1_pattern,
-        util::ws,
+        util::ws, io::{ParserResult, ParserInput},
     },
     syntax::{
         expression::{Expression, ExpressionSet},
@@ -14,8 +14,7 @@ use damasc_lang::{
 use nom::{
     bytes::complete::tag,
     combinator::{all_consuming, map, opt},
-    sequence::{delimited, pair, preceded, tuple},
-    IResult, error::context,
+    sequence::{delimited, pair, preceded, tuple}, error::context,
 };
 
 use crate::{
@@ -23,15 +22,15 @@ use crate::{
     transformation::Transformation,
 };
 
-pub fn query_bag<'s>(input: &str) -> IResult<&str, ExpressionSet<'s>> {
+pub fn query_bag<'s>(input: ParserInput) -> ParserResult<ExpressionSet<'s>> {
     context("query_bag", delimited(ws(tag(r"{")), expression_many1, ws(tag(r"}"))))(input)
 }
 
-pub fn query_bag_allow_empty(input: &str) -> IResult<&str, ExpressionSet> {
+pub fn query_bag_allow_empty(input: ParserInput) -> ParserResult<ExpressionSet> {
     context("query_bag_allow_empty", delimited(ws(tag(r"{")), expression_many0, ws(tag(r"}"))))(input)
 }
 
-pub fn projection<'s>(input: &str) -> IResult<&str, MultiProjection<'s>> {
+pub fn projection<'s>(input: ParserInput) -> ParserResult<MultiProjection<'s>> {
     context("query_projection", map(
         preceded(
             ws(tag("|>")),
@@ -73,7 +72,7 @@ pub fn projection<'s>(input: &str) -> IResult<&str, MultiProjection<'s>> {
     ))(input)
 }
 
-pub fn transformation<'a, 'b>(input: &str) -> IResult<&str, Transformation<'a, 'b>> {
+pub fn transformation<'a, 'b>(input: ParserInput) -> ParserResult<Transformation<'a, 'b>> {
     context("transformation", map(pair(query_bag, opt(projection)), |(bag, projection)| {
         Transformation {
             bag,
@@ -83,7 +82,7 @@ pub fn transformation<'a, 'b>(input: &str) -> IResult<&str, Transformation<'a, '
 }
 
 pub fn transformation_all_consuming<'a, 'b>(input: &str) -> Option<Transformation<'a, 'b>> {
-    match all_consuming(transformation)(input) {
+    match all_consuming(transformation)(ParserInput::new(input)) {
         Ok((_, r)) => Some(r),
         Err(e) => {
             dbg!(e);
@@ -92,7 +91,7 @@ pub fn transformation_all_consuming<'a, 'b>(input: &str) -> Option<Transformatio
     }
 }
 
-pub fn query_bag_all_consuming(input: &str) -> Option<ExpressionSet> {
+pub fn query_bag_all_consuming(input: ParserInput) -> Option<ExpressionSet> {
     match all_consuming(query_bag)(input) {
         Ok((_, r)) => Some(r),
         Err(e) => {
@@ -103,7 +102,7 @@ pub fn query_bag_all_consuming(input: &str) -> Option<ExpressionSet> {
 }
 
 pub fn query_bag_allow_empty_all_consuming(input: &str) -> Option<ExpressionSet> {
-    match all_consuming(query_bag_allow_empty)(input) {
+    match all_consuming(query_bag_allow_empty)(ParserInput::new(input)) {
         Ok((_, r)) => Some(r),
         Err(e) => {
             dbg!(e);

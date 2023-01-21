@@ -7,7 +7,7 @@ fn test_expression_parsing() {
     let lines = include_str!("./examples_expression_pairs.txt").lines();
     
     for line in lines.filter(|l| l != &"---") {
-        assert!(parser::expression::expression(line).is_ok());
+        assert!(parser::expression::expression_many1_all_consuming(line).is_some());
     }
 }
 #[test]

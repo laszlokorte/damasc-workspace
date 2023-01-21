@@ -1,7 +1,7 @@
 #![feature(assert_matches)]
 
 use damasc_lang::{
-    parser::{expression::expression_all_consuming, pattern::pattern_all_consuming, value::value_bag},
+    parser::{expression::expression_all_consuming, pattern::pattern_all_consuming, value::value_bag_all_consuming},
     runtime::env::Environment,
     value::Value,
 };
@@ -18,7 +18,7 @@ use std::assert_matches::assert_matches;
 #[test]
 fn test_predicate_iteration() {
     let values = include_str!("./example_values.txt");
-    let Some(bag) = value_bag(values) else {
+    let Some(bag) = value_bag_all_consuming(values) else {
         unreachable!("Values could not be read.");
     };
     let Some(pattern) = pattern_all_consuming("[_,_]") else {
@@ -49,7 +49,7 @@ fn test_predicate_iteration() {
 #[test]
 fn test_projection_constant_iteration() {
     let values = include_str!("./example_values.txt");
-    let Some(bag) = value_bag(values) else {
+    let Some(bag) = value_bag_all_consuming(values) else {
         unreachable!("Values could not be read.");
     };
     let Some(pattern) = pattern_all_consuming("[_,_]") else {
@@ -88,7 +88,7 @@ fn test_projection_constant_iteration() {
 #[test]
 fn test_projection_dynamic_iteration() {
     let values = include_str!("./example_values.txt");
-    let Some(bag) = value_bag(values) else {
+    let Some(bag) = value_bag_all_consuming(values) else {
         unreachable!("Values could not be read.");
     };
     let Some(pattern) = pattern_all_consuming("[x,y]") else {
@@ -127,7 +127,7 @@ fn test_projection_dynamic_iteration() {
 #[test]
 fn test_projection_eval_error_iteration() {
     let values = include_str!("./example_values.txt");
-    let Some(bag) = value_bag(values) else {
+    let Some(bag) = value_bag_all_consuming(values) else {
         unreachable!("Values could not be read.");
     };
     let Some(pattern) = pattern_all_consuming("[x,y]") else {
@@ -166,7 +166,7 @@ fn test_projection_eval_error_iteration() {
 #[test]
 fn test_projection_guard_error_iteration() {
     let values = include_str!("./example_values.txt");
-    let Some(bag) = value_bag(values) else {
+    let Some(bag) = value_bag_all_consuming(values) else {
         unreachable!("Values could not be read.");
     };
     let Some(pattern) = pattern_all_consuming("[x,y]") else {
@@ -208,7 +208,7 @@ fn test_projection_guard_error_iteration() {
 #[test]
 fn test_projection_pattern_error_iteration() {
     let values = include_str!("./example_values.txt");
-    let Some(bag) = value_bag(values) else {
+    let Some(bag) = value_bag_all_consuming(values) else {
         unreachable!("Values could not be read.");
     };
     let Some(pattern) = pattern_all_consuming(r"{[x]: 42}") else {
