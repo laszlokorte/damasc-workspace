@@ -16,6 +16,16 @@ body {
     margin: auto;
     margin-bottom: 4em;
     border: none;
+    --accent-color: #ab0;
+}
+
+.repl-line *::selection {
+    background-color: var(--accent-color);
+    color: white;
+}
+.repl-output *::selection {
+    background-color: var(--accent-color);
+    color: white;
 }
 
 .repl-line {
@@ -29,7 +39,6 @@ body {
     position: sticky;
     bottom: 2em;
     border: 0.5em solid #222;
-    --accent-color: #ab0;
 }
 
 .repl-outline {
@@ -60,6 +69,7 @@ body {
     align-self: center;
     font-size: 0.6em;
     color: #555;
+    user-select: none;
 }
 
 .repl-button {
@@ -163,6 +173,7 @@ footer {
 
 .out-cmd::before {
     content: '>> ';
+    user-select: none;
 }
 
 .repl-output {
@@ -196,6 +207,11 @@ footer {
 
 .out-row.error {
     color: #f99;
+}
+
+.out-row.error *::selection {
+    background-color: #f99;
+    color: #fff;
 }
 
 .repl-output-container {
