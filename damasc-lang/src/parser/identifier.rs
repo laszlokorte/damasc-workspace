@@ -11,20 +11,20 @@ use nom::{
 
 use crate::identifier::Identifier;
 
-use super::io::{ParserResult, ParserInput};
+use super::io::{ParserResult, ParserInput, ParserError};
 
 fn no_keyword(input: &ParserInput) -> bool {
     !matches!(input.fragment(), &"where" | &"into" | &"limit" | &"with")
 }
 
-fn identifier_name(input: ParserInput) -> ParserResult<ParserInput> {
+fn identifier_name<'e, E:ParserError<'e>>(input: ParserInput<'e>) -> ParserResult<ParserInput,E> {
     recognize(alt((
         pair(alpha1, many0_count(alt((alphanumeric1, tag("_"))))),
         pair(tag("_"), many1_count(alt((alphanumeric1, tag("_"))))),
     )))(input)
 }
 
-fn identifier_no_keyword<'v>(input: ParserInput) -> ParserResult<Identifier<'v>> {
+fn identifier_no_keyword<'v,'e, E:ParserError<'e>>(input: ParserInput<'e>) -> ParserResult<Identifier<'v>,E> {
     context("identifier_plain", map(verify(identifier_name, no_keyword), |name| {
         Identifier {
             name: Cow::Owned(name.fragment().to_owned().to_owned()),
@@ -32,7 +32,7 @@ fn identifier_no_keyword<'v>(input: ParserInput) -> ParserResult<Identifier<'v>>
     }))(input)
 }
 
-fn identifier_raw<'v>(input: ParserInput) -> ParserResult<Identifier<'v>> {
+fn identifier_raw<'v,'e, E:ParserError<'e>>(input: ParserInput<'e>) -> ParserResult<Identifier<'v>,E> {
     context("identifier_raw", map(preceded(tag("#"), identifier_name), |name: ParserInput| {
         Identifier {
             name: Cow::Owned(name.to_string()),
@@ -40,6 +40,6 @@ fn identifier_raw<'v>(input: ParserInput) -> ParserResult<Identifier<'v>> {
     }))(input)
 }
 
-pub(crate) fn identifier<'v>(input: ParserInput) -> ParserResult<Identifier<'v>> {
+pub(crate) fn identifier<'v,'e, E:ParserError<'e>>(input: ParserInput<'e>) -> ParserResult<Identifier<'v>,E> {
     context("identifier", alt((identifier_raw, identifier_no_keyword)))(input)
 }

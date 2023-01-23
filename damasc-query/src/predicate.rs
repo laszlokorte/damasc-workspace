@@ -19,7 +19,7 @@ pub struct Predicate<'s> {
 }
 
 impl<'s> Predicate<'s> {
-    pub fn apply<'v, 'i, 'e>(
+    pub fn apply<'v, 'i>(
         &self,
         env: &Environment<'i, 's, 'v>,
         value: &'v Value<'s, 'v>,

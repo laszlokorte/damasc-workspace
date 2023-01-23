@@ -1,0 +1,10 @@
+{% extends "base.html.j2" %}
+
+{% block body %}
+
+{% include "examples.html.j2" %}
+
+{% set prefill = true %}
+{% include "repl.html.j2" %}
+
+{% endblock body %}

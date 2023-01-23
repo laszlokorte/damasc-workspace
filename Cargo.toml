@@ -6,4 +6,5 @@ members = [
     "damasc-query",
     "damasc-repl",
     "damasc-wasm",
+    "damasc-http",
 ]

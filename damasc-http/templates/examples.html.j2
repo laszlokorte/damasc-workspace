@@ -1,0 +1,9 @@
+<details class="explainer" open>
+    <summary class="explainer-head">Examples</summary>
+
+    <form data-repl class="example-list" action="." method="post">
+    {% for ex in examples %}
+        <button name="statement" value="{{ex}}" class="example-button">{{ex}}</button>
+    {% endfor %}
+    </form>
+</details>

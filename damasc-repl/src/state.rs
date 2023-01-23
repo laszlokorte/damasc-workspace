@@ -1,3 +1,6 @@
+use std::collections::BTreeSet;
+
+use damasc_lang::identifier::Identifier;
 use damasc_lang::runtime::evaluation::Evaluation;
 use damasc_lang::{
     runtime::{
@@ -23,6 +26,10 @@ impl<'i, 's, 'v> State<'i, 's, 'v> {
         Self::default()
     }
 
+    pub fn vars<'x>(&'x self) -> BTreeSet<&'x Identifier<'i>> {
+        self.environment.bindings.keys().into_iter().collect()
+    }
+
     pub fn eval(&mut self, command: Command<'s, 's>) -> Result<ReplOutput<'i, 's, 'v>, ReplError> {
         match command {
             Command::Exit => Ok(ReplOutput::Exit),
@@ -30,6 +37,10 @@ impl<'i, 's, 'v> State<'i, 's, 'v> {
             Command::Cancel => Ok(ReplOutput::Ok),
             Command::ShowEnv => {
                 Ok(ReplOutput::Bindings(self.environment.clone()))
+            }
+            Command::ClearEnv => {
+                self.environment.clear();
+                Ok(ReplOutput::Ok)
             }
             Command::Transform(transformation) => {
                 let evaluation = Evaluation::new(&self.environment);

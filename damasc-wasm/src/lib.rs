@@ -1,5 +1,4 @@
 use damasc_repl::{state::State, parser};
-use wasm_bindgen;
 
 
 use cfg_if::cfg_if;
@@ -26,10 +25,18 @@ pub struct WasmRepl {
     state: Box<State<'static, 'static, 'static>>,
 }
 
+impl Default for WasmRepl {
+    fn default() -> Self {
+        Self {
+            state: Box::new(State::new()),
+        }
+    }
+}
+
 #[wasm_bindgen]
 impl WasmRepl {
     #[wasm_bindgen(constructor)]
-    pub fn default() -> Self {
+    pub fn new() -> Self {
         Self {
             state: Box::new(State::new()),
         }
@@ -40,7 +47,7 @@ impl WasmRepl {
         let cmd = match parser::command_all_consuming(input) {
             Ok(cmd) => cmd,
             Err(e) => {
-                return show_error(input, &format!("{e}"));
+                return show_error(input, &e);
             }
         };
 

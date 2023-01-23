@@ -6,7 +6,7 @@ use nom::{
     character::complete::{alpha1, space0},
     combinator::{all_consuming, map, not, opt, peek, recognize, value},
     multi::{fold_many0, many0, separated_list0, separated_list1},
-    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple}, error::context,
+    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple}, error::{context, Error},
 };
 
 use crate::{
@@ -22,41 +22,41 @@ use crate::{
 use super::{
     identifier::identifier,
     literal::{literal, literal_string_raw},
-    util::ws, io::{ParserResult, ParserInput},
+    util::ws, io::{ParserResult, ParserInput, ParserError},
 };
 
 pub fn expression_all_consuming<'v>(input: &str) -> Option<Expression<'v>> {
-    match all_consuming(expression)(ParserInput::new(input)) {
+    match all_consuming(expression::<Error<ParserInput>>)(ParserInput::new(input)) {
         Ok((_, r)) => Some(r),
         Err(_) => None,
     }
 }
 
-pub fn expression_many1<'v>(input: ParserInput) -> ParserResult<ExpressionSet<'v>> {
+pub fn expression_many1<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<ExpressionSet<'v>, E> {
     delimited(
         space0,
         map(separated_list1(ws(tag(";")), expression), |expressions| {
             ExpressionSet { expressions }
         }),
-        ws(opt(tag(";"))),
+        opt(ws(tag(";"))),
     )(input)
 }
 
 pub fn expression_many1_all_consuming<'v>(input: &str) -> Option<ExpressionSet<'v>> {
-    match all_consuming(expression_many1)(ParserInput::new(input)) {
+    match all_consuming(expression_many1::<Error<ParserInput>>)(ParserInput::new(input)) {
         Ok((_, r)) => Some(r),
         Err(_) => None,
     }
 }
 
 pub fn expression_many0_all_consuming<'v>(input: &str) -> Option<ExpressionSet<'v>> {
-    match all_consuming(expression_many0)(ParserInput::new(input)) {
+    match all_consuming(expression_many0::<Error<ParserInput>>)(ParserInput::new(input)) {
         Ok((_, r)) => Some(r),
         Err(_) => None,
     }
 }
 
-pub fn expression_many0<'v>(input: ParserInput) -> ParserResult<ExpressionSet<'v>> {
+pub fn expression_many0<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<ExpressionSet<'v>, E> {
     delimited(
         space0,
         map(separated_list0(ws(tag(";")), expression), |expressions| {
@@ -66,14 +66,14 @@ pub fn expression_many0<'v>(input: ParserInput) -> ParserResult<ExpressionSet<'v
     )(input)
 }
 
-fn expression_array_item<'v>(input: ParserInput) -> ParserResult<ArrayItem<'v>> {
+fn expression_array_item<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<ArrayItem<'v>, E> {
     context("expression_array_item", alt((
         map(preceded(ws(tag("...")), expression), ArrayItem::Spread),
         map(expression, ArrayItem::Single),
     )))(input)
 }
 
-fn expression_call<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_call<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     context("expression_call", map(
         pair(
             identifier,
@@ -88,7 +88,7 @@ fn expression_call<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
     ))(input)
 }
 
-fn expression_array<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_array<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     context("expression_array", delimited(
         ws(tag("[")),
         terminated(
@@ -102,7 +102,7 @@ fn expression_array<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
     ))(input)
 }
 
-fn expression_object_property<'v>(input: ParserInput) -> ParserResult<ObjectProperty<'v>> {
+fn expression_object_property<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<ObjectProperty<'v>, E> {
     context("expression_object_property", alt((
         map(
             separated_pair(
@@ -140,7 +140,7 @@ fn expression_object_property<'v>(input: ParserInput) -> ParserResult<ObjectProp
     )))(input)
 }
 
-fn expression_object<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_object<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     context("expression_object", delimited(
         ws(tag("{")),
         terminated(
@@ -154,7 +154,7 @@ fn expression_object<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
     ))(input)
 }
 
-fn expression_literal<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_literal<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     context("expression_literal", alt((
         expression_object,
         expression_array,
@@ -164,15 +164,15 @@ fn expression_literal<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
     )))(input)
 }
 
-fn expression_atom<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_atom<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     context("expression_atom", map(literal, Expression::Literal))(input)
 }
 
-fn expression_identifier<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_identifier<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     context("expression_identifier", map(identifier, Expression::Identifier))(input)
 }
 
-fn string_template_part<'v>(input: ParserInput) -> ParserResult<StringTemplatePart<'v>> {
+fn string_template_part<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<StringTemplatePart<'v>, E> {
     context("expression_string_template_part", map(
         tuple((
             recognize(take_until("${")),
@@ -185,7 +185,7 @@ fn string_template_part<'v>(input: ParserInput) -> ParserResult<StringTemplatePa
     ))(input)
 }
 
-fn expression_string_template<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_string_template<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     context("expression_string_template", map(
         delimited(
             tag("`"),
@@ -201,11 +201,11 @@ fn expression_string_template<'v>(input: ParserInput) -> ParserResult<Expression
     ))(input)
 }
 
-fn expression_logic_additive_operator(input: ParserInput) -> ParserResult<LogicalOperator> {
+fn expression_logic_additive_operator<'s, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<LogicalOperator, E> {
     context("expression_logic_operator", alt((value(LogicalOperator::Or, tag("||")),)))(input)
 }
 
-fn expression_logic_additive<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_logic_additive<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     let (input, init) = expression_logic_multiplicative(input)?;
 
     fold_many0(
@@ -225,13 +225,13 @@ fn expression_logic_additive<'v>(input: ParserInput) -> ParserResult<Expression<
 }
 
 
-fn expression_logic_multiplicative_operator(input: ParserInput) -> ParserResult<LogicalOperator> {
+fn expression_logic_multiplicative_operator<'s, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<LogicalOperator,E> {
     context("expression_logic_operator", 
     alt((value(LogicalOperator::And, tag("&&")),)))(input)
 }
 
 
-fn expression_logic_multiplicative<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_logic_multiplicative<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     let (input, init) = expression_type_predicate(input)?;
 
     fold_many0(
@@ -250,16 +250,16 @@ fn expression_logic_multiplicative<'v>(input: ParserInput) -> ParserResult<Expre
     )(input)
 }
 
-fn expression_type_predicate_operator(input: ParserInput) -> ParserResult<BinaryOperator> {
+fn expression_type_predicate_operator<'s, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<BinaryOperator,E> {
     context("expression_type_predicate_operator", alt((
         value(BinaryOperator::Is, tag("is")),
     )))(input)
 }
 
-fn expression_type_predicate<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_type_predicate<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     let (input, init) = expression_type_additive(input)?;
 
-    let Ok((input, (op, t))) = tuple((ws(expression_type_predicate_operator), expression_numeric_predicative))(input) else {
+    let Ok((input, (op, t))) = tuple((ws(expression_type_predicate_operator::<E>), expression_numeric_predicative))(input) else {
         return Ok((input, init));
     };
 
@@ -273,13 +273,13 @@ fn expression_type_predicate<'v>(input: ParserInput) -> ParserResult<Expression<
     ))
 }
 
-fn expression_type_additive_operator(input: ParserInput) -> ParserResult<BinaryOperator> {
+fn expression_type_additive_operator<'s, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<BinaryOperator,E> {
     context("expression_type_additive_operator", alt((
         value(BinaryOperator::Cast, tag("as")),
     )))(input)
 }
 
-fn expression_type_additive<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_type_additive<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     let (input, init) = expression_numeric_predicative(input)?;
 
     fold_many0(
@@ -298,7 +298,7 @@ fn expression_type_additive<'v>(input: ParserInput) -> ParserResult<Expression<'
     )(input)
 }
 
-fn expression_numeric_predicative_operator(input: ParserInput) -> ParserResult<BinaryOperator> {
+fn expression_numeric_predicative_operator<'s, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<BinaryOperator,E> {
     context("expression_numeric_predicative_operator", alt((
         value(BinaryOperator::GreaterThanEqual, tag(">=")),
         value(BinaryOperator::LessThanEqual, tag("<=")),
@@ -310,7 +310,7 @@ fn expression_numeric_predicative_operator(input: ParserInput) -> ParserResult<B
     )))(input)
 }
 
-fn expression_numeric_predicative<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_numeric_predicative<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     let (input, init) = expression_numeric_additive(input)?;
 
     fold_many0(
@@ -330,20 +330,20 @@ fn expression_numeric_predicative<'v>(input: ParserInput) -> ParserResult<Expres
 }
 
 
-fn expression_numeric_additive_operator(input: ParserInput) -> ParserResult<BinaryOperator> {
+fn expression_numeric_additive_operator<'s, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<BinaryOperator,E> {
     context("expression_numeric_additive_operator", alt((
         value(BinaryOperator::Plus, tag("+")),
         value(BinaryOperator::Minus, tag("-")),
     )))(input)
 }
 
-fn expression_numeric_additive<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
-    let (input, init) = expression_numeric_multiplicative(input)?;
+fn expression_numeric_additive<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
+    let (input, init) = context("expression_numeric_multiplicative", expression_numeric_multiplicative)(input)?;
 
     fold_many0(
         pair(
             ws(expression_numeric_additive_operator),
-            expression_numeric_multiplicative,
+            context("expression_numeric_multiplicative", expression_numeric_multiplicative),
         ),
         move || init.clone(),
         |left, (operator, right)| {
@@ -357,7 +357,7 @@ fn expression_numeric_additive<'v>(input: ParserInput) -> ParserResult<Expressio
 }
 
 
-fn expression_numeric_multiplicative_operator(input: ParserInput) -> ParserResult<BinaryOperator> {
+fn expression_numeric_multiplicative_operator<'s, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<BinaryOperator,E> {
     context("expression_numeric_multiplicative_operator", alt((
         value(BinaryOperator::Times, tag("*")),
         value(BinaryOperator::Over, tag("/")),
@@ -365,7 +365,7 @@ fn expression_numeric_multiplicative_operator(input: ParserInput) -> ParserResul
     )))(input)
 }
 
-fn expression_numeric_multiplicative<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_numeric_multiplicative<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     let (input, init) = expression_numeric_exponential(input)?;
 
     fold_many0(
@@ -385,12 +385,12 @@ fn expression_numeric_multiplicative<'v>(input: ParserInput) -> ParserResult<Exp
 }
 
 
-fn expression_numeric_exponential_operator(input: ParserInput) -> ParserResult<BinaryOperator> {
+fn expression_numeric_exponential_operator<'s, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<BinaryOperator,E> {
     context("expression_numeric_exponential_operator", 
     alt((value(BinaryOperator::PowerOf, tag("^")),)))(input)
 }
 
-fn expression_numeric_exponential<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_numeric_exponential<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     let (input, init) = expression_indexed(input)?;
 
     fold_many0(
@@ -409,7 +409,7 @@ fn expression_numeric_exponential<'v>(input: ParserInput) -> ParserResult<Expres
     )(input)
 }
 
-fn expression_indexed<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_indexed<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     let (input, init) = expression_member(input)?;
 
     fold_many0(
@@ -424,7 +424,7 @@ fn expression_indexed<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
     )(input)
 }
 
-fn expression_member<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_member<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     let (input, init) = expression_primary(input)?;
 
     fold_many0(
@@ -439,7 +439,7 @@ fn expression_member<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
     )(input)
 }
 
-fn expression_primary<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_primary<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     alt((
         expression_with_paren,
         expression_literal,
@@ -448,20 +448,20 @@ fn expression_primary<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
     ))(input)
 }
 
-fn expression_with_paren<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_with_paren<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     context("expression_with_paren", delimited(tag("("), expression, tag(")")))(input)
 }
 
-fn expression_unary<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_unary<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     context("expression_unary", alt((expression_unary_logic, expression_unary_numeric)))(input)
 }
 
-fn expression_unary_logic_operator(input: ParserInput) -> ParserResult<UnaryOperator> {
+fn expression_unary_logic_operator<'s, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<UnaryOperator,E> {
     context("expression_unary_logic_operator", 
     alt((value(UnaryOperator::Not, tag("!")),)))(input)
 }
 
-fn expression_unary_logic<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_unary_logic<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     map(
         pair(
             ws(expression_unary_logic_operator),
@@ -477,7 +477,7 @@ fn expression_unary_logic<'v>(input: ParserInput) -> ParserResult<Expression<'v>
 }
 
 
-fn expression_unary_numeric_operator(input: ParserInput) -> ParserResult<UnaryOperator> {
+fn expression_unary_numeric_operator<'s, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<UnaryOperator,E> {
     context("expression_unary_numeric_operator", 
     alt((
         value(UnaryOperator::Minus, tag("-")),
@@ -485,7 +485,7 @@ fn expression_unary_numeric_operator(input: ParserInput) -> ParserResult<UnaryOp
     )))(input)
 }
 
-fn expression_unary_numeric<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+fn expression_unary_numeric<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     map(
         pair(
             ws(expression_unary_numeric_operator ),
@@ -500,6 +500,6 @@ fn expression_unary_numeric<'v>(input: ParserInput) -> ParserResult<Expression<'
     )(input)
 }
 
-pub fn expression<'v>(input: ParserInput) -> ParserResult<Expression<'v>> {
+pub fn expression<'v, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Expression<'v>, E> {
     context("expression", expression_logic_additive)(input)
 }
