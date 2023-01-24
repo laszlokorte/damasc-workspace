@@ -1,0 +1,3 @@
+$baz << x+y;
+$woo << p;
+$blub << x;

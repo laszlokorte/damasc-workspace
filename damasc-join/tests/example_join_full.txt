@@ -1,0 +1,8 @@
+1;2;3 >> z;
+$foo >> x;y;[y,z] where z > y
+$bar >> x;y;
+$baz << x+y;
+$woo << p;
+$blub << x;
+with p = z*y
+guard x>y

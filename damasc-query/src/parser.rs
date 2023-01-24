@@ -30,13 +30,30 @@ pub fn query_bag_allow_empty(input: ParserInput) -> ParserResult<ExpressionSet> 
     context("query_bag_allow_empty", delimited(ws(tag(r"{")), expression_many0, ws(tag(r"}"))))(input)
 }
 
+pub fn multi_predicate<'x, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<MultiPredicate<'x>, E> {
+    map(
+        tuple((
+            context("query_projection_capture", ws(many1_pattern)),
+            opt(preceded(ws(tag("where")), context("query_projection_guard", ws(expression)))),
+        )),
+        |(pattern_set, guard)| {
+            MultiPredicate {
+                capture: MultiCapture {
+                    patterns: pattern_set,
+                },
+                guard: guard.unwrap_or(Expression::Literal(Literal::Boolean(true))),
+            }
+        }
+    )(input)
+}
+
 pub fn projection<'x, 's, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<MultiProjection<'x>, E> {
     context("query_projection", map(
         preceded(
             ws(tag("|>")),
             tuple((
-                opt(preceded(ws(tag("map")), context("query_projection_map", ws(many1_pattern)))),
-                opt(preceded(ws(tag("where")), context("query_projection_predicate", ws(expression)))),
+                opt(preceded(ws(tag("map")), context("query_projection_capture", ws(many1_pattern)))),
+                opt(preceded(ws(tag("where")), context("query_projection_guard", ws(expression)))),
                 opt(preceded(ws(tag("into")), context("query_projection_expression", ws(expression_many1)))),
             )),
         ),

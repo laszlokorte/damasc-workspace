@@ -12,7 +12,7 @@ pub enum Value<'s, 'v> {
     Type(ValueType),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct ValueBag<'s, 'v> {
     pub values: Vec<Value<'s, 'v>>,
 }
