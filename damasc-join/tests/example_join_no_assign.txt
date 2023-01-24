@@ -1,4 +1,4 @@
-1;2;3 >> z;
+$! 1;2;3 >> z;
 $foo >> x;y;[y,z] where z > y
 $bar >> x;y
 $baz << x+y;

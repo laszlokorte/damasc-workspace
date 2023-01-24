@@ -35,14 +35,14 @@ pub fn bag_bundle_all_consuming(bundle_string: &str) -> Option<BagBundle<'_,'_>>
 fn join_source<'v,'s, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<JoinSource<'_,'_>, E> {
     alt((
         map(preceded(tag("$"), identifier), JoinSource::Named),
-        map(value_bag, JoinSource::Constant),
+        map(preceded(tag("$!"), value_bag), JoinSource::Constant),
     ))(input)
 }
 
 fn join_sink<'v,'s, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<JoinSink<'_>, E> {
     alt((
         map(preceded(tag("$"), identifier), JoinSink::Named),
-        value(JoinSink::Print, ws(tag("print"))),
+        value(JoinSink::Print, preceded(tag("$!"), ws(tag("print")))),
     ))(input)
 }
 
