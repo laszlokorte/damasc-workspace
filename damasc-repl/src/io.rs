@@ -1,6 +1,5 @@
 use damasc_lang::{runtime::env::Environment, value::ValueBag};
 
-
 #[derive(Debug)]
 pub enum ReplOutput<'i, 's, 'v> {
     Ok,
@@ -10,7 +9,7 @@ pub enum ReplOutput<'i, 's, 'v> {
     Exit,
 }
 
-impl std::fmt::Display for ReplOutput<'_,'_,'_> {
+impl std::fmt::Display for ReplOutput<'_, '_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ReplOutput::Ok => writeln!(f, "OK."),

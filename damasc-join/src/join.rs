@@ -1,6 +1,13 @@
 use std::collections::HashMap;
 
-use damasc_lang::{syntax::{expression::{ExpressionSet, Expression}, assignment::AssignmentSet}, identifier::Identifier, value::ValueBag};
+use damasc_lang::{
+    identifier::Identifier,
+    syntax::{
+        assignment::AssignmentSet,
+        expression::{Expression, ExpressionSet},
+    },
+    value::ValueBag,
+};
 use damasc_query::predicate::MultiPredicate;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -16,9 +23,9 @@ pub enum JoinSink<'s> {
 }
 
 #[derive(Clone, Debug)]
-pub struct Join<'s,'v> {
-    pub input: HashMap<JoinSource<'s,'v>, MultiPredicate<'s>>,
+pub struct Join<'s, 'v> {
+    pub input: HashMap<JoinSource<'s, 'v>, MultiPredicate<'s>>,
     pub output: HashMap<JoinSink<'s>, ExpressionSet<'s>>,
-    pub local_assignments: AssignmentSet<'s,'v>,
+    pub local_assignments: AssignmentSet<'s, 'v>,
     pub guard: Expression<'s>,
 }

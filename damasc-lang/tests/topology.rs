@@ -8,7 +8,6 @@ use damasc_lang::parser;
 fn test_topology_fail() {
     let lines = include_str!("./examples_topology_fail.txt").lines();
     for line in lines {
-
         let Some(assignment) = parser::assignment::assignment_set1_all_consuming(line) else {
             unreachable!("Can not parse assignments");
         };

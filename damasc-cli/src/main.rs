@@ -1,7 +1,4 @@
-use damasc_repl::{
-    parser,
-    state::{State}, io::ReplOutput,
-};
+use damasc_repl::{io::ReplOutput, parser, state::State};
 use rustyline::{error::ReadlineError, Editor};
 
 const HISTORY_FILE: &str = "history.txt";

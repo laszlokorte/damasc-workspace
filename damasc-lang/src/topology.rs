@@ -82,9 +82,9 @@ pub(crate) fn sort_topological<'x, I: Node + Clone>(
                 .collect();
 
             if cycle.is_empty() {
-                return Ok(items)
+                return Ok(items);
             } else {
-                return Err(TopologyError::Cycle(cycle))
+                return Err(TopologyError::Cycle(cycle));
             }
         } else {
             return Ok(result.into_iter().map(|i| items[i].clone()).collect());

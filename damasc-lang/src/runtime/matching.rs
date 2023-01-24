@@ -15,7 +15,10 @@ use crate::{
     value::{Value, ValueObjectMap},
 };
 
-use super::{env::{Environment, EMPTY_ENVIRONMENT}, evaluation::Evaluation};
+use super::{
+    env::{Environment, EMPTY_ENVIRONMENT},
+    evaluation::Evaluation,
+};
 
 #[derive(Debug)]
 pub enum PatternFail {
@@ -263,7 +266,6 @@ impl<'i, 's, 'v, 'e> Matcher<'i, 's, 'v, 'e> {
 }
 
 impl Default for Matcher<'_, '_, '_, 'static> {
-
     fn default() -> Self {
         Self {
             outer_env: &EMPTY_ENVIRONMENT,

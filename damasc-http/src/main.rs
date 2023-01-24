@@ -43,7 +43,7 @@ struct HomeTemplate<'x> {
     examples: &'static [&'static str],
 }
 
-const EXAMPLES : [&str; 10] = [
+const EXAMPLES: [&str; 10] = [
     r#"true"#,
     r#"true && false"#,
     r#"5*5"#,

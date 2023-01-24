@@ -5,7 +5,7 @@ use damasc_lang::{parser, runtime::evaluation::Evaluation};
 #[test]
 fn test_expression_parsing() {
     let lines = include_str!("./examples_expression_pairs.txt").lines();
-    
+
     for line in lines.filter(|l| l != &"---") {
         assert!(parser::expression::expression_many1_all_consuming(line).is_some());
     }
@@ -13,8 +13,8 @@ fn test_expression_parsing() {
 #[test]
 fn test_expression_evaluation() {
     let lines = include_str!("./examples_expression_pairs.txt").lines();
-    
-    for [a,b,sep] in lines.array_chunks() {
+
+    for [a, b, sep] in lines.array_chunks() {
         assert_eq!(sep, "---");
         let Some(a) = parser::expression::expression_many1_all_consuming(a) else {
             dbg!(a);
@@ -26,7 +26,7 @@ fn test_expression_evaluation() {
             unreachable!("Parse error");
         };
 
-        for (a,b) in a.expressions.into_iter().zip(b.expressions.into_iter()) {
+        for (a, b) in a.expressions.into_iter().zip(b.expressions.into_iter()) {
             let eval = Evaluation::default();
             let Ok(res_a) = eval.eval_expr(&a) else {
                 unreachable!("Evaluation error");

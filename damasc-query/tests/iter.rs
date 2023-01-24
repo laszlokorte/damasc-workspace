@@ -1,7 +1,10 @@
 #![feature(assert_matches)]
 
 use damasc_lang::{
-    parser::{expression::expression_all_consuming, pattern::pattern_all_consuming, value::value_bag_all_consuming},
+    parser::{
+        expression::expression_all_consuming, pattern::pattern_all_consuming,
+        value::value_bag_all_consuming,
+    },
     runtime::env::Environment,
     value::Value,
 };

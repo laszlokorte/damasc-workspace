@@ -1,5 +1,4 @@
-use damasc_repl::{state::State, parser};
-
+use damasc_repl::{parser, state::State};
 
 use cfg_if::cfg_if;
 use wasm_bindgen::prelude::*;

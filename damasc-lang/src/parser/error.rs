@@ -1,6 +1,5 @@
 use nom::error::{ErrorKind, ParseError};
 
-
 #[derive(Debug)]
 pub struct DamascSyntaxError<I> {
     pub kind: SyntaxErrorKind<I>,
@@ -14,8 +13,8 @@ impl<I> nom::error::ContextError<I> for DamascSyntaxError<I> {
 
 #[derive(Debug)]
 pub enum SyntaxErrorKind<I> {
-     Nom(I, ErrorKind),
-     // your error types as the rest of the variants
+    Nom(I, ErrorKind),
+    // your error types as the rest of the variants
 }
 
 impl<I> ParseError<I> for DamascSyntaxError<I> {
@@ -24,12 +23,11 @@ impl<I> ParseError<I> for DamascSyntaxError<I> {
             kind: SyntaxErrorKind::Nom(input, kind),
         }
     }
-    
-    fn append(input: I, kind: ErrorKind, mut other: Self) -> Self {
+
+    fn append(_input: I, _kind: ErrorKind, other: Self) -> Self {
         other
     }
 }
-
 
 impl<I> ToString for DamascSyntaxError<I> {
     fn to_string(&self) -> String {

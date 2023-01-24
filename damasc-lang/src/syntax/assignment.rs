@@ -23,9 +23,7 @@ pub struct AssignmentSet<'a, 'b> {
 }
 
 impl<'a, 'b> AssignmentSet<'a, 'b> {
-    pub fn sort_topological<'x>(
-        self,
-    ) -> Result<AssignmentSet<'a, 'b>, TopologyError<'x>> {
+    pub fn sort_topological<'x>(self) -> Result<AssignmentSet<'a, 'b>, TopologyError<'x>> {
         let sorted = sort_topological(self.assignments)?;
         Ok(AssignmentSet {
             assignments: sorted,

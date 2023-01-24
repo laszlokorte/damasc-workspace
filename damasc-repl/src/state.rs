@@ -13,13 +13,12 @@ use damasc_lang::{
 use damasc_query::iter::MultiProjectionIterator;
 
 use crate::command::Command;
-use crate::io::{ReplOutput, ReplError};
+use crate::io::{ReplError, ReplOutput};
 
 #[derive(Default)]
 pub struct State<'i, 's, 'v> {
     environment: Environment<'i, 's, 'v>,
 }
-
 
 impl<'i, 's, 'v> State<'i, 's, 'v> {
     pub fn new() -> Self {
@@ -35,9 +34,7 @@ impl<'i, 's, 'v> State<'i, 's, 'v> {
             Command::Exit => Ok(ReplOutput::Exit),
             Command::Help => Ok(ReplOutput::Ok),
             Command::Cancel => Ok(ReplOutput::Ok),
-            Command::ShowEnv => {
-                Ok(ReplOutput::Bindings(self.environment.clone()))
-            }
+            Command::ShowEnv => Ok(ReplOutput::Bindings(self.environment.clone())),
             Command::ClearEnv => {
                 self.environment.clear();
                 Ok(ReplOutput::Ok)
