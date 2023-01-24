@@ -485,6 +485,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "damasc-join"
+version = "0.1.0"
+dependencies = [
+ "damasc-lang",
+ "damasc-query",
+ "nom",
+]
+
+[[package]]
 name = "damasc-lang"
 version = "0.1.0"
 dependencies = [

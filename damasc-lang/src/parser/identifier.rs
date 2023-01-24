@@ -40,6 +40,6 @@ fn identifier_raw<'v,'e, E:ParserError<'e>>(input: ParserInput<'e>) -> ParserRes
     }))(input)
 }
 
-pub(crate) fn identifier<'v,'e, E:ParserError<'e>>(input: ParserInput<'e>) -> ParserResult<Identifier<'v>,E> {
+pub fn identifier<'v,'e, E:ParserError<'e>>(input: ParserInput<'e>) -> ParserResult<Identifier<'v>,E> {
     context("identifier", alt((identifier_raw, identifier_no_keyword)))(input)
 }

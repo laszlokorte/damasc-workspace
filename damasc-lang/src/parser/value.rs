@@ -21,14 +21,18 @@ pub fn single_value<'v,'s, E:ParserError<'s>>(input: ParserInput<'s>) -> Option<
     }
 }
 
-pub fn value_bag_all_consuming<'v>(input: &str) -> Option<ValueBag<'_, 'v>> {
-    match all_consuming(delimited(
+pub fn value_bag<'v,'s, E:ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<ValueBag<'s, 'v>,E> {
+    delimited(
         space0,
-        map(separated_list1(ws(tag(";")), value_literal::<Error<ParserInput>>), |values| {
+        map(separated_list1(ws(tag(";")), value_literal), |values| {
             ValueBag::new(values)
         }),
         alt((ws(tag(";")), space0)),
-    ))(ParserInput::new(input))
+    )(input)
+}
+
+pub fn value_bag_all_consuming<'v>(input: &str) -> Option<ValueBag<'_, 'v>> {
+    match all_consuming(value_bag::<Error<_>>)(ParserInput::new(input))
     {
         Ok((_, r)) => Some(r),
         Err(_) => None,
