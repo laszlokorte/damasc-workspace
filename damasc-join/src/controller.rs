@@ -1,8 +1,5 @@
-use std::borrow::Cow;
 
-use damasc_lang::runtime::env::Environment;
-
-use crate::{bag_bundle::BagBundle, join::Join, bag::{Bag, IdentifiedValue, ValueId}, iter::BagMultiPredicateIterator};
+use crate::{bag_bundle::BagBundle, join::Join, bag::Bag};
 
 #[derive(Default, Clone)]
 struct Controller<'s,'v> {
@@ -22,9 +19,9 @@ impl<'s,'v> Controller<'s,'v> {
                 crate::join::JoinSource::Named(name) => self.storage.bags.get(name).unwrap_or(&empty_bag),
             };
 
-            BagMultiPredicateIterator::new(Environment::default(), pred, bag)
+            bag.query_matchings(pred)
         }).multi_cartesian_product().map(|x| {
-
+            let cc = x.into_iter().collect::<Result<Vec<_>,_>>();
         });
 
     }

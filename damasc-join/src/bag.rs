@@ -2,48 +2,7 @@ use damasc_lang::{value::{Value, ValueBag}, runtime::{env::Environment}};
 use damasc_query::predicate::{MultiPredicate};
 
 
-use crate::iter::BagMultiPredicateIterator;
-
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub struct ValueId {
-    id: u64,
-}
-
-impl ValueId {
-    pub fn new(id: u64) -> Self {
-        Self {
-            id
-        }
-    }
-}
-
-#[derive(Default, Debug, Clone)]
-struct IdSequence {
-    next: u64,
-}
-impl IdSequence {
-    fn next(&mut self) -> ValueId {
-        let id = self.next;
-
-        self.next += 1;
-
-        ValueId { id }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct IdentifiedValue<'s, 'v> {
-    pub(crate) id: ValueId,
-    pub(crate) value: Value<'s, 'v>,
-}
-
-impl<'s, 'v> IdentifiedValue<'s, 'v> {
-    pub fn new(id: ValueId, value: Value<'s, 'v>) -> Self {
-        Self {
-            id, value
-        }
-    }
-}
+use crate::{iter::BagMultiPredicateIterator, identity::{IdSequence, IdentifiedValue, ValueId}};
 
 #[derive(Default, Debug, Clone)]
 pub struct Bag<'s, 'v> {
@@ -74,7 +33,7 @@ impl<'s, 'v> Bag<'s, 'v> {
         self.values.len()
     }
 
-    pub(crate) fn query<'x:'s,'y,'p:'s>(&'x self, pred: &'p MultiPredicate<'s>) -> BagMultiPredicateIterator {
+    pub(crate) fn query_matchings<'p>(&self, pred: &'p MultiPredicate<'s>) -> BagMultiPredicateIterator<'_, 's, 'v,'p> {
         BagMultiPredicateIterator::new(Environment::default(), pred, self)
     }
 }

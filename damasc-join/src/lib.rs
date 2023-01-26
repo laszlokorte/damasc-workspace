@@ -1,5 +1,6 @@
 #![feature(map_try_insert)]
 
+pub mod identity;
 pub mod bag;
 pub mod iter;
 pub mod bag_bundle;
