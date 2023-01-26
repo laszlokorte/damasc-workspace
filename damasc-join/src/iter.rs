@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use damasc_lang::{runtime::{env::Environment, evaluation::Evaluation}, value::Value};
+use damasc_lang::{runtime::{env::Environment, evaluation::Evaluation}, value::{Value, ValueBag}};
 use damasc_query::predicate::{MultiPredicate, PredicateError};
 use itertools::Permutations;
 
@@ -28,14 +28,23 @@ impl<'i, 's, 'v,'p> BagMultiPredicateIterator<'i, 's, 'v,'p>
     pub fn new(env: Environment<'i, 's, 'v>, predicate: &'p MultiPredicate<'s>, bag: &'i Bag<'s,'v>) -> Self {
         use itertools::Itertools;
 
-        let x = bag.values.iter();
-
         Self {
             env,
             iter: bag.values.iter().permutations(predicate.capture.patterns.patterns.len()),
             predicate,
         }
     }
+
+    pub fn empty(env: Environment<'i, 's, 'v>, predicate: &'p MultiPredicate<'s>) -> Self {
+        use itertools::Itertools;
+
+        Self {
+            env,
+            iter: [].iter().permutations(predicate.capture.patterns.patterns.len()),
+            predicate,
+        }
+    }
+
 }
 
 impl<'i, 's: 'v, 'v,'p> Iterator

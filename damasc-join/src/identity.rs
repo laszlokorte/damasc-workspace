@@ -8,6 +8,12 @@ pub struct ValueId {
     id: u64,
 }
 
+impl std::fmt::Display for ValueId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.id)
+    }
+}
+
 impl ValueId {
     pub fn new(id: u64) -> Self {
         Self {
@@ -46,8 +52,25 @@ impl<'s, 'v> IdentifiedValue<'s, 'v> {
 }
 
 
-#[derive(Debug, Clone)]
-pub(crate) struct IdentifiedEnvironment<'i, 's, 'v> {
-    pub(crate) used_ids: HashSet<ValueId>,
-    pub(crate) environment: Environment<'i, 's, 'v>,
+#[derive(Debug, Clone, Default)]
+pub struct IdentifiedEnvironment<'i, 's, 'v> {
+    pub used_ids: HashSet<ValueId>,
+    pub environment: Environment<'i, 's, 'v>,
+}
+
+impl<'i, 's, 'v> IdentifiedEnvironment<'i, 's, 'v> {
+    pub fn combine(&self, other: &Self) -> Option<Self> {
+        // TODO cross bag ids
+        // || self.used_ids.intersection(&other.used_ids).count() == 0
+        if true {
+            let combined_env = self.environment.combine(&other.environment)?;
+
+            Some(IdentifiedEnvironment { 
+                used_ids: self.used_ids.union(&other.used_ids).cloned().collect(), 
+                environment: combined_env 
+            })
+        } else {
+            None
+        }
+    }
 }

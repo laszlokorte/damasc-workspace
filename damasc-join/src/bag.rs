@@ -11,7 +11,7 @@ pub struct Bag<'s, 'v> {
 }
 
 impl<'s, 'v> Bag<'s, 'v> {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             sequence: IdSequence::default(),
             values: Vec::default(),
@@ -31,6 +31,10 @@ impl<'s, 'v> Bag<'s, 'v> {
 
     pub fn len(&self) -> usize {
         self.values.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
     }
 
     pub(crate) fn query_matchings<'p>(&self, pred: &'p MultiPredicate<'s>) -> BagMultiPredicateIterator<'_, 's, 'v,'p> {
