@@ -1,7 +1,9 @@
 
-use damasc_lang::runtime::env::Environment;
+use std::borrow::Cow;
 
-use crate::{bag_bundle::BagBundle, join::Join, bag::Bag, identity::{IdentifiedEnvironment, ValueId, IdentifiedValue}, iter::BagMultiPredicateIterator};
+use damasc_lang::{runtime::env::Environment, identifier::Identifier};
+
+use crate::{bag_bundle::BagBundle, join::Join, bag::Bag, identity::IdentifiedEnvironment, iter::BagMultiPredicateIterator};
 
 #[derive(Default, Clone)]
 pub struct Controller<'s,'v> {
@@ -14,21 +16,17 @@ impl<'s,'v> Controller<'s,'v> {
     pub fn query<'x:'s,'slf>(&'slf self, join: &'x Join<'s, 'v>) -> impl Iterator<Item = IdentifiedEnvironment<'_, 's, 'v>> {
         use itertools::Itertools;
 
-        let it = join.input.iter();
-        let iter = it.map(|(source, pred)| {
+        join.input.iter().map(|(source, pred)| {
             let bag = match source {
                 crate::join::JoinSource::Constant(value_bag) => {
-                    //let adhoc_values = value_bag.values.iter().enumerate().map(|(i,v)| 
-                   // IdentifiedValue::new(ValueId::new(i as u64),v.clone())).collect();
-                   // let adhoc_bag = Bag::new();
-                    todo!();
-                   //BagMultiPredicateIterator::new(Environment::default(), pred, adhoc_bag)
+                   let adhoc_bag = Bag::from(value_bag);
+                   BagMultiPredicateIterator::new(Environment::default(), Identifier::new("?"), pred, Cow::Owned(adhoc_bag))
                 },
                 crate::join::JoinSource::Named(name) => {
                     if let Some(b) = self.storage.bags.get(name) {
-                        b.query_matchings(pred)
+                        BagMultiPredicateIterator::new(Environment::default(), name.clone(), pred, Cow::Borrowed(b))
                     } else {
-                        BagMultiPredicateIterator::empty(Environment::default(), pred)
+                        BagMultiPredicateIterator::empty(Environment::default(), name.clone(), pred)
                     }
                 },
             };
@@ -39,11 +37,9 @@ impl<'s,'v> Controller<'s,'v> {
             let cc = x.iter().fold(Some(IdentifiedEnvironment::default()), |acc, e| {
                 let a = acc?;
                 let b = e.as_ref().ok()?;
-                a.combine(&b)
+                a.combine(b)
             });
             cc
-        });
-
-        iter
+        })
     }
 }

@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
-use damasc_lang::{value::Value, runtime::{matching::Matcher, env::Environment}};
+use damasc_lang::{value::Value, runtime::env::Environment, identifier::Identifier};
 
 
-#[derive(PartialEq, Eq, Debug, Clone,Hash)]
+#[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub struct ValueId {
     id: u64,
 }
@@ -54,7 +54,7 @@ impl<'s, 'v> IdentifiedValue<'s, 'v> {
 
 #[derive(Debug, Clone, Default)]
 pub struct IdentifiedEnvironment<'i, 's, 'v> {
-    pub used_ids: HashSet<ValueId>,
+    pub used_ids: HashSet<BagAndValueId<'s>>,
     pub environment: Environment<'i, 's, 'v>,
 }
 
@@ -73,4 +73,10 @@ impl<'i, 's, 'v> IdentifiedEnvironment<'i, 's, 'v> {
             None
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct BagAndValueId<'s> {
+    pub(crate) bag_id: Identifier<'s>,
+    pub(crate) value_id: ValueId,
 }

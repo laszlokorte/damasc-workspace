@@ -1,6 +1,7 @@
+use std::borrow::Cow;
+
 use damasc_lang::{value::{Value, ValueBag}, runtime::{env::Environment}};
 use damasc_query::predicate::{MultiPredicate};
-
 
 use crate::{iter::BagMultiPredicateIterator, identity::{IdSequence, IdentifiedValue, ValueId}};
 
@@ -19,10 +20,10 @@ impl<'s, 'v> Bag<'s, 'v> {
     }
 
     pub fn insert(&mut self, value: &Value<'s, 'v>) {
-        self.values.push(IdentifiedValue {
-            id: self.sequence.next(),
-            value: value.clone(),
-        })
+        self.values.push(IdentifiedValue::new(
+            self.sequence.next(),
+            value.clone(),
+        ));
     }
 
     pub fn remove(&mut self, value_id: ValueId) {
@@ -37,9 +38,6 @@ impl<'s, 'v> Bag<'s, 'v> {
         self.values.is_empty()
     }
 
-    pub(crate) fn query_matchings<'p>(&self, pred: &'p MultiPredicate<'s>) -> BagMultiPredicateIterator<'_, 's, 'v,'p> {
-        BagMultiPredicateIterator::new(Environment::default(), pred, self)
-    }
 }
 
 impl<'s, 'v:'s> From<ValueBag<'s, 'v>> for Bag<'s, 'v> {

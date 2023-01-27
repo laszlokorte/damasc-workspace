@@ -15,6 +15,25 @@ impl<'i, 's, 'v> Environment<'i, 's, 'v> {
     pub fn identifiers(&self) -> std::collections::HashSet<&Identifier> {
         self.bindings.keys().collect()
     }
+
+    pub fn combine(&self, other: &Self) -> Option<Self> {
+        let mut bindings = self.bindings.clone();
+
+        for (id, value) in &other.bindings {
+            match bindings.insert(id.clone(), value.clone()) {
+                Some(ref old) => {
+                    if old != value {
+                        return None
+                    } else {
+                        continue;
+                    }
+                },
+                None => continue,
+            }
+        }
+
+        Some(Environment { bindings })
+    }
 }
 
 impl Environment<'_, '_, '_> {

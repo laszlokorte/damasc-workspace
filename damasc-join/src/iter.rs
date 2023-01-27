@@ -1,21 +1,27 @@
-use std::collections::HashSet;
+use std::borrow::Cow;
 
-use damasc_lang::{runtime::{env::Environment, evaluation::Evaluation}, value::{Value, ValueBag}};
-use damasc_query::predicate::{MultiPredicate, PredicateError};
+use damasc_lang::identifier::Identifier;
+use damasc_lang::{runtime::env::Environment, value::Value};
+use damasc_lang::runtime::evaluation::Evaluation;
+use damasc_query::predicate::PredicateError;
+use damasc_query::predicate::MultiPredicate;
 use itertools::Permutations;
 
+use crate::identity::BagAndValueId;
 use crate::{bag::Bag, identity::{IdentifiedValue, IdentifiedEnvironment}};
 
 pub(crate)  struct BagMultiPredicateIterator<'i, 's, 'v,'p> {
+    bag_id: Identifier<'s>,
     env: Environment<'i, 's, 'v>,
     predicate: &'p MultiPredicate<'s>,
-    iter: Permutations<core::slice::Iter<'i, IdentifiedValue<'s,'v>>>,
+    iter: Permutations<std::vec::IntoIter<IdentifiedValue<'s,'v>>>,
 }
 
 impl<'i, 's, 'v,'p> Clone for BagMultiPredicateIterator<'i, 's, 'v,'p>
 {
     fn clone(&self) -> Self {
         Self {
+            bag_id: self.bag_id.clone(),
             env: self.env.clone(),
             predicate: self.predicate,
             iter: self.iter.clone(),
@@ -25,22 +31,24 @@ impl<'i, 's, 'v,'p> Clone for BagMultiPredicateIterator<'i, 's, 'v,'p>
 
 impl<'i, 's, 'v,'p> BagMultiPredicateIterator<'i, 's, 'v,'p>
 {
-    pub fn new(env: Environment<'i, 's, 'v>, predicate: &'p MultiPredicate<'s>, bag: &'i Bag<'s,'v>) -> Self {
+    pub fn new(env: Environment<'i, 's, 'v>, bag_id: Identifier<'s>, predicate: &'p MultiPredicate<'s>, bag: Cow<'i, Bag<'s,'v>>) -> Self {
         use itertools::Itertools;
 
         Self {
+            bag_id,
             env,
-            iter: bag.values.iter().permutations(predicate.capture.patterns.patterns.len()),
+            iter: bag.values.clone().into_iter().permutations(predicate.capture.patterns.patterns.len()),
             predicate,
         }
     }
 
-    pub fn empty(env: Environment<'i, 's, 'v>, predicate: &'p MultiPredicate<'s>) -> Self {
+    pub fn empty(env: Environment<'i, 's, 'v>, bag_id: Identifier<'s>, predicate: &'p MultiPredicate<'s>) -> Self {
         use itertools::Itertools;
 
         Self {
+            bag_id,
             env,
-            iter: [].iter().permutations(predicate.capture.patterns.patterns.len()),
+            iter: vec![].into_iter().permutations(predicate.capture.patterns.patterns.len()),
             predicate,
         }
     }
@@ -59,7 +67,10 @@ impl<'i, 's: 'v, 'v,'p> Iterator
 
         match apply_identified(self.predicate, &self.env, items.iter()) {
             Ok(Some(e)) => Some(Ok(IdentifiedEnvironment { 
-                used_ids: items.into_iter().map(|v|v.id.clone()).collect(), 
+                used_ids: items.into_iter().map(|v| BagAndValueId {
+                    value_id: v.id,
+                    bag_id: self.bag_id.clone(),
+                }).collect(), 
                 environment: e 
             })),
             Ok(None) => self.next(),
@@ -72,7 +83,7 @@ impl<'i, 's: 'v, 'v,'p> Iterator
 pub(crate) fn apply_identified<'s, 'v: 'x, 'i, 'e, 'x:'y, 'y>(
     pred: &MultiPredicate<'s>,
     env: &Environment<'i, 's, 'v>,
-    values: impl Iterator<Item = &'y &'x IdentifiedValue<'s, 'v>>,
+    values: impl Iterator<Item = &'x IdentifiedValue<'s, 'v>>,
 ) -> Result<Option<Environment<'i, 's, 'v>>, PredicateError> {
     let env = match pred.capture.apply(env, values.map(|v| &v.value)) {
         Ok(Some(e)) => e,

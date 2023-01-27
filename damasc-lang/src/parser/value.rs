@@ -20,8 +20,8 @@ use nom::{
     sequence::{delimited, separated_pair, terminated},
 };
 
-pub fn single_value<'v, 's, E: ParserError<'s>>(input: ParserInput<'s>) -> Option<Value<'_, 'v>> {
-    match all_consuming(value_literal::<Error<ParserInput>>)(input) {
+pub fn single_value<'v>(input: &str) -> Option<Value<'_, 'v>> {
+    match all_consuming(value_literal::<Error<ParserInput>>)(ParserInput::new(input)) {
         Ok((_, r)) => Some(r),
         Err(_) => None,
     }

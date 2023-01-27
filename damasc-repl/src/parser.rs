@@ -93,7 +93,7 @@ pub fn command_all_consuming<'a, 'b>(input: &str) -> Result<Command<'a, 'b>, Str
                 .filter_map(|(input, error)| match error {
                     nom::error::VerboseErrorKind::Context(_) => Some((*input.fragment(), error)),
                     nom::error::VerboseErrorKind::Char(_) => Some((*input.fragment(), error)),
-                    nom::error::VerboseErrorKind::Nom(_) => Some((*input.fragment(), error)),
+                    nom::error::VerboseErrorKind::Nom(_) => None,
                 })
                 .collect();
 
