@@ -1,9 +1,9 @@
 
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::HashSet};
 
-use damasc_lang::{runtime::env::Environment, identifier::Identifier};
+use damasc_lang::{runtime::{env::Environment, evaluation::Evaluation}, identifier::Identifier};
 
-use crate::{bag_bundle::BagBundle, join::Join, bag::Bag, identity::IdentifiedEnvironment, iter::BagMultiPredicateIterator};
+use crate::{bag_bundle::BagBundle, join::Join, bag::Bag, identity::IdentifiedEnvironment, iter::BagMultiPredicateIterator, operations::{Transaction, Deletion, Insertion}};
 
 #[derive(Default, Clone)]
 pub struct Controller<'s,'v> {
@@ -13,7 +13,7 @@ pub struct Controller<'s,'v> {
 
 impl<'s,'v> Controller<'s,'v> {
 
-    pub fn query<'x:'s,'slf>(&'slf self, join: &'x Join<'s, 'v>) -> impl Iterator<Item = IdentifiedEnvironment<'_, 's, 'v>> {
+    pub fn query<'x:'s,'slf:'s>(&'slf self, join: &'x Join<'s, 'v>) -> impl Iterator<Item = Transaction<'_, '_>> {
         use itertools::Itertools;
 
         join.input.iter().map(|(source, pred)| {
@@ -33,13 +33,45 @@ impl<'s,'v> Controller<'s,'v> {
 
             bag
         }).multi_cartesian_product().filter_map(|x| {
-
-            let cc = x.iter().fold(Some(IdentifiedEnvironment::default()), |acc, e| {
+            x.iter().fold(Some(IdentifiedEnvironment::default()), |acc, e| {
                 let a = acc?;
                 let b = e.as_ref().ok()?;
                 a.combine(b)
-            });
-            cc
+            })
+        }).filter_map(|e| {
+            let mut insertions = HashSet::<Insertion>::default();
+
+            for (sink, expr_set) in &join.output {
+                match sink {
+                    crate::join::JoinSink::Print => {
+                        continue;
+                    },
+                    crate::join::JoinSink::Named(sink) => {
+                        let ev = Evaluation::new(&e.environment);
+
+                        for expr in &expr_set.expressions {
+                            let Ok(val) = ev.eval_expr(expr) else {
+                                return None;
+                            };
+
+                            insertions.insert(Insertion {
+                                bag_id: sink.clone(),
+                                value: val,
+                            });
+                        }
+                    },
+                }
+            }
+
+
+            Some(Transaction{
+                insertions,
+                deletions: e.used_ids.iter().map(|id| Deletion {
+                    bag_id: id.bag_id.clone(),
+                    value_id: id.value_id.clone(),
+                }).collect(),
+                condition: HashSet::new(),
+            })
         })
     }
 }

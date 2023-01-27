@@ -1,9 +1,6 @@
-use std::borrow::Cow;
+use damasc_lang::{value::{Value, ValueBag}};
 
-use damasc_lang::{value::{Value, ValueBag}, runtime::{env::Environment}};
-use damasc_query::predicate::{MultiPredicate};
-
-use crate::{iter::BagMultiPredicateIterator, identity::{IdSequence, IdentifiedValue, ValueId}};
+use crate::{identity::{IdSequence, IdentifiedValue, ValueId}};
 
 #[derive(Default, Debug, Clone)]
 pub struct Bag<'s, 'v> {

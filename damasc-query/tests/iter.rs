@@ -41,9 +41,9 @@ fn test_predicate_iteration() {
 
     let pred_iter = PredicateIterator::new(env, pred, iter);
 
-    for v in pred_iter.clone() {
-        dbg!(&v);
-    }
+    // for v in pred_iter.clone() {
+    //     dbg!(&v);
+    // }
 
     assert_eq!(bag.values.len(), 17);
     assert_eq!(pred_iter.count(), 4);

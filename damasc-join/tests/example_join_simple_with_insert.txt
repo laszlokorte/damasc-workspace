@@ -1,0 +1,4 @@
+$! 33;22 >> z;
+$foo >> x;y;z where x > y && x > z
+$bar >> [x,...];p
+$sink << 2*x;p;z
