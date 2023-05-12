@@ -51,8 +51,8 @@ impl WasmRepl {
         };
 
         match self.state.eval(cmd) {
-            Ok(r) => return show_result(input, &format!("{r}")),
-            Err(e) => return show_error(input, &format!("Error: {e:?}")),
+            Ok(r) => show_result(input, &format!("{r}")),
+            Err(e) => show_error(input, &format!("Error: {e:?}")),
         }
     }
 }

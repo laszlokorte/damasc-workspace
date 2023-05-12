@@ -26,7 +26,7 @@ impl<'i, 's, 'v> State<'i, 's, 'v> {
     }
 
     pub fn vars<'x>(&'x self) -> BTreeSet<&'x Identifier<'i>> {
-        self.environment.bindings.keys().into_iter().collect()
+        self.environment.bindings.keys().collect()
     }
 
     pub fn eval(&mut self, command: Command<'s, 's>) -> Result<ReplOutput<'i, 's, 'v>, ReplError> {
