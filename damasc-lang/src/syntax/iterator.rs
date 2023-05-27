@@ -185,7 +185,11 @@ impl<'e, 's> ExpressionIterator<'e, 's> {
                 for p in parts {
                     self.expression_stack.push_front(&p.dynamic_end);
                 }
-            }
+            },
+            Expression::Abstraction(_) => todo!("NEWEXPRESSIONS"),
+            Expression::Application(_) => todo!("NEWEXPRESSIONS"),
+            Expression::ArrayComp(_) => todo!("NEWEXPRESSIONS"),
+            Expression::ObjectComp(_) => todo!("NEWEXPRESSIONS"),
         }
     }
 }

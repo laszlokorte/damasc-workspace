@@ -3,7 +3,7 @@ use crate::literal::Literal;
 use crate::syntax::expression::PropertyKey;
 use crate::value::ValueType;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]
 pub enum Pattern<'s> {
     Discard,
     Capture(Identifier<'s>, Box<Pattern<'s>>),
@@ -85,7 +85,7 @@ pub struct PatternSet<'s> {
     pub patterns: Vec<Pattern<'s>>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]
 pub enum Rest<'s> {
     Exact,
     Discard,
@@ -95,19 +95,19 @@ pub enum Rest<'s> {
 pub type ObjectPattern<'a> = Vec<ObjectPropertyPattern<'a>>;
 pub type ArrayPattern<'a> = Vec<ArrayPatternItem<'a>>;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]
 pub enum ArrayPatternItem<'a> {
     Pattern(Pattern<'a>),
     //Expression(Expression<'a>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]
 pub enum ObjectPropertyPattern<'a> {
     Single(Identifier<'a>),
     Match(PropertyPattern<'a>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]
 pub struct PropertyPattern<'a> {
     pub key: PropertyKey<'a>,
     pub value: Pattern<'a>,

@@ -80,6 +80,10 @@ impl<'e, 'i, 's, 'v> Evaluation<'e, 'i, 's, 'v> {
                 self.eval_call(function, &self.eval_expr(argument)?)
             }
             Expression::Template(template) => self.eval_template(template),
+            Expression::Abstraction(_) => todo!("NEWEXPRESSIONS"),
+            Expression::Application(_) => todo!("NEWEXPRESSIONS"),
+            Expression::ArrayComp(_) => todo!("NEWEXPRESSIONS"),
+            Expression::ObjectComp(_) => todo!("NEWEXPRESSIONS"),
         }
     }
 

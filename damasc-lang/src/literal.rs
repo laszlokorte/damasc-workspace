@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use crate::value::ValueType;
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Literal<'s> {
     Null,
     String(Cow<'s, str>),

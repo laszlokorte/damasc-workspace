@@ -1,6 +1,10 @@
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 
+use crate::runtime::env::Environment;
+use crate::syntax::expression::Expression;
+use crate::syntax::pattern::Pattern;
+
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum Value<'s, 'v> {
     Null,
@@ -10,6 +14,7 @@ pub enum Value<'s, 'v> {
     Array(Vec<Cow<'v, Value<'s, 'v>>>),
     Object(ValueObjectMap<'s, 'v>),
     Type(ValueType),
+    Lambda(Environment<'s, 's, 'v>, Pattern<'s>, Expression<'s>)
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -43,6 +48,7 @@ pub enum ValueType {
     Array,
     Object,
     Type,
+    Lambda,
 }
 
 impl std::fmt::Display for ValueType {
@@ -55,12 +61,13 @@ impl<'s, 'v> Value<'s, 'v> {
     pub fn get_type(&self) -> ValueType {
         match self {
             Value::Null => ValueType::Null,
-            Value::String(_) => ValueType::String,
-            Value::Integer(_) => ValueType::Integer,
-            Value::Boolean(_) => ValueType::Boolean,
-            Value::Array(_) => ValueType::Array,
-            Value::Object(_) => ValueType::Object,
-            Value::Type(_) => ValueType::Type,
+            Value::String(..) => ValueType::String,
+            Value::Integer(..) => ValueType::Integer,
+            Value::Boolean(..) => ValueType::Boolean,
+            Value::Array(..) => ValueType::Array,
+            Value::Object(..) => ValueType::Object,
+            Value::Type(..) => ValueType::Type,
+            Value::Lambda(..) => ValueType::Lambda,
         }
     }
 
@@ -121,6 +128,7 @@ impl<'s, 'v> std::fmt::Display for Value<'s, 'v> {
                 write!(f, "}}")
             }
             Value::Type(t) => write!(f, "{t}"),
+            Value::Lambda(_, pat, expr) => write!(f, "({pat}) => {expr}"),
         };
         write!(f, "")
     }

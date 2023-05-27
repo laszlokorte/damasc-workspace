@@ -3,7 +3,9 @@ use std::borrow::Cow;
 use crate::identifier::Identifier;
 use crate::literal::Literal;
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+use super::pattern::Pattern;
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Expression<'s> {
     Array(ArrayExpression<'s>),
     Binary(BinaryExpression<'s>),
@@ -15,6 +17,10 @@ pub enum Expression<'s> {
     Unary(UnaryExpression<'s>),
     Call(CallExpression<'s>),
     Template(StringTemplate<'s>),
+    Abstraction(LambdaAbstraction<'s>),
+    Application(LambdaApplication<'s>),
+    ArrayComp(ArrayComprehension<'s>),
+    ObjectComp(ObjectComprehension<'s>),
 }
 
 impl std::fmt::Display for Expression<'_> {
@@ -113,6 +119,10 @@ impl std::fmt::Display for Expression<'_> {
                 }
                 write!(f, "{suffix}`")
             }
+            Expression::Abstraction(_) => todo!("NEWEXPRESSIONS"),
+            Expression::Application(_) => todo!("NEWEXPRESSIONS"),
+            Expression::ArrayComp(_) => todo!("NEWEXPRESSIONS"),
+            Expression::ObjectComp(_) => todo!("NEWEXPRESSIONS"),
         }
     }
 }
@@ -124,7 +134,7 @@ pub struct ExpressionSet<'s> {
 
 type ArrayExpression<'a> = Vec<ArrayItem<'a>>;
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ArrayItem<'a> {
     Single(Expression<'a>),
     Spread(Expression<'a>),
@@ -132,64 +142,95 @@ pub enum ArrayItem<'a> {
 
 pub type ObjectExpression<'a> = Vec<ObjectProperty<'a>>;
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ObjectProperty<'a> {
     Single(Identifier<'a>),
     Property(Property<'a>),
     Spread(Expression<'a>),
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Property<'a> {
     pub key: PropertyKey<'a>,
     pub value: Expression<'a>,
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum PropertyKey<'a> {
     Identifier(Identifier<'a>),
     Expression(Expression<'a>),
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CallExpression<'a> {
     pub function: Identifier<'a>,
     pub argument: Box<Expression<'a>>,
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StringTemplate<'a> {
     pub parts: Vec<StringTemplatePart<'a>>,
     pub suffix: Cow<'a, str>,
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StringTemplatePart<'a> {
     pub fixed_start: Cow<'a, str>,
     pub dynamic_end: Box<Expression<'a>>,
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct LambdaAbstraction<'a> {
+    pub arguments: Pattern<'a>,
+    pub body: Box<Expression<'a>>,
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct LambdaApplication<'a> {
+    pub lambda: Box<Expression<'a>>,
+    pub parameter: Box<Expression<'a>>,
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ArrayComprehension<'a> {
+    pub sources: Vec<ComprehensionSource<'a>>,
+    pub projection: ArrayExpression<'a>,
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ObjectComprehension<'a> {
+    pub sources: Vec<ComprehensionSource<'a>>,
+    pub projection: ObjectExpression<'a>,
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ComprehensionSource<'a> {
+    pub collection: Box<Expression<'a>>,
+    pub pattern: Pattern<'a>,
+    pub predicate: Box<Expression<'a>>,
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct UnaryExpression<'a> {
     pub operator: UnaryOperator,
     pub argument: Box<Expression<'a>>,
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BinaryExpression<'a> {
     pub operator: BinaryOperator,
     pub left: Box<Expression<'a>>,
     pub right: Box<Expression<'a>>,
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct LogicalExpression<'a> {
     pub operator: LogicalOperator,
     pub left: Box<Expression<'a>>,
     pub right: Box<Expression<'a>>,
 }
 
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BinaryOperator {
     StrictEqual,
     StrictNotEqual,
@@ -208,7 +249,7 @@ pub enum BinaryOperator {
     Cast,
 }
 
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum LogicalOperator {
     Or,
     And,
@@ -223,14 +264,14 @@ impl LogicalOperator {
     }
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum UnaryOperator {
     Minus,
     Plus,
     Not,
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MemberExpression<'a> {
     pub object: Box<Expression<'a>>,
     pub property: Box<Expression<'a>>,
