@@ -89,12 +89,18 @@ impl<'e, 'i, 's, 'v> Evaluation<'e, 'i, 's, 'v> {
             Expression::Template(template) => self.eval_template(template),
             Expression::Abstraction(LambdaAbstraction {
                 arguments: _,
-                body: _,
-            }) => Ok(Value::Lambda(
-                Environment::new(),
-                Pattern::Discard,
-                Expression::Literal(Literal::Null),
-            )),
+                body,
+            }) => {
+                let Some(new_env) = self.env.extract(body.get_identifiers()) else {
+                    return Err(EvalError::UnknownIdentifier);
+                };
+
+                Ok(Value::Lambda(
+                    new_env,
+                    Pattern::Discard,
+                    Expression::Literal(Literal::Null),
+                ))
+            },
             Expression::Application(app) => self.eval_application(app),
             Expression::ArrayComp(comp) => self.eval_array_comprehension(comp),
             Expression::ObjectComp(comp) => self.eval_object_comprehension(comp),

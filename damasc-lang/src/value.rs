@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 
+use crate::literal::Literal;
 use crate::runtime::env::Environment;
 use crate::syntax::expression::Expression;
 use crate::syntax::pattern::Pattern;
@@ -101,6 +102,20 @@ impl<'s, 'v> Value<'s, 'v> {
             (Value::Object(o), ValueType::Integer) => Value::Integer(o.len() as i64),
             _ => return None,
         })
+    }
+
+    pub(crate) fn deep_clone<'x,'y>(&self) -> Value<'x,'y> {
+        match self {
+            Value::Null => Value::Null,
+            Value::String(s) => Value::String(Cow::Owned(s.to_string())),
+            Value::Integer(i) => Value::Integer(*i),
+            Value::Boolean(b) => Value::Boolean(*b),
+            Value::Array(a) => Value::Array(a.into_iter().map(|v| Cow::Owned(v.deep_clone())).collect()),
+            Value::Object(o) => Value::Object(ValueObjectMap::from_iter(o.iter().map(|(k,v)| (Cow::Owned(k.to_string()), Cow::Owned(v.deep_clone()))))),
+            Value::Type(t) => Value::Type(*t),
+            Value::Lambda(e, p, b) => Value::Lambda(Environment::new(), Pattern::Discard, Expression::Literal(Literal::Null)),
+        };
+        todo!()
     }
 }
 
