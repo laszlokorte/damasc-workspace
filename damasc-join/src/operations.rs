@@ -23,8 +23,8 @@ pub struct ExistenceCondition<'s> {
 }
 
 #[derive(Debug)]
-pub struct Transaction<'s,'v> {
-    pub insertions: HashSet<Insertion<'s,'v>>,
+pub struct Transaction<'s, 'v> {
+    pub insertions: HashSet<Insertion<'s, 'v>>,
     pub deletions: HashSet<Deletion<'s>>,
     pub condition: HashSet<ExistenceCondition<'s>>,
 }

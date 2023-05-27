@@ -1,4 +1,4 @@
-use damasc_join::{controller::Controller, parser, bag::Bag};
+use damasc_join::{bag::Bag, controller::Controller, parser};
 use damasc_lang::{identifier::Identifier, parser::value::single_value};
 use itertools::Itertools;
 
@@ -13,14 +13,20 @@ fn test_join() {
     foo_bag.insert(&single_value("66").unwrap());
     foo_bag.insert(&single_value("77").unwrap());
     foo_bag.insert(&single_value("77").unwrap());
-    controller.storage.bags.insert(Identifier::new("foo"), foo_bag);
+    controller
+        .storage
+        .bags
+        .insert(Identifier::new("foo"), foo_bag);
     let mut bar_bag = Bag::default();
     bar_bag.insert(&single_value("[77]").unwrap());
     bar_bag.insert(&single_value("[44]").unwrap());
     bar_bag.insert(&single_value("[66]").unwrap());
     bar_bag.insert(&single_value("[66,100]").unwrap());
     bar_bag.insert(&single_value("[]").unwrap());
-    controller.storage.bags.insert(Identifier::new("bar"), bar_bag);
+    controller
+        .storage
+        .bags
+        .insert(Identifier::new("bar"), bar_bag);
     let Some(join) = parser::join_all_consuming(include_str!("./example_join_simple.txt")) else {
         unreachable!("join parse error")
     };
@@ -31,8 +37,6 @@ fn test_join() {
 
     assert_eq!(all.len(), 264);
 }
-
-
 
 #[test]
 fn test_join_with_insert() {
@@ -45,14 +49,20 @@ fn test_join_with_insert() {
     foo_bag.insert(&single_value("66").unwrap());
     foo_bag.insert(&single_value("77").unwrap());
     foo_bag.insert(&single_value("77").unwrap());
-    controller.storage.bags.insert(Identifier::new("foo"), foo_bag);
+    controller
+        .storage
+        .bags
+        .insert(Identifier::new("foo"), foo_bag);
     let mut bar_bag = Bag::default();
     bar_bag.insert(&single_value("[77]").unwrap());
     bar_bag.insert(&single_value("[44]").unwrap());
     bar_bag.insert(&single_value("[66]").unwrap());
     bar_bag.insert(&single_value("[66,100]").unwrap());
     bar_bag.insert(&single_value("[]").unwrap());
-    controller.storage.bags.insert(Identifier::new("bar"), bar_bag);
+    controller
+        .storage
+        .bags
+        .insert(Identifier::new("bar"), bar_bag);
     let Some(join) = parser::join_all_consuming(include_str!("./example_join_simple_with_insert.txt")) else {
         unreachable!("join parse error")
     };
@@ -72,7 +82,6 @@ fn test_join_with_insert() {
     }
 }
 
-
 #[test]
 fn test_join_with_constant() {
     let mut controller = Controller::default();
@@ -84,14 +93,20 @@ fn test_join_with_constant() {
     foo_bag.insert(&single_value("66").unwrap());
     foo_bag.insert(&single_value("77").unwrap());
     foo_bag.insert(&single_value("77").unwrap());
-    controller.storage.bags.insert(Identifier::new("foo"), foo_bag);
+    controller
+        .storage
+        .bags
+        .insert(Identifier::new("foo"), foo_bag);
     let mut bar_bag = Bag::default();
     bar_bag.insert(&single_value("[77]").unwrap());
     bar_bag.insert(&single_value("[44]").unwrap());
     bar_bag.insert(&single_value("[66]").unwrap());
     bar_bag.insert(&single_value("[66,100]").unwrap());
     bar_bag.insert(&single_value("[]").unwrap());
-    controller.storage.bags.insert(Identifier::new("bar"), bar_bag);
+    controller
+        .storage
+        .bags
+        .insert(Identifier::new("bar"), bar_bag);
     let Some(join) = parser::join_all_consuming(include_str!("./example_join_simple_with_const.txt")) else {
         unreachable!("join parse error")
     };

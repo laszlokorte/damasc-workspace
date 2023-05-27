@@ -1,6 +1,6 @@
-use damasc_lang::{value::{Value, ValueBag}};
+use damasc_lang::value::{Value, ValueBag};
 
-use crate::{identity::{IdSequence, IdentifiedValue, ValueId}};
+use crate::identity::{IdSequence, IdentifiedValue, ValueId};
 
 #[derive(Default, Debug, Clone)]
 pub struct Bag<'s, 'v> {
@@ -17,10 +17,8 @@ impl<'s, 'v> Bag<'s, 'v> {
     }
 
     pub fn insert(&mut self, value: &Value<'s, 'v>) {
-        self.values.push(IdentifiedValue::new(
-            self.sequence.next(),
-            value.clone(),
-        ));
+        self.values
+            .push(IdentifiedValue::new(self.sequence.next(), value.clone()));
     }
 
     pub fn remove(&mut self, value_id: ValueId) {
@@ -34,10 +32,9 @@ impl<'s, 'v> Bag<'s, 'v> {
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
     }
-
 }
 
-impl<'s, 'v:'s> From<ValueBag<'s, 'v>> for Bag<'s, 'v> {
+impl<'s, 'v: 's> From<ValueBag<'s, 'v>> for Bag<'s, 'v> {
     fn from(value_bag: ValueBag<'s, 'v>) -> Self {
         let mut result = Self::new();
         for v in &value_bag.values {
@@ -48,7 +45,7 @@ impl<'s, 'v:'s> From<ValueBag<'s, 'v>> for Bag<'s, 'v> {
     }
 }
 
-impl<'s, 'v:'s> From<&ValueBag<'s, 'v>> for Bag<'s, 'v> {
+impl<'s, 'v: 's> From<&ValueBag<'s, 'v>> for Bag<'s, 'v> {
     fn from(value_bag: &ValueBag<'s, 'v>) -> Self {
         let mut result = Self::new();
         for v in &value_bag.values {
@@ -58,4 +55,3 @@ impl<'s, 'v:'s> From<&ValueBag<'s, 'v>> for Bag<'s, 'v> {
         result
     }
 }
-

@@ -23,11 +23,11 @@ impl<'i, 's, 'v> Environment<'i, 's, 'v> {
             match bindings.insert(id.clone(), value.clone()) {
                 Some(ref old) => {
                     if old != value {
-                        return None
+                        return None;
                     } else {
                         continue;
                     }
-                },
+                }
                 None => continue,
             }
         }

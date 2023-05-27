@@ -87,9 +87,14 @@ impl<'e, 'i, 's, 'v> Evaluation<'e, 'i, 's, 'v> {
                 self.eval_call(function, &self.eval_expr(argument)?)
             }
             Expression::Template(template) => self.eval_template(template),
-            Expression::Abstraction(LambdaAbstraction { arguments, body }) => {
-                Ok(Value::Lambda(Environment::new(), Pattern::Discard, Expression::Literal(Literal::Null)))
-            },
+            Expression::Abstraction(LambdaAbstraction {
+                arguments: _,
+                body: _,
+            }) => Ok(Value::Lambda(
+                Environment::new(),
+                Pattern::Discard,
+                Expression::Literal(Literal::Null),
+            )),
             Expression::Application(app) => self.eval_application(app),
             Expression::ArrayComp(comp) => self.eval_array_comprehension(comp),
             Expression::ObjectComp(comp) => self.eval_object_comprehension(comp),
@@ -486,17 +491,20 @@ impl<'e, 'i, 's, 'v> Evaluation<'e, 'i, 's, 'v> {
         return Ok(Value::String(Cow::Owned(joined.join(""))));
     }
 
-    fn eval_application<'x>(&self, app: &LambdaApplication<'x>) -> Result<Value<'s, 'v>, EvalError> {
+    fn eval_application<'x>(
+        &self,
+        app: &LambdaApplication<'x>,
+    ) -> Result<Value<'s, 'v>, EvalError> {
         let lambda = self.eval_expr(&app.lambda)?;
         let param = self.eval_expr(&app.parameter)?;
 
         let Value::Lambda(env, pattern, lambda_body) = lambda else {
             return Err(EvalError::TypeError)
         };
-        
+
         let mut matcher = Matcher::new(&env);
-        if let Err(e) = matcher.match_pattern(&pattern, &param) {
-            return Err(EvalError::PatternError)
+        if let Err(_e) = matcher.match_pattern(&pattern, &param) {
+            return Err(EvalError::PatternError);
         };
 
         let local_env = matcher.into_env();
@@ -505,11 +513,17 @@ impl<'e, 'i, 's, 'v> Evaluation<'e, 'i, 's, 'v> {
         local_eval.eval_expr(&lambda_body)
     }
 
-    fn eval_array_comprehension<'x>(&self, comp: &ArrayComprehension<'x>) -> Result<Value<'s, 'v>, EvalError> {
+    fn eval_array_comprehension<'x>(
+        &self,
+        _comp: &ArrayComprehension<'x>,
+    ) -> Result<Value<'s, 'v>, EvalError> {
         todo!()
     }
 
-    fn eval_object_comprehension<'x>(&self, comp: &ObjectComprehension<'x>) -> Result<Value<'s, 'v>, EvalError> {
+    fn eval_object_comprehension<'x>(
+        &self,
+        _comp: &ObjectComprehension<'x>,
+    ) -> Result<Value<'s, 'v>, EvalError> {
         todo!()
     }
 }

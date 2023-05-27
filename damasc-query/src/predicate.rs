@@ -6,7 +6,7 @@ use damasc_lang::{
 
 use crate::capture::{Capture, MultiCapture};
 
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub enum PredicateError {
     PatternError,
     GuardError,

@@ -119,14 +119,16 @@ impl std::fmt::Display for Expression<'_> {
                 }
                 write!(f, "{suffix}`")
             }
-            Expression::Abstraction(LambdaAbstraction {arguments, body}) => {
+            Expression::Abstraction(LambdaAbstraction { arguments, body }) => {
                 write!(f, "({arguments}) => {body}")
-
-            },
+            }
             Expression::Application(LambdaApplication { lambda, parameter }) => {
                 write!(f, "{lambda}({parameter})")
-            },
-            Expression::ArrayComp(ArrayComprehension{ sources, projection }) => {
+            }
+            Expression::ArrayComp(ArrayComprehension {
+                sources,
+                projection,
+            }) => {
                 write!(f, "[")?;
                 for item in projection {
                     match item {
@@ -135,7 +137,12 @@ impl std::fmt::Display for Expression<'_> {
                     }
                 }
 
-                for ComprehensionSource{ collection, pattern, predicate } in sources {
+                for ComprehensionSource {
+                    collection,
+                    pattern,
+                    predicate,
+                } in sources
+                {
                     write!(f, "for {pattern} in {collection}")?;
                     if let Some(p) = predicate {
                         write!(f, " if {p}")?;
@@ -143,8 +150,11 @@ impl std::fmt::Display for Expression<'_> {
                 }
 
                 write!(f, "[")
-            },
-            Expression::ObjectComp(ObjectComprehension { sources, projection }) => {
+            }
+            Expression::ObjectComp(ObjectComprehension {
+                sources,
+                projection,
+            }) => {
                 write!(f, "{{")?;
                 for prop in projection {
                     match prop {
@@ -159,7 +169,12 @@ impl std::fmt::Display for Expression<'_> {
                     }
                 }
 
-                for ComprehensionSource{ collection, pattern, predicate } in sources {
+                for ComprehensionSource {
+                    collection,
+                    pattern,
+                    predicate,
+                } in sources
+                {
                     write!(f, "for {pattern} in {collection}")?;
                     if let Some(p) = predicate {
                         write!(f, " if {p}")?;
@@ -167,7 +182,7 @@ impl std::fmt::Display for Expression<'_> {
                 }
 
                 write!(f, "}}")
-            },
+            }
         }
     }
 }

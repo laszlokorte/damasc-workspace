@@ -1,4 +1,4 @@
-use std::collections::{VecDeque};
+use std::collections::VecDeque;
 
 use either::Either::{self, Left, Right};
 
@@ -6,8 +6,10 @@ use crate::identifier::Identifier;
 
 use super::{
     expression::{
-        ArrayItem, BinaryExpression, CallExpression, Expression, LogicalExpression,
-        MemberExpression, ObjectProperty, Property, PropertyKey, StringTemplate, UnaryExpression, LambdaAbstraction, LambdaApplication, ArrayComprehension, ObjectComprehension,
+        ArrayComprehension, ArrayItem, BinaryExpression, CallExpression, Expression,
+        LambdaAbstraction, LambdaApplication, LogicalExpression, MemberExpression,
+        ObjectComprehension, ObjectProperty, Property, PropertyKey, StringTemplate,
+        UnaryExpression,
     },
     pattern::{ArrayPatternItem, ObjectPropertyPattern, Pattern, PropertyPattern, Rest},
 };
@@ -120,12 +122,15 @@ struct ExpressionIterator<'e, 's> {
     deep: bool,
 }
 
-impl<'s,'e:'s> ExpressionIterator<'e, 's> {
+impl<'s, 'e: 's> ExpressionIterator<'e, 's> {
     fn new(expression: &'e Expression<'s>, deep: bool) -> Self {
         let mut expression_stack = VecDeque::new();
         expression_stack.push_front(expression);
 
-        Self { expression_stack, deep }
+        Self {
+            expression_stack,
+            deep,
+        }
     }
 
     fn push_children(&mut self, expression: &'e Expression<'s>) {
@@ -186,7 +191,7 @@ impl<'s,'e:'s> ExpressionIterator<'e, 's> {
                 for p in parts {
                     self.expression_stack.push_front(&p.dynamic_end);
                 }
-            },
+            }
             Expression::Abstraction(LambdaAbstraction { arguments, body }) => {
                 for expr in arguments.get_expressions() {
                     self.expression_stack.push_front(expr)
@@ -194,16 +199,19 @@ impl<'s,'e:'s> ExpressionIterator<'e, 's> {
                 if self.deep {
                     self.expression_stack.push_front(body)
                 }
-            },
+            }
             Expression::Application(LambdaApplication { lambda, parameter }) => {
                 self.expression_stack.push_front(lambda);
                 self.expression_stack.push_front(parameter);
-            },
-            Expression::ArrayComp(ArrayComprehension{ sources, projection }) => {
+            }
+            Expression::ArrayComp(ArrayComprehension {
+                sources,
+                projection,
+            }) => {
                 if self.deep {
                     for src in sources {
                         self.expression_stack.push_front(&src.collection);
-                        
+
                         for expr in src.pattern.get_expressions() {
                             self.expression_stack.push_front(expr);
                         }
@@ -217,19 +225,22 @@ impl<'s,'e:'s> ExpressionIterator<'e, 's> {
                         match item {
                             ArrayItem::Single(expr) => {
                                 self.expression_stack.push_front(expr);
-                            },
+                            }
                             ArrayItem::Spread(expr) => {
                                 self.expression_stack.push_front(expr);
-                            },
+                            }
                         }
                     }
                 }
-            },
-            Expression::ObjectComp(ObjectComprehension { sources, projection }) => {
+            }
+            Expression::ObjectComp(ObjectComprehension {
+                sources,
+                projection,
+            }) => {
                 if self.deep {
                     for src in sources {
                         self.expression_stack.push_front(&src.collection);
-                        
+
                         for expr in src.pattern.get_expressions() {
                             self.expression_stack.push_front(expr);
                         }
@@ -238,11 +249,11 @@ impl<'s,'e:'s> ExpressionIterator<'e, 's> {
                             self.expression_stack.push_front(pred);
                         }
                     }
-                    
+
                     for item in projection {
                         match item {
                             ObjectProperty::Single(_) => {}
-                                ObjectProperty::Property(Property { key, value }) => {
+                            ObjectProperty::Property(Property { key, value }) => {
                                 self.expression_stack.push_front(value);
 
                                 match key {
@@ -258,12 +269,12 @@ impl<'s,'e:'s> ExpressionIterator<'e, 's> {
                         }
                     }
                 }
-            },
+            }
         }
     }
 }
 
-impl<'s,'e:'s> Iterator for ExpressionIterator<'e, 's> {
+impl<'s, 'e: 's> Iterator for ExpressionIterator<'e, 's> {
     type Item = &'e Expression<'s>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -283,20 +294,26 @@ impl Expression<'_> {
             Expression::Object(props) => Left(Box::new(props.iter().filter_map(|p| match p {
                 ObjectProperty::Single(id) => Some(id),
                 _ => None,
-            })) as Box<dyn Iterator<Item = &Identifier>>),
+            }))
+                as Box<dyn Iterator<Item = &Identifier>>),
             Expression::Identifier(id) => Right(Some(id).into_iter()),
-            Expression::Abstraction(LambdaAbstraction{ arguments, body }) => {
+            Expression::Abstraction(LambdaAbstraction { arguments, body }) => {
                 let mut locally_bound = arguments.get_identifiers();
-                let inner_free = body.get_identifiers().filter(move |v| locally_bound.any(|b| b == *v));
+                let inner_free = body
+                    .get_identifiers()
+                    .filter(move |v| locally_bound.any(|b| b == *v));
 
                 Left(Box::new(inner_free.into_iter()) as Box<dyn Iterator<Item = &Identifier>>)
-            },
-            Expression::ArrayComp(ArrayComprehension { sources, projection }) => {
+            }
+            Expression::ArrayComp(ArrayComprehension {
+                sources: _,
+                projection: _,
+            }) => {
                 todo!("implent")
-            },
-            Expression::ObjectComp(ObjectComprehension {..}) => {
+            }
+            Expression::ObjectComp(ObjectComprehension { .. }) => {
                 todo!("implent")
-            },
+            }
             _ => Right(None.into_iter()),
         })
     }

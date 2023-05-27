@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
-use damasc_lang::{value::Value, runtime::env::Environment, identifier::Identifier};
-
+use damasc_lang::{identifier::Identifier, runtime::env::Environment, value::Value};
 
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub struct ValueId {
@@ -16,9 +15,7 @@ impl std::fmt::Display for ValueId {
 
 impl ValueId {
     pub fn new(id: u64) -> Self {
-        Self {
-            id
-        }
+        Self { id }
     }
 }
 
@@ -45,12 +42,9 @@ pub(crate) struct IdentifiedValue<'s, 'v> {
 
 impl<'s, 'v> IdentifiedValue<'s, 'v> {
     pub fn new(id: ValueId, value: Value<'s, 'v>) -> Self {
-        Self {
-            id, value
-        }
+        Self { id, value }
     }
 }
-
 
 #[derive(Debug, Clone, Default)]
 pub struct IdentifiedEnvironment<'i, 's, 'v> {
@@ -65,9 +59,9 @@ impl<'i, 's, 'v> IdentifiedEnvironment<'i, 's, 'v> {
         if true {
             let combined_env = self.environment.combine(&other.environment)?;
 
-            Some(IdentifiedEnvironment { 
-                used_ids: self.used_ids.union(&other.used_ids).cloned().collect(), 
-                environment: combined_env 
+            Some(IdentifiedEnvironment {
+                used_ids: self.used_ids.union(&other.used_ids).cloned().collect(),
+                environment: combined_env,
             })
         } else {
             None
