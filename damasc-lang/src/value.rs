@@ -93,7 +93,6 @@ impl<'s, 'v> Value<'s, 'v> {
                     .map(|c| Cow::Owned(Value::String(Cow::Owned(c.to_string()))))
                     .collect(),
             ),
-            (Value::String(_), ValueType::Object) => todo!(),
             (Value::Integer(i), ValueType::String) => Value::String(Cow::Owned(i.to_string())),
             (Value::Integer(i), ValueType::Boolean) => Value::Boolean(i != &0),
             (Value::Boolean(b), ValueType::String) => Value::String(Cow::Owned(b.to_string())),

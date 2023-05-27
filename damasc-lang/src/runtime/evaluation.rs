@@ -1,6 +1,12 @@
 use std::{borrow::Cow, collections::BTreeMap};
 
 use super::env::Environment;
+use crate::runtime::matching::Matcher;
+use crate::syntax::expression::ArrayComprehension;
+use crate::syntax::expression::LambdaAbstraction;
+use crate::syntax::expression::LambdaApplication;
+use crate::syntax::expression::ObjectComprehension;
+use crate::syntax::pattern::Pattern;
 use crate::value::Value;
 use crate::value::ValueType;
 use crate::{
@@ -24,6 +30,7 @@ pub enum EvalError {
     OutOfBound,
     Overflow,
     UnknownFunction,
+    PatternError,
 }
 
 pub struct Evaluation<'e, 'i, 's, 'v> {
@@ -80,10 +87,12 @@ impl<'e, 'i, 's, 'v> Evaluation<'e, 'i, 's, 'v> {
                 self.eval_call(function, &self.eval_expr(argument)?)
             }
             Expression::Template(template) => self.eval_template(template),
-            Expression::Abstraction(_) => todo!("NEWEXPRESSIONS"),
-            Expression::Application(_) => todo!("NEWEXPRESSIONS"),
-            Expression::ArrayComp(_) => todo!("NEWEXPRESSIONS"),
-            Expression::ObjectComp(_) => todo!("NEWEXPRESSIONS"),
+            Expression::Abstraction(LambdaAbstraction { arguments, body }) => {
+                Ok(Value::Lambda(Environment::new(), Pattern::Discard, Expression::Literal(Literal::Null)))
+            },
+            Expression::Application(app) => self.eval_application(app),
+            Expression::ArrayComp(comp) => self.eval_array_comprehension(comp),
+            Expression::ObjectComp(comp) => self.eval_object_comprehension(comp),
         }
     }
 
@@ -475,5 +484,32 @@ impl<'e, 'i, 's, 'v> Evaluation<'e, 'i, 's, 'v> {
             .collect::<Result<Vec<Cow<'s, str>>, _>>()?;
 
         return Ok(Value::String(Cow::Owned(joined.join(""))));
+    }
+
+    fn eval_application<'x>(&self, app: &LambdaApplication<'x>) -> Result<Value<'s, 'v>, EvalError> {
+        let lambda = self.eval_expr(&app.lambda)?;
+        let param = self.eval_expr(&app.parameter)?;
+
+        let Value::Lambda(env, pattern, lambda_body) = lambda else {
+            return Err(EvalError::TypeError)
+        };
+        
+        let mut matcher = Matcher::new(&env);
+        if let Err(e) = matcher.match_pattern(&pattern, &param) {
+            return Err(EvalError::PatternError)
+        };
+
+        let local_env = matcher.into_env();
+        let local_eval = Evaluation::new(&local_env);
+
+        local_eval.eval_expr(&lambda_body)
+    }
+
+    fn eval_array_comprehension<'x>(&self, comp: &ArrayComprehension<'x>) -> Result<Value<'s, 'v>, EvalError> {
+        todo!()
+    }
+
+    fn eval_object_comprehension<'x>(&self, comp: &ObjectComprehension<'x>) -> Result<Value<'s, 'v>, EvalError> {
+        todo!()
     }
 }

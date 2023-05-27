@@ -119,10 +119,55 @@ impl std::fmt::Display for Expression<'_> {
                 }
                 write!(f, "{suffix}`")
             }
-            Expression::Abstraction(_) => todo!("NEWEXPRESSIONS"),
-            Expression::Application(_) => todo!("NEWEXPRESSIONS"),
-            Expression::ArrayComp(_) => todo!("NEWEXPRESSIONS"),
-            Expression::ObjectComp(_) => todo!("NEWEXPRESSIONS"),
+            Expression::Abstraction(LambdaAbstraction {arguments, body}) => {
+                write!(f, "({arguments}) => {body}")
+
+            },
+            Expression::Application(LambdaApplication { lambda, parameter }) => {
+                write!(f, "{lambda}({parameter})")
+            },
+            Expression::ArrayComp(ArrayComprehension{ sources, projection }) => {
+                write!(f, "[")?;
+                for item in projection {
+                    match item {
+                        ArrayItem::Single(i) => write!(f, "{i},")?,
+                        ArrayItem::Spread(i) => write!(f, "...({i}),")?,
+                    }
+                }
+
+                for ComprehensionSource{ collection, pattern, predicate } in sources {
+                    write!(f, "for {pattern} in {collection}")?;
+                    if let Some(p) = predicate {
+                        write!(f, " if {p}")?;
+                    }
+                }
+
+                write!(f, "[")
+            },
+            Expression::ObjectComp(ObjectComprehension { sources, projection }) => {
+                write!(f, "{{")?;
+                for prop in projection {
+                    match prop {
+                        ObjectProperty::Single(id) => write!(f, "{id},")?,
+                        ObjectProperty::Property(Property { key, value }) => {
+                            match key {
+                                PropertyKey::Identifier(id) => write!(f, "{id}: {value},"),
+                                PropertyKey::Expression(expr) => write!(f, "[{expr}]: {value},"),
+                            }?;
+                        }
+                        ObjectProperty::Spread(expr) => write!(f, "...({expr}),")?,
+                    }
+                }
+
+                for ComprehensionSource{ collection, pattern, predicate } in sources {
+                    write!(f, "for {pattern} in {collection}")?;
+                    if let Some(p) = predicate {
+                        write!(f, " if {p}")?;
+                    }
+                }
+
+                write!(f, "}}")
+            },
         }
     }
 }
@@ -207,7 +252,7 @@ pub struct ObjectComprehension<'a> {
 pub struct ComprehensionSource<'a> {
     pub collection: Box<Expression<'a>>,
     pub pattern: Pattern<'a>,
-    pub predicate: Box<Expression<'a>>,
+    pub predicate: Option<Box<Expression<'a>>>,
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
