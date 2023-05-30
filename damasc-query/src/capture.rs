@@ -20,7 +20,7 @@ pub struct Capture<'s> {
 }
 
 impl<'s> Capture<'s> {
-    pub fn apply<'v, 'i>(
+    pub fn apply<'v: 's, 'i: 's>(
         &self,
         env: &Environment<'i, 's, 'v>,
         value: &'v Value<'s, 'v>,
@@ -43,7 +43,7 @@ pub struct MultiCapture<'s> {
 }
 
 impl<'s> MultiCapture<'s> {
-    pub fn apply<'v: 'x, 'i, 'e, 'x>(
+    pub fn apply<'v: 'x + 's, 'i: 's, 'e, 'x>(
         &self,
         env: &Environment<'i, 's, 'v>,
         values: impl Iterator<Item = &'x Value<'s, 'v>>,

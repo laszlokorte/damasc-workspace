@@ -39,7 +39,7 @@ pub struct Matcher<'i, 's, 'v, 'e> {
     pub local_env: Environment<'i, 's, 'v>,
 }
 
-impl<'i, 's, 'v, 'e> Matcher<'i, 's, 'v, 'e> {
+impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
     pub fn into_env(mut self) -> Environment<'i, 's, 'v> {
         let mut result = self.outer_env.clone();
         result.bindings.append(&mut self.local_env.bindings);

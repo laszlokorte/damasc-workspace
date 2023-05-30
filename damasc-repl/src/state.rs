@@ -16,11 +16,11 @@ use crate::command::Command;
 use crate::io::{ReplError, ReplOutput};
 
 #[derive(Default)]
-pub struct State<'i, 's, 'v> {
-    environment: Environment<'i, 's, 'v>,
+pub struct State<'i: 's, 's> {
+    environment: Environment<'i, 's, 's>,
 }
 
-impl<'i, 's, 'v> State<'i, 's, 'v> {
+impl<'i, 's> State<'i, 's> {
     pub fn new() -> Self {
         Self::default()
     }
@@ -29,7 +29,7 @@ impl<'i, 's, 'v> State<'i, 's, 'v> {
         self.environment.bindings.keys().collect()
     }
 
-    pub fn eval(&mut self, command: Command<'s, 's>) -> Result<ReplOutput<'i, 's, 'v>, ReplError> {
+    pub fn eval(&mut self, command: Command<'s, 's>) -> Result<ReplOutput<'i, 's>, ReplError> {
         match command {
             Command::Exit => Ok(ReplOutput::Exit),
             Command::Help => Ok(ReplOutput::Ok),

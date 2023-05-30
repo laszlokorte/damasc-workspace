@@ -38,13 +38,12 @@ impl<'i, 's, 'v> Environment<'i, 's, 'v> {
     pub(crate) fn extract<'x, 'y: 'x, 'ii, 'ss, 'vv>(
         &self,
         identifiers: impl Iterator<Item = &'x Identifier<'y>>,
-    ) -> Option<Environment<'ii, 'ss, 'vv>> {
+    ) -> Option<Environment<'i, 's, 'v>> {
         let mut env = Environment::new();
 
         for id in identifiers {
             let current_value = self.bindings.get(id)?;
-            env.bindings
-                .insert(id.deep_clone(), current_value.deep_clone());
+            env.bindings.insert(id.deep_clone(), current_value.clone());
         }
 
         Some(env)

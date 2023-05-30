@@ -59,7 +59,7 @@ const EXAMPLES: [&str; 10] = [
 #[post("/")]
 async fn eval(
     repl: web::Form<ReplInput>,
-    env_mutex: Data<Arc<Mutex<State<'_, '_, '_>>>>,
+    env_mutex: Data<Arc<Mutex<State<'_, '_>>>>,
 ) -> impl Responder {
     let Ok(mut repl_state) = env_mutex.lock() else {
         return HttpResponse::Ok().content_type("text/html").body("Locked");

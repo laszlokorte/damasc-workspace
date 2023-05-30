@@ -14,7 +14,7 @@ pub enum Value<'s, 'v> {
     Array(Vec<Cow<'v, Value<'s, 'v>>>),
     Object(ValueObjectMap<'s, 'v>),
     Type(ValueType),
-    Lambda(Environment<'s, 's, 'v>, Pattern<'s>, Expression<'s>),
+    Lambda(Environment<'s, 's, 's>, Pattern<'s>, Expression<'s>),
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]

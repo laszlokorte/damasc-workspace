@@ -35,10 +35,10 @@ impl<'i, 's, 'v, It: Iterator> PredicateIterator<'i, 's, 'v, It> {
     }
 }
 
-impl<'i, 's: 'v, 'v, I: Iterator<Item = &'v Value<'s, 'v>>> Iterator
-    for PredicateIterator<'i, 's, 'v, I>
+impl<'i: 's, 's, I: Iterator<Item = &'s Value<'s, 's>>> Iterator
+    for PredicateIterator<'i, 's, 's, I>
 {
-    type Item = Result<&'v Value<'s, 'v>, PredicateError>;
+    type Item = Result<&'s Value<'s, 's>, PredicateError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let Some(item) = self.iter.next() else {
@@ -87,10 +87,10 @@ where
     }
 }
 
-impl<'i, 's: 'v, 'v, I: Iterator<Item = Value<'s, 'v>>> Iterator
-    for MultiPredicateIterator<'i, 's, 'v, I>
+impl<'i: 's, 's, I: Iterator<Item = Value<'s, 's>>> Iterator
+    for MultiPredicateIterator<'i, 's, 's, I>
 {
-    type Item = Result<Vec<Value<'s, 'v>>, PredicateError>;
+    type Item = Result<Vec<Value<'s, 's>>, PredicateError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let Some(items) = self.iter.next() else {
@@ -134,10 +134,10 @@ impl<'i, 's, 'v, It: Iterator> ProjectionIterator<'i, 's, 'v, It> {
     }
 }
 
-impl<'i, 's: 'v, 'v, I: Iterator<Item = &'v Value<'s, 'v>>> Iterator
-    for ProjectionIterator<'i, 's, 'v, I>
+impl<'i: 's, 's, I: Iterator<Item = &'s Value<'s, 's>>> Iterator
+    for ProjectionIterator<'i, 's, 's, I>
 {
-    type Item = Result<Value<'s, 'v>, ProjectionError>;
+    type Item = Result<Value<'s, 's>, ProjectionError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let Some(item) = self.iter.next() else {
@@ -186,10 +186,10 @@ impl<'i, 's, 'v, It: Iterator> MultiProjectionIterator<'i, 's, 'v, It> {
     }
 }
 
-impl<'i, 's: 'v, 'v, I: Iterator<Item = Value<'s, 'v>>> Iterator
-    for MultiProjectionIterator<'i, 's, 'v, I>
+impl<'i: 's, 's, I: Iterator<Item = Value<'s, 's>>> Iterator
+    for MultiProjectionIterator<'i, 's, 's, I>
 {
-    type Item = Result<Vec<Value<'s, 'v>>, ProjectionError>;
+    type Item = Result<Vec<Value<'s, 's>>, ProjectionError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let Some(items) = self.iter.next() else {
@@ -233,10 +233,10 @@ impl<'i, 's, 'v, It: Iterator> IndexedPredicateIterator<'i, 's, 'v, It> {
     }
 }
 
-impl<'i, 's: 'v, 'v, I: Iterator<Item = (usize, &'v Value<'s, 'v>)>> Iterator
-    for IndexedPredicateIterator<'i, 's, 'v, I>
+impl<'i: 's, 's, I: Iterator<Item = (usize, &'s Value<'s, 's>)>> Iterator
+    for IndexedPredicateIterator<'i, 's, 's, I>
 {
-    type Item = Result<(usize, &'v Value<'s, 'v>), (usize, PredicateError)>;
+    type Item = Result<(usize, &'s Value<'s, 's>), (usize, PredicateError)>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let Some((index, item)) = self.iter.next() else {

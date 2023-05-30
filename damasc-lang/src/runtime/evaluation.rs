@@ -45,7 +45,7 @@ impl Default for Evaluation<'static, 'static, 'static, 'static> {
     }
 }
 
-impl<'e, 'i, 's, 'v> Evaluation<'e, 'i, 's, 'v> {
+impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
     pub fn new(env: &'e Environment<'i, 's, 'v>) -> Self {
         Self { env }
     }

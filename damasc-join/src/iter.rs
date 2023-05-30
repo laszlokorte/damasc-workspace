@@ -70,8 +70,8 @@ impl<'i, 's, 'v, 'p> BagMultiPredicateIterator<'i, 's, 'v, 'p> {
     }
 }
 
-impl<'i, 's: 'v, 'v, 'p> Iterator for BagMultiPredicateIterator<'i, 's, 'v, 'p> {
-    type Item = Result<IdentifiedEnvironment<'i, 's, 'v>, PredicateError>;
+impl<'i: 's, 's, 'p> Iterator for BagMultiPredicateIterator<'i, 's, 's, 'p> {
+    type Item = Result<IdentifiedEnvironment<'i, 's, 's>, PredicateError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let Some(items) = self.iter.next() else {
@@ -95,11 +95,11 @@ impl<'i, 's: 'v, 'v, 'p> Iterator for BagMultiPredicateIterator<'i, 's, 'v, 'p> 
     }
 }
 
-pub(crate) fn apply_identified<'s, 'v: 'x, 'i, 'e, 'x: 'y, 'y>(
+pub(crate) fn apply_identified<'s: 'x, 'i: 's, 'e, 'x: 'y, 'y>(
     pred: &MultiPredicate<'s>,
-    env: &Environment<'i, 's, 'v>,
-    values: impl Iterator<Item = &'x IdentifiedValue<'s, 'v>>,
-) -> Result<Option<Environment<'i, 's, 'v>>, PredicateError> {
+    env: &Environment<'i, 's, 's>,
+    values: impl Iterator<Item = &'x IdentifiedValue<'s, 's>>,
+) -> Result<Option<Environment<'i, 's, 's>>, PredicateError> {
     let env = match pred.capture.apply(env, values.map(|v| &v.value)) {
         Ok(Some(e)) => e,
         Ok(None) => return Ok(None),

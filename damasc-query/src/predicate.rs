@@ -19,7 +19,7 @@ pub struct Predicate<'s> {
 }
 
 impl<'s> Predicate<'s> {
-    pub fn apply<'v, 'i>(
+    pub fn apply<'v: 's, 'i: 's>(
         &self,
         env: &Environment<'i, 's, 'v>,
         value: &'v Value<'s, 'v>,
@@ -47,7 +47,7 @@ pub struct MultiPredicate<'s> {
 }
 
 impl<'s> MultiPredicate<'s> {
-    pub(crate) fn apply<'v: 'x, 'i, 'e, 'x>(
+    pub(crate) fn apply<'v: 'x + 's, 'i: 's, 'e, 'x>(
         &self,
         env: &Environment<'i, 's, 'v>,
         values: impl Iterator<Item = &'x Value<'s, 'v>>,
