@@ -103,7 +103,7 @@ impl<'s, 'v> Value<'s, 'v> {
         })
     }
 
-    pub(crate) fn deep_clone<'x, 'y>(&self) -> Value<'x, 'y> {
+    pub fn deep_clone<'x, 'y>(&self) -> Value<'x, 'y> {
         match self {
             Value::Null => Value::Null,
             Value::String(s) => Value::String(Cow::Owned(s.to_string())),

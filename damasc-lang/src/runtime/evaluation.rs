@@ -6,7 +6,6 @@ use crate::syntax::expression::ArrayComprehension;
 use crate::syntax::expression::LambdaAbstraction;
 use crate::syntax::expression::LambdaApplication;
 use crate::syntax::expression::ObjectComprehension;
-use crate::syntax::pattern::Pattern;
 use crate::value::Value;
 use crate::value::ValueType;
 use crate::{
@@ -50,9 +49,9 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         Self { env }
     }
 
-    pub fn eval_expr<'x>(
+    pub fn eval_expr<'x: 's, 'y>(
         &self,
-        expression: &'x Expression<'x>,
+        expression: &'y Expression<'x>,
     ) -> Result<Value<'s, 'v>, EvalError> {
         match expression {
             Expression::Array(vec) => self.eval_array(vec),
@@ -87,16 +86,12 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 self.eval_call(function, &self.eval_expr(argument)?)
             }
             Expression::Template(template) => self.eval_template(template),
-            Expression::Abstraction(LambdaAbstraction { arguments: _, body }) => {
+            Expression::Abstraction(LambdaAbstraction { arguments, body }) => {
                 let Some(new_env) = self.env.extract(body.get_identifiers()) else {
                     return Err(EvalError::UnknownIdentifier);
                 };
 
-                Ok(Value::Lambda(
-                    new_env,
-                    Pattern::Discard,
-                    Expression::Literal(Literal::Null),
-                ))
+                Ok(Value::Lambda(new_env, arguments.clone(), *body.clone()))
             }
             Expression::Application(app) => self.eval_application(app),
             Expression::ArrayComp(comp) => self.eval_array_comprehension(comp),
@@ -291,7 +286,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         }
     }
 
-    fn eval_object<'x>(&self, props: &'x ObjectExpression<'x>) -> Result<Value<'s, 'v>, EvalError> {
+    fn eval_object<'x: 's, 'y>(
+        &self,
+        props: &'y ObjectExpression<'x>,
+    ) -> Result<Value<'s, 'v>, EvalError> {
         let mut kv_map = BTreeMap::new();
 
         for prop in props {
@@ -336,7 +334,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         Ok(Value::<'s, 'v>::Object(kv_map))
     }
 
-    fn eval_array<'x>(&self, vec: &'x [ArrayItem<'x>]) -> Result<Value<'s, 'v>, EvalError> {
+    fn eval_array<'x: 's, 'y>(&self, vec: &'y [ArrayItem<'x>]) -> Result<Value<'s, 'v>, EvalError> {
         let mut result = vec![];
 
         for item in vec {
@@ -360,11 +358,11 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         Ok(Value::Array(result))
     }
 
-    fn eval_logic<'x>(
+    fn eval_logic<'x: 's, 'y>(
         &self,
         operator: &LogicalOperator,
-        left: &'x Expression<'x>,
-        right: &'x Expression<'x>,
+        left: &'y Expression<'x>,
+        right: &'y Expression<'x>,
     ) -> Result<Value<'s, 'v>, EvalError> {
         let left_value = self.eval_expr(left)?;
         let Value::Boolean(left_bool) = left_value else {
@@ -469,9 +467,9 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         })
     }
 
-    fn eval_template<'x>(
+    fn eval_template<'x: 's, 'y>(
         &self,
-        template: &'x StringTemplate<'x>,
+        template: &'y StringTemplate<'x>,
     ) -> Result<Value<'s, 'v>, EvalError> {
         let joined = template
             .parts
@@ -494,7 +492,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         return Ok(Value::String(Cow::Owned(joined.join(""))));
     }
 
-    fn eval_application<'x>(
+    fn eval_application<'x: 's>(
         &self,
         app: &LambdaApplication<'x>,
     ) -> Result<Value<'s, 'v>, EvalError> {

@@ -112,7 +112,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
 
     fn match_object<'x>(
         &'x mut self,
-        props: &[ObjectPropertyPattern<'s>],
+        props: &'x [ObjectPropertyPattern<'s>],
         rest: &Rest<'s>,
         value: &ValueObjectMap<'s, 'v>,
     ) -> Result<(), PatternFail> {
@@ -225,7 +225,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         }
     }
 
-    pub fn eval_assigment_set<'a: 's, 'b>(
+    pub fn eval_assigment_set<'a: 's, 'b: 's>(
         &self,
         assignments: AssignmentSet<'a, 'b>,
     ) -> Result<Environment<'i, 's, 'v>, AssignmentError> {
