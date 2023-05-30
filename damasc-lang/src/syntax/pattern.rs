@@ -14,6 +14,20 @@ pub enum Pattern<'s> {
     Object(ObjectPattern<'s>, Rest<'s>),
     Array(ArrayPattern<'s>, Rest<'s>),
 }
+impl <'s> Pattern<'s> {
+    pub(crate) fn deep_clone<'x>(&self) -> Pattern<'x> {
+        match self {
+            Pattern::Discard => Pattern::Discard,
+            Pattern::Capture(i, p) => Pattern::Capture(i.deep_clone(), Box::new(p.deep_clone())),
+            Pattern::Identifier(i) => Pattern::Identifier(i.deep_clone()),
+            Pattern::TypedDiscard(t) => Pattern::TypedDiscard(*t),
+            Pattern::TypedIdentifier(i, t) => Pattern::TypedIdentifier(i.deep_clone(), *t),
+            Pattern::Literal(l) => Pattern::Literal(l.deep_clone()),
+            Pattern::Object(pat, rst) => Pattern::Object(pat.iter().map(|e| e.deep_clone()).collect(), rst.deep_clone()),
+            Pattern::Array(pat, rst) => Pattern::Array(pat.iter().map(|e| e.deep_clone()).collect(), rst.deep_clone()),
+        }
+    }
+}
 
 impl<'a> std::fmt::Display for Pattern<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -91,6 +105,15 @@ pub enum Rest<'s> {
     Discard,
     Collect(Box<Pattern<'s>>),
 }
+impl Rest<'_> {
+    fn deep_clone<'x>(&self) -> Rest<'x> {
+        match self {
+            Rest::Exact => Rest::Exact,
+            Rest::Discard => Rest::Discard,
+            Rest::Collect(p) => Rest::Collect(Box::new(p.deep_clone())),
+        }
+    }
+}
 
 pub type ObjectPattern<'a> = Vec<ObjectPropertyPattern<'a>>;
 pub type ArrayPattern<'a> = Vec<ArrayPatternItem<'a>>;
@@ -100,15 +123,38 @@ pub enum ArrayPatternItem<'a> {
     Pattern(Pattern<'a>),
     //Expression(Expression<'a>),
 }
+impl ArrayPatternItem<'_> {
+    fn deep_clone<'x>(&self) -> ArrayPatternItem<'x> {
+        match self {
+            ArrayPatternItem::Pattern(p) => ArrayPatternItem::Pattern(p.deep_clone()),
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]
 pub enum ObjectPropertyPattern<'a> {
     Single(Identifier<'a>),
     Match(PropertyPattern<'a>),
 }
+impl ObjectPropertyPattern<'_> {
+    fn deep_clone<'x>(&self) -> ObjectPropertyPattern<'x> {
+        match self {
+            ObjectPropertyPattern::Single(s) => ObjectPropertyPattern::Single(s.deep_clone()),
+            ObjectPropertyPattern::Match(m) => ObjectPropertyPattern::Match(m.deep_clone()),
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]
 pub struct PropertyPattern<'a> {
     pub key: PropertyKey<'a>,
     pub value: Pattern<'a>,
+}
+impl PropertyPattern<'_> {
+    fn deep_clone<'x>(&self) -> PropertyPattern<'x> {
+        PropertyPattern { 
+            key: self.key.deep_clone(), 
+            value: self.value.deep_clone(),
+        }
+    }
 }

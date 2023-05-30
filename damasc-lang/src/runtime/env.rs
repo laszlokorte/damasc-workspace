@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, process::id};
+use std::{collections::BTreeMap, process::id, borrow::Cow};
 
 use crate::{identifier::Identifier, value::Value};
 
@@ -44,6 +44,10 @@ impl<'i, 's, 'v> Environment<'i, 's, 'v> {
         }
 
         Some(env)
+    }
+
+    pub(crate) fn deep_clone<'ix, 'sx, 'vx>(&self) -> Environment<'ix, 'sx, 'vx> {
+        Environment { bindings: self.bindings.iter().map(|(k,v)| (k.deep_clone(), v.deep_clone())).collect() }
     }
 }
 
