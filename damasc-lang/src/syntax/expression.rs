@@ -22,7 +22,7 @@ pub enum Expression<'s> {
     ArrayComp(ArrayComprehension<'s>),
     ObjectComp(ObjectComprehension<'s>),
 }
-impl <'s> Expression<'s> {
+impl<'s> Expression<'s> {
     pub(crate) fn deep_clone<'x>(&self) -> Expression<'x> {
         match self {
             Self::Array(a) => Expression::Array(a.iter().map(|e| e.deep_clone()).collect()),
@@ -253,7 +253,10 @@ pub struct Property<'a> {
 }
 impl Property<'_> {
     fn deep_clone<'x>(&self) -> Property<'x> {
-        Property { key: self.key.deep_clone(), value: self.value.deep_clone() }
+        Property {
+            key: self.key.deep_clone(),
+            value: self.value.deep_clone(),
+        }
     }
 }
 
@@ -278,9 +281,9 @@ pub struct CallExpression<'a> {
 }
 impl CallExpression<'_> {
     fn deep_clone<'x>(&self) -> CallExpression<'x> {
-        CallExpression { 
-            function: self.function.deep_clone(), 
-            argument: Box::new(self.argument.deep_clone())
+        CallExpression {
+            function: self.function.deep_clone(),
+            argument: Box::new(self.argument.deep_clone()),
         }
     }
 }
@@ -292,9 +295,10 @@ pub struct StringTemplate<'a> {
 }
 impl StringTemplate<'_> {
     fn deep_clone<'x>(&self) -> StringTemplate<'x> {
-        StringTemplate { 
-            parts: self.parts.iter().map(|p| p.deep_clone()).collect(), 
-            suffix: Cow::Owned(self.suffix.to_string()) }
+        StringTemplate {
+            parts: self.parts.iter().map(|p| p.deep_clone()).collect(),
+            suffix: Cow::Owned(self.suffix.to_string()),
+        }
     }
 }
 
@@ -305,9 +309,9 @@ pub struct StringTemplatePart<'a> {
 }
 impl StringTemplatePart<'_> {
     fn deep_clone<'x>(&self) -> StringTemplatePart<'x> {
-        StringTemplatePart { 
-            fixed_start: Cow::Owned(self.fixed_start.to_string()), 
-            dynamic_end: Box::new(self.dynamic_end.deep_clone()) 
+        StringTemplatePart {
+            fixed_start: Cow::Owned(self.fixed_start.to_string()),
+            dynamic_end: Box::new(self.dynamic_end.deep_clone()),
         }
     }
 }
@@ -319,8 +323,8 @@ pub struct LambdaAbstraction<'a> {
 }
 impl LambdaAbstraction<'_> {
     fn deep_clone<'x>(&self) -> LambdaAbstraction<'x> {
-        LambdaAbstraction { 
-            arguments: self.arguments.deep_clone(), 
+        LambdaAbstraction {
+            arguments: self.arguments.deep_clone(),
             body: Box::new(self.body.deep_clone()),
         }
     }
@@ -333,8 +337,8 @@ pub struct LambdaApplication<'a> {
 }
 impl LambdaApplication<'_> {
     fn deep_clone<'x>(&self) -> LambdaApplication<'x> {
-        LambdaApplication { 
-            lambda: Box::new(self.lambda.deep_clone()), 
+        LambdaApplication {
+            lambda: Box::new(self.lambda.deep_clone()),
             parameter: Box::new(self.parameter.deep_clone()),
         }
     }
@@ -347,9 +351,9 @@ pub struct ArrayComprehension<'a> {
 }
 impl ArrayComprehension<'_> {
     fn deep_clone<'x>(&self) -> ArrayComprehension<'x> {
-        ArrayComprehension { 
-            sources: self.sources.iter().map(|e| e.deep_clone()).collect(), 
-            projection: self.projection.iter().map(|e| e.deep_clone()).collect()
+        ArrayComprehension {
+            sources: self.sources.iter().map(|e| e.deep_clone()).collect(),
+            projection: self.projection.iter().map(|e| e.deep_clone()).collect(),
         }
     }
 }
@@ -361,9 +365,9 @@ pub struct ObjectComprehension<'a> {
 }
 impl ObjectComprehension<'_> {
     fn deep_clone<'x>(&self) -> ObjectComprehension<'x> {
-        ObjectComprehension { 
-            sources: self.sources.iter().map(|e| e.deep_clone()).collect(), 
-            projection: self.projection.iter().map(|e| e.deep_clone()).collect()
+        ObjectComprehension {
+            sources: self.sources.iter().map(|e| e.deep_clone()).collect(),
+            projection: self.projection.iter().map(|e| e.deep_clone()).collect(),
         }
     }
 }
@@ -376,10 +380,10 @@ pub struct ComprehensionSource<'a> {
 }
 impl ComprehensionSource<'_> {
     fn deep_clone<'x>(&self) -> ComprehensionSource<'x> {
-        ComprehensionSource { 
-            collection: Box::new(self.collection.deep_clone()), 
-            pattern: self.pattern.deep_clone(), 
-            predicate: self.predicate.clone().map(|b| Box::new(b.deep_clone())) 
+        ComprehensionSource {
+            collection: Box::new(self.collection.deep_clone()),
+            pattern: self.pattern.deep_clone(),
+            predicate: self.predicate.clone().map(|b| Box::new(b.deep_clone())),
         }
     }
 }
@@ -391,9 +395,9 @@ pub struct UnaryExpression<'a> {
 }
 impl UnaryExpression<'_> {
     fn deep_clone<'x>(&self) -> UnaryExpression<'x> {
-        UnaryExpression { 
-            operator: self.operator, 
-            argument: Box::new(self.argument.deep_clone())
+        UnaryExpression {
+            operator: self.operator,
+            argument: Box::new(self.argument.deep_clone()),
         }
     }
 }
@@ -406,10 +410,10 @@ pub struct BinaryExpression<'a> {
 }
 impl BinaryExpression<'_> {
     fn deep_clone<'x>(&self) -> BinaryExpression<'x> {
-        BinaryExpression { 
-            operator: self.operator, 
-            left: Box::new(self.left.deep_clone()), 
-            right: Box::new(self.right.deep_clone())
+        BinaryExpression {
+            operator: self.operator,
+            left: Box::new(self.left.deep_clone()),
+            right: Box::new(self.right.deep_clone()),
         }
     }
 }
@@ -478,6 +482,9 @@ pub struct MemberExpression<'a> {
 }
 impl MemberExpression<'_> {
     fn deep_clone<'x>(&self) -> MemberExpression<'x> {
-        MemberExpression { object: Box::new(self.object.deep_clone()), property: Box::new(self.property.deep_clone()) }
+        MemberExpression {
+            object: Box::new(self.object.deep_clone()),
+            property: Box::new(self.property.deep_clone()),
+        }
     }
 }

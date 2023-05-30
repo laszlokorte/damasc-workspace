@@ -14,7 +14,7 @@ pub enum Pattern<'s> {
     Object(ObjectPattern<'s>, Rest<'s>),
     Array(ArrayPattern<'s>, Rest<'s>),
 }
-impl <'s> Pattern<'s> {
+impl<'s> Pattern<'s> {
     pub(crate) fn deep_clone<'x>(&self) -> Pattern<'x> {
         match self {
             Pattern::Discard => Pattern::Discard,
@@ -23,8 +23,14 @@ impl <'s> Pattern<'s> {
             Pattern::TypedDiscard(t) => Pattern::TypedDiscard(*t),
             Pattern::TypedIdentifier(i, t) => Pattern::TypedIdentifier(i.deep_clone(), *t),
             Pattern::Literal(l) => Pattern::Literal(l.deep_clone()),
-            Pattern::Object(pat, rst) => Pattern::Object(pat.iter().map(|e| e.deep_clone()).collect(), rst.deep_clone()),
-            Pattern::Array(pat, rst) => Pattern::Array(pat.iter().map(|e| e.deep_clone()).collect(), rst.deep_clone()),
+            Pattern::Object(pat, rst) => Pattern::Object(
+                pat.iter().map(|e| e.deep_clone()).collect(),
+                rst.deep_clone(),
+            ),
+            Pattern::Array(pat, rst) => Pattern::Array(
+                pat.iter().map(|e| e.deep_clone()).collect(),
+                rst.deep_clone(),
+            ),
         }
     }
 }
@@ -152,8 +158,8 @@ pub struct PropertyPattern<'a> {
 }
 impl PropertyPattern<'_> {
     fn deep_clone<'x>(&self) -> PropertyPattern<'x> {
-        PropertyPattern { 
-            key: self.key.deep_clone(), 
+        PropertyPattern {
+            key: self.key.deep_clone(),
             value: self.value.deep_clone(),
         }
     }
