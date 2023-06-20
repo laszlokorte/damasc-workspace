@@ -68,17 +68,14 @@ fn test_join_with_insert() {
     };
 
     let all: Vec<_> = controller.query(&join).collect();
-    // bg!(all.get(0));
 
     for op in all {
         assert_eq!(op.insertions.len(), 3);
-        assert_eq!(op.deletions.len(), 6);
+        assert_eq!(op.deletions.len(), 5);
 
         let x = op.deletions.iter().counts_by(|d| d.bag_id.name.clone());
         assert_eq!(x.get("foo").cloned().unwrap_or_default(), 3);
         assert_eq!(x.get("bar").cloned().unwrap_or_default(), 2);
-        // TODO: do not delete constants
-        assert_eq!(x.get("?").cloned().unwrap_or_default(), 1);
     }
 }
 

@@ -54,9 +54,8 @@ pub struct IdentifiedEnvironment<'i, 's, 'v> {
 
 impl<'i, 's, 'v> IdentifiedEnvironment<'i, 's, 'v> {
     pub fn combine(&self, other: &Self) -> Option<Self> {
-        // TODO cross bag ids
-        // || self.used_ids.intersection(&other.used_ids).count() == 0
-        if true {
+        // TODO cross bag ids?
+        if self.used_ids.intersection(&other.used_ids).count() == 0 {
             let combined_env = self.environment.combine(&other.environment)?;
 
             Some(IdentifiedEnvironment {

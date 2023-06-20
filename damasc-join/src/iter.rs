@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::collections::HashSet;
 
 use damasc_lang::identifier::Identifier;
 use damasc_lang::runtime::evaluation::Evaluation;
@@ -14,7 +15,7 @@ use crate::{
 };
 
 pub(crate) struct BagMultiPredicateIterator<'i, 's, 'v, 'p> {
-    bag_id: Identifier<'s>,
+    bag_id: Option<Identifier<'s>>,
     env: Environment<'i, 's, 'v>,
     predicate: &'p MultiPredicate<'s>,
     iter: Permutations<std::vec::IntoIter<IdentifiedValue<'s, 'v>>>,
@@ -41,7 +42,26 @@ impl<'i, 's, 'v, 'p> BagMultiPredicateIterator<'i, 's, 'v, 'p> {
         use itertools::Itertools;
 
         Self {
-            bag_id,
+            bag_id: Some(bag_id),
+            env,
+            iter: bag
+                .values
+                .clone()
+                .into_iter()
+                .permutations(predicate.capture.patterns.patterns.len()),
+            predicate,
+        }
+    }
+
+    pub fn new_without_id(
+        env: Environment<'i, 's, 'v>,
+        predicate: &'p MultiPredicate<'s>,
+        bag: Cow<'i, Bag<'s, 'v>>,
+    ) -> Self {
+        use itertools::Itertools;
+
+        Self {
+            bag_id: None,
             env,
             iter: bag
                 .values
@@ -60,7 +80,7 @@ impl<'i, 's, 'v, 'p> BagMultiPredicateIterator<'i, 's, 'v, 'p> {
         use itertools::Itertools;
 
         Self {
-            bag_id,
+            bag_id: Some(bag_id),
             env,
             iter: vec![]
                 .into_iter()
@@ -78,19 +98,26 @@ impl<'i: 's, 's, 'p> Iterator for BagMultiPredicateIterator<'i, 's, 's, 'p> {
             return None;
         };
 
-        match apply_identified(self.predicate, &self.env, items.iter()) {
-            Ok(Some(e)) => Some(Ok(IdentifiedEnvironment {
+        match (
+            &self.bag_id,
+            apply_identified(self.predicate, &self.env, items.iter()),
+        ) {
+            (Some(bag_id), Ok(Some(e))) => Some(Ok(IdentifiedEnvironment {
                 used_ids: items
                     .into_iter()
                     .map(|v| BagAndValueId {
                         value_id: v.id,
-                        bag_id: self.bag_id.clone(),
+                        bag_id: bag_id.clone(),
                     })
                     .collect(),
                 environment: e,
             })),
-            Ok(None) => self.next(),
-            Err(e) => Some(Err(e)),
+            (None, Ok(Some(e))) => Some(Ok(IdentifiedEnvironment {
+                used_ids: HashSet::new(),
+                environment: e,
+            })),
+            (_, Ok(None)) => self.next(),
+            (_, Err(e)) => Some(Err(e)),
         }
     }
 }

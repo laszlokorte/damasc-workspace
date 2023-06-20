@@ -32,9 +32,8 @@ impl<'s, 'v> Controller<'s, 'v> {
                 let bag = match source {
                     crate::join::JoinSource::Constant(value_bag) => {
                         let adhoc_bag = Bag::from(value_bag);
-                        BagMultiPredicateIterator::new(
+                        BagMultiPredicateIterator::new_without_id(
                             Environment::default(),
-                            Identifier::new("?"),
                             pred,
                             Cow::Owned(adhoc_bag),
                         )
