@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use nom::error::{ErrorKind, ParseError};
 
 #[derive(Debug)]
@@ -29,10 +31,10 @@ impl<I> ParseError<I> for DamascSyntaxError<I> {
     }
 }
 
-impl<I> ToString for DamascSyntaxError<I> {
-    fn to_string(&self) -> String {
+impl<I> std::fmt::Display for DamascSyntaxError<I> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.kind {
-            SyntaxErrorKind::Nom(_, e) => e.description().to_string(),
+            SyntaxErrorKind::Nom(_, e) => e.fmt(f),
         }
     }
 }
