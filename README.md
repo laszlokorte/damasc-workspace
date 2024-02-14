@@ -36,3 +36,10 @@ cargo server --open --path damasc-wasm/public
 ```shell
 cargo watch -- wasm-pack build damasc-wasm --target web --out-dir public/wasm
 ```
+
+### Run Code Formatter and Linter
+
+```shell
+cargo clippy --fix --allow-dirty
+cargo fmt
+```
