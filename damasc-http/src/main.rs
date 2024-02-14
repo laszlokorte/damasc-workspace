@@ -131,6 +131,20 @@ async fn home() -> impl Responder {
     .unwrap_or_else(template_error)
 }
 
+#[get("/style.css")]
+async fn css() -> HttpResponse {
+    HttpResponse::build(StatusCode::OK)
+        .content_type("text/css;charset=utf-8")
+        .body(include_str!("../public/style.css"))
+}
+
+#[get("/favicon.svg")]
+async fn favicon() -> HttpResponse {
+    HttpResponse::build(StatusCode::OK)
+        .content_type("image/svg+xml;charset=utf-8")
+        .body(include_str!("../public/favicon.svg"))
+}
+
 async fn not_found() -> HttpResponse {
     HttpResponse::build(StatusCode::NOT_FOUND)
         .content_type("text/html; charset=utf-8")
@@ -162,6 +176,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(repl_mutex_data.clone())
             .service(home)
             .service(eval)
+            .service(css)
+            .service(favicon)
             .service(Files::new("/", "./public/"))
             .default_service(web::route().to(not_found))
     })

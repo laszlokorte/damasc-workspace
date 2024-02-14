@@ -14,6 +14,12 @@ cargo test
 cargo run --bin damasc-cli
 ```
 
+### Run HTTP Server
+
+```shell
+cargo run --bin damasc-http
+```
+
 ### Run as WASM in Browser
 
 > Requires `cargo install cargo-server` to run local webserver
