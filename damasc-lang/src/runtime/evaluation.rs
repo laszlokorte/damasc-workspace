@@ -3,6 +3,7 @@ use std::{borrow::Cow, collections::BTreeMap};
 use super::env::Environment;
 use crate::runtime::matching::Matcher;
 use crate::syntax::expression::ArrayComprehension;
+use crate::syntax::expression::ComprehensionSource;
 use crate::syntax::expression::LambdaAbstraction;
 use crate::syntax::expression::LambdaApplication;
 use crate::syntax::expression::ObjectComprehension;
@@ -514,11 +515,60 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         local_eval.eval_expr(&lambda_body)
     }
 
-    fn eval_array_comprehension<'x>(
+    fn eval_array_comprehension<'x: 's>(
         &self,
-        _comp: &ArrayComprehension<'x>,
+        comp: &ArrayComprehension<'x>,
     ) -> Result<Value<'s, 'v>, EvalError> {
+        let mut envs: Box<dyn Iterator<Item = Environment>> =
+            Box::new(Some(self.env.clone()).into_iter());
+
+        for source in &comp.sources {
+            let new_envs: &Result<Vec<Vec<Environment<'_, '_, '_>>>, EvalError> = &envs
+                .map(|e| Evaluation::new(&e.clone()).eval_comprehension_source(&source))
+                .flatten();
+
+            envs = Box::new(new_envs.into_iter().flatten().flatten().cloned());
+        }
+
         todo!()
+    }
+
+    fn eval_comprehension_source<'x: 's>(
+        &self,
+        source: &ComprehensionSource<'x>,
+    ) -> Result<impl Iterator<Item = Environment<'i, 's, 'v>>, EvalError> {
+        let expression_value: Value<'_, '_> = self.eval_expr(&source.collection)?;
+        let Value::Array(vals) = expression_value else {
+            return Err(EvalError::TypeError)
+        };
+
+        let mut results = vec![];
+
+        for val in vals {
+            let mut matcher = Matcher::new(&self.env);
+            if let Err(_e) = matcher.match_pattern(&source.pattern, &val) {
+                return Err(EvalError::PatternError);
+            };
+
+            let local_env = matcher.into_env();
+            let local_eval = Evaluation::new(&local_env);
+
+            if let Some(p) = &source.predicate {
+                let Ok(pred_result) = local_eval.eval_expr(&p) else {
+                    continue
+                };
+
+                let Value::Boolean(pred_result_bool) = pred_result else {
+                    return Err(EvalError::TypeError)
+                };
+
+                if pred_result_bool {
+                    results.push(local_env)
+                }
+            }
+        }
+
+        return Ok(results.into_iter());
     }
 
     fn eval_object_comprehension<'x>(

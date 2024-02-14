@@ -1,9 +1,6 @@
 use std::{borrow::Cow, collections::HashSet};
 
-use damasc_lang::{
-    identifier::Identifier,
-    runtime::{env::Environment, evaluation::Evaluation},
-};
+use damasc_lang::runtime::{env::Environment, evaluation::Evaluation};
 
 use crate::{
     bag::Bag,
