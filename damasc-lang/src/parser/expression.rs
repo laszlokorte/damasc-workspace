@@ -181,7 +181,7 @@ fn expression_object<'v, 's, E: ParserError<'s>>(
             ws(tag("{")),
             terminated(
                 map(
-                    separated_list0(ws(ws(tag(","))), expression_object_property),
+                    separated_list0(ws(tag(",")), expression_object_property),
                     Expression::Object,
                 ),
                 opt(ws(tag(","))),

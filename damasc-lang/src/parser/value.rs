@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use super::{
     identifier::identifier,
     io::{ParserError, ParserInput, ParserResult},
-    literal::literal,
+    literal::{literal, literal_string_raw},
     util::ws,
 };
 use crate::{
@@ -77,8 +77,12 @@ fn value_object<'v, 's, E: ParserError<'s>>(
                     separated_list0(
                         ws(ws(tag(","))),
                         map(
-                            separated_pair(identifier, tag(":"), value_literal),
-                            |(p, v)| (p.name, Cow::Owned(v)),
+                            separated_pair(
+                                alt((map(identifier, |i| i.name), literal_string_raw)),
+                                ws(tag(":")),
+                                value_literal,
+                            ),
+                            |(p, v)| (p, Cow::Owned(v)),
                         ),
                     ),
                     opt(ws(tag(","))),

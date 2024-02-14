@@ -323,7 +323,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 ObjectProperty::Spread(expr) => {
                     let to_spread = self.eval_expr(expr)?;
                     let Value::Object(map) = to_spread else {
-                        return Err(EvalError::TypeError)
+                        return Err(EvalError::TypeError);
                     };
                     for (k, v) in map {
                         kv_map.insert(k, v);
@@ -390,7 +390,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                     return Err(EvalError::TypeError);
                 };
 
-                let Some(val) = o.get(p).map(|v|v.clone().into_owned()) else {
+                let Some(val) = o.get(p).map(|v| v.clone().into_owned()) else {
                     return Err(EvalError::KeyNotDefined);
                 };
 
@@ -406,7 +406,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                     *i as usize
                 };
 
-                let Some(val) = a.get(index).map(|v|v.clone().into_owned()) else {
+                let Some(val) = a.get(index).map(|v| v.clone().into_owned()) else {
                     return Err(EvalError::OutOfBound);
                 };
 
@@ -422,7 +422,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                     *i as usize
                 };
 
-                let Some(val) = s.chars().nth(index).map(|v|v.clone().to_string()) else {
+                let Some(val) = s.chars().nth(index).map(|v| v.clone().to_string()) else {
                     return Err(EvalError::OutOfBound);
                 };
 
@@ -501,7 +501,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         let param = self.eval_expr(&app.parameter)?;
 
         let Value::Lambda(env, pattern, lambda_body) = lambda else {
-            return Err(EvalError::TypeError)
+            return Err(EvalError::TypeError);
         };
 
         let mut matcher = Matcher::new(&env);
@@ -522,13 +522,13 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         let mut envs: Box<dyn Iterator<Item = Environment>> =
             Box::new(Some(self.env.clone()).into_iter());
 
-        for source in &comp.sources {
-            let new_envs: &Result<Vec<Vec<Environment<'_, '_, '_>>>, EvalError> = &envs
-                .map(|e| Evaluation::new(&e.clone()).eval_comprehension_source(&source))
-                .flatten();
+        // for source in &comp.sources {
+        //     let new_envs: &Result<Vec<Vec<Environment<'_, '_, '_>>>, EvalError> = &envs
+        //         .map(|e| Evaluation::new(&e.clone()).eval_comprehension_source(&source))
+        //         .flatten();
 
-            envs = Box::new(new_envs.into_iter().flatten().flatten().cloned());
-        }
+        //     envs = Box::new(new_envs.into_iter().flatten().flatten().cloned());
+        // }
 
         todo!()
     }
@@ -539,7 +539,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
     ) -> Result<impl Iterator<Item = Environment<'i, 's, 'v>>, EvalError> {
         let expression_value: Value<'_, '_> = self.eval_expr(&source.collection)?;
         let Value::Array(vals) = expression_value else {
-            return Err(EvalError::TypeError)
+            return Err(EvalError::TypeError);
         };
 
         let mut results = vec![];
@@ -555,11 +555,11 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
 
             if let Some(p) = &source.predicate {
                 let Ok(pred_result) = local_eval.eval_expr(&p) else {
-                    continue
+                    continue;
                 };
 
                 let Value::Boolean(pred_result_bool) = pred_result else {
-                    return Err(EvalError::TypeError)
+                    return Err(EvalError::TypeError);
                 };
 
                 if pred_result_bool {
