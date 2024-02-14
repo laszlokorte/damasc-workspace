@@ -33,7 +33,7 @@ fn test_join() {
 
     let all: Vec<_> = controller.query(&join).collect();
 
-    dbg!(all.get(0));
+    dbg!(all.first());
 
     assert_eq!(all.len(), 264);
 }
@@ -63,7 +63,9 @@ fn test_join_with_insert() {
         .storage
         .bags
         .insert(Identifier::new("bar"), bar_bag);
-    let Some(join) = parser::join_all_consuming(include_str!("./example_join_simple_with_insert.txt")) else {
+    let Some(join) =
+        parser::join_all_consuming(include_str!("./example_join_simple_with_insert.txt"))
+    else {
         unreachable!("join parse error")
     };
 
@@ -104,7 +106,9 @@ fn test_join_with_constant() {
         .storage
         .bags
         .insert(Identifier::new("bar"), bar_bag);
-    let Some(join) = parser::join_all_consuming(include_str!("./example_join_simple_with_const.txt")) else {
+    let Some(join) =
+        parser::join_all_consuming(include_str!("./example_join_simple_with_const.txt"))
+    else {
         unreachable!("join parse error")
     };
 

@@ -517,9 +517,9 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
 
     fn eval_array_comprehension<'x: 's>(
         &self,
-        comp: &ArrayComprehension<'x>,
+        _comp: &ArrayComprehension<'x>,
     ) -> Result<Value<'s, 'v>, EvalError> {
-        let mut envs: Box<dyn Iterator<Item = Environment>> =
+        let _envs: Box<dyn Iterator<Item = Environment>> =
             Box::new(Some(self.env.clone()).into_iter());
 
         // for source in &comp.sources {
@@ -545,7 +545,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         let mut results = vec![];
 
         for val in vals {
-            let mut matcher = Matcher::new(&self.env);
+            let mut matcher = Matcher::new(self.env);
             if let Err(_e) = matcher.match_pattern(&source.pattern, &val) {
                 return Err(EvalError::PatternError);
             };
@@ -554,7 +554,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             let local_eval = Evaluation::new(&local_env);
 
             if let Some(p) = &source.predicate {
-                let Ok(pred_result) = local_eval.eval_expr(&p) else {
+                let Ok(pred_result) = local_eval.eval_expr(p) else {
                     continue;
                 };
 
@@ -568,7 +568,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
         }
 
-        return Ok(results.into_iter());
+        Ok(results.into_iter())
     }
 
     fn eval_object_comprehension<'x>(

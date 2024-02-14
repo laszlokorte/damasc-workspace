@@ -170,7 +170,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         &'x mut self,
         items: &[ArrayPatternItem<'s>],
         rest: &Rest<'s>,
-        value: &Vec<Cow<'v, Value<'s, 'v>>>,
+        value: &[Cow<'v, Value<'s, 'v>>],
     ) -> Result<(), PatternFail> {
         if let Rest::Exact = rest {
             if value.len() != items.len() {

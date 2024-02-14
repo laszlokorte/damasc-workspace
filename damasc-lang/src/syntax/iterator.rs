@@ -107,9 +107,7 @@ impl<'e, 's> Iterator for PatternIterator<'e, 's> {
     type Item = &'e Pattern<'s>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let Some(next) = self.pattern_stack.pop_front() else {
-            return None;
-        };
+        let next = self.pattern_stack.pop_front()?;
 
         self.push_children(next);
 
@@ -278,9 +276,7 @@ impl<'s, 'e: 's> Iterator for ExpressionIterator<'e, 's> {
     type Item = &'e Expression<'s>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let Some(next) = self.expression_stack.pop_front() else {
-            return None;
-        };
+        let next = self.expression_stack.pop_front()?;
 
         self.push_children(next);
 

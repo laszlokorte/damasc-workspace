@@ -350,7 +350,10 @@ fn expression_type_predicate<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     let (input, init) = context("expression_type_predicate_lhs", expression_type_additive)(input)?;
 
-    let Ok((input, (op, t))) = tuple((ws(expression_type_predicate_operator::<E>), expression_numeric_predicative))(input) else {
+    let Ok((input, (op, t))) = tuple((
+        ws(expression_type_predicate_operator::<E>),
+        expression_numeric_predicative,
+    ))(input) else {
         return Ok((input, init));
     };
 

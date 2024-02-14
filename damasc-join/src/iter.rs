@@ -94,9 +94,7 @@ impl<'i: 's, 's, 'p> Iterator for BagMultiPredicateIterator<'i, 's, 's, 'p> {
     type Item = Result<IdentifiedEnvironment<'i, 's, 's>, PredicateError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let Some(items) = self.iter.next() else {
-            return None;
-        };
+        let items = self.iter.next()?;
 
         match (
             &self.bag_id,

@@ -42,7 +42,7 @@ impl<'a, 'b> Node for Assignment<'a, 'b> {
     fn input_identifiers(&self) -> Self::InputIter<'_> {
         self.pattern
             .get_expressions()
-            .chain(Some(&self.expression).into_iter())
+            .chain(Some(&self.expression))
             .flat_map(|e| e.get_identifiers())
     }
 }

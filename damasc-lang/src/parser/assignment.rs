@@ -81,14 +81,15 @@ pub fn assignment<'v, 'w, 's, E: ParserError<'s>>(
 }
 
 pub fn assignment_all_consuming(input: ParserInput) -> Option<Assignment<'_, '_>> {
-    let Ok((_,r)) = all_consuming(assignment::<Error<ParserInput>>)(input) else {
-        return None
+    let Ok((_, r)) = all_consuming(assignment::<Error<ParserInput>>)(input) else {
+        return None;
     };
     Some(r)
 }
 pub fn assignment_set1_all_consuming(input: &str) -> Option<AssignmentSet<'_, '_>> {
-    let Ok((_,r)) = all_consuming(assignment_set1::<Error<ParserInput>>)(ParserInput::new(input)) else {
-        return None
+    let Ok((_, r)) = all_consuming(assignment_set1::<Error<ParserInput>>)(ParserInput::new(input))
+    else {
+        return None;
     };
     Some(r)
 }

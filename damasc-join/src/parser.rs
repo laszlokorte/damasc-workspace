@@ -88,25 +88,21 @@ fn join<'v, 's, E: ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Join
         Join {
             input: ins
                 .into_iter()
-                .fold(Ok(HashMap::new()), |acc, (id, pred)| {
-                    acc.and_then(|mut a| {
-                        if a.try_insert(id, pred).is_ok() {
-                            Ok(a)
-                        } else {
-                            Err(nom::Err::Error(E::from_char(input, 'x')))
-                        }
-                    })
+                .try_fold(HashMap::new(), |mut acc, (id, pred)| {
+                    if acc.try_insert(id, pred).is_ok() {
+                        Ok(acc)
+                    } else {
+                        Err(nom::Err::Error(E::from_char(input, 'x')))
+                    }
                 })?,
             output: outs
                 .into_iter()
-                .fold(Ok(HashMap::new()), |acc, (id, expr)| {
-                    acc.and_then(|mut a| {
-                        if a.try_insert(id, expr).is_ok() {
-                            Ok(a)
-                        } else {
-                            Err(nom::Err::Error(E::from_char(input, 'x')))
-                        }
-                    })
+                .try_fold(HashMap::new(), |mut a, (id, expr)| {
+                    if a.try_insert(id, expr).is_ok() {
+                        Ok(a)
+                    } else {
+                        Err(nom::Err::Error(E::from_char(input, 'x')))
+                    }
                 })?,
             local_assignments: assigns.unwrap_or_default(),
             guard: guard.unwrap_or(Expression::Literal(Literal::Boolean(true))),

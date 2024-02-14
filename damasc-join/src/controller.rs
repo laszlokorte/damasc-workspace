@@ -58,10 +58,9 @@ impl<'s, 'v> Controller<'s, 'v> {
             .multi_cartesian_product()
             .filter_map(|x| {
                 x.iter()
-                    .fold(Some(IdentifiedEnvironment::default()), |acc, e| {
-                        let a = acc?;
+                    .try_fold(IdentifiedEnvironment::default(), |acc, e| {
                         let b = e.as_ref().ok()?;
-                        a.combine(b)
+                        acc.combine(b)
                     })
             })
             .filter_map(|e| {
@@ -77,8 +76,8 @@ impl<'s, 'v> Controller<'s, 'v> {
 
                             for expr in &expr_set.expressions {
                                 let Ok(val) = ev.eval_expr(expr) else {
-                                return None;
-                            };
+                                    return None;
+                                };
 
                                 insertions.insert(Insertion {
                                     bag_id: sink.clone(),

@@ -22,7 +22,13 @@ fn test_transformation() {
 
         let env = Environment::default();
         let evaluation = Evaluation::default();
-        let Some(result_values) = result.expressions.iter().map(|e| evaluation.eval_expr(e)).collect::<Result<Vec<Value>, _>>().ok() else {
+        let Some(result_values) = result
+            .expressions
+            .iter()
+            .map(|e| evaluation.eval_expr(e))
+            .collect::<Result<Vec<Value>, _>>()
+            .ok()
+        else {
             unreachable!("Result Eval error");
         };
 
