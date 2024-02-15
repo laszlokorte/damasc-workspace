@@ -1,3 +1,5 @@
+use crate::syntax::expression::LambdaApplication;
+use crate::syntax::expression::LambdaAbstraction;
 use crate::syntax::expression::ObjectComprehension;
 use crate::syntax::expression::ArrayComprehension;
 use crate::syntax::expression::ComprehensionSource;
@@ -257,6 +259,52 @@ fn expression_object_comprehension<'v, 's, E: ParserError<'s>>(
         }),
     )(input)
 }
+
+fn expression_lambda_abstraction<'v, 's, E: ParserError<'s>>(
+    input: ParserInput<'s>,
+) -> ParserResult<Expression<'v>, E> {
+    context(
+        "expression_lambda_abstraction",
+        map(tuple((
+            preceded(
+                ws(tag("fn")),
+                alt((delimited(ws(tag("(")), pattern, ws(tag(")"))), pattern))
+            ),
+            preceded(
+                ws(tag("=>")),
+                expression
+            )
+        )), |(arg, body)| {
+            Expression::Abstraction(LambdaAbstraction {
+                arguments: arg,
+                body: Box::new(body),
+            })
+        }),
+    )(input)
+}
+
+fn expression_lambda_application<'v, 's, E: ParserError<'s>>(
+    input: ParserInput<'s>,
+) -> ParserResult<Expression<'v>, E> {
+    context(
+        "expression_lambda_application",
+        map(tuple((
+            alt((expression_with_paren, expression_member)),
+            delimited(
+                ws(tag(".(")),
+                expression,
+                ws(tag(")"))
+            )
+        )), |(lambda, parameter)| {
+            Expression::Application(LambdaApplication {
+                lambda: Box::new(lambda),
+                parameter: Box::new(parameter),
+            })
+        }),
+    )(input)
+}
+
+
 
 fn expression_literal<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
@@ -753,5 +801,9 @@ fn expression_unary_numeric<'v, 's, E: ParserError<'s>>(
 pub fn expression<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<Expression<'v>, E> {
-    context("expression", expression_logic_additive)(input)
+    context("expression", alt((
+        expression_lambda_abstraction,
+        expression_lambda_application,
+        expression_logic_additive,
+    )))(input)
 }

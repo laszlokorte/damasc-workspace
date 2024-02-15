@@ -297,7 +297,7 @@ impl Expression<'_> {
                 let mut locally_bound = arguments.get_identifiers();
                 let inner_free = body
                     .get_identifiers()
-                    .filter(move |v| locally_bound.any(|b| b == *v));
+                    .filter(move |v| !locally_bound.any(|b| b == *v));
 
                 Left(Box::new(inner_free.into_iter()) as Box<dyn Iterator<Item = &Identifier>>)
             }

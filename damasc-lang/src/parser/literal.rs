@@ -83,6 +83,7 @@ pub(crate) fn literal_type_raw<'s, E: ParseError<ParserInput<'s>>>(
         value(ValueType::Array, tag("Array")),
         value(ValueType::Object, tag("Object")),
         value(ValueType::String, tag("String")),
+        value(ValueType::Lambda, tag("Lambda")),
     ))(input)
 }
 

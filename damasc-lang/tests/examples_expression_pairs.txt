@@ -321,3 +321,34 @@ true
 ---
 [a for match {a, y:a} in [a*y, {a,y} for y in [1,2,3,4,5] for a in [1,5,10,100]]]
 [1, 5, ]
+---
+[p for l in [[1,2,3], [4,5,6]] for p in l]
+[1, 2, 3, 4, 5, 6, ]
+---
+[x for [x,y] in [[p,p] for p in [1,2,3]]]
+[1, 2, 3, ]
+---
+[a for [x,y] in [[p,-p] for p in [1,2,3]] for a in [x,y,x,x]]
+[1, -1, 1, 1, 2, -2, 2, 2, 3, -3, 3, 3, ]
+---
+(fn x => x) is Lambda
+true
+---
+(fn x => x) is String
+false
+---
+fn x => x is Lambda
+fn x => (x is Lambda)
+---
+(fn 5 => 32).(5)
+32
+---
+(fn x => x*2).(5)
+10
+---
+(fn [x,x] => x*x).([5,5])
+25
+---
+(fn x => x).(fn x => x)
+(fn x => x)
+---

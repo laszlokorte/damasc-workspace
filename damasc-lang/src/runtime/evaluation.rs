@@ -92,7 +92,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
             Expression::Template(template) => self.eval_template(template),
             Expression::Abstraction(LambdaAbstraction { arguments, body }) => {
-                let Some(new_env) = self.env.extract(body.get_identifiers()) else {
+                let Some(new_env) = self.env.extract_except(body.get_identifiers(), arguments.get_identifiers()) else {
                     return Err(EvalError::UnknownIdentifier);
                 };
 

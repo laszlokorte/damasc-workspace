@@ -40,7 +40,7 @@ impl<'a> std::fmt::Display for Pattern<'a> {
         let _ = match self {
             Pattern::Discard => write!(f, "_"),
             Pattern::Literal(l) => write!(f, "{l}"),
-            Pattern::Capture(id, pat) => write!(f, "{pat} @ {id}"),
+            Pattern::Capture(id, pat) => write!(f, "{id} @ {pat}"),
             Pattern::TypedDiscard(t) => write!(f, "_ is {t}"),
             Pattern::Identifier(id) => write!(f, "{id}"),
             Pattern::TypedIdentifier(id, t) => write!(f, "{id} is {t}"),
