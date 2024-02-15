@@ -1,3 +1,5 @@
+use crate::value::ValueObjectMap;
+use crate::value::ValueArray;
 use std::{borrow::Cow, collections::BTreeMap};
 
 use super::env::Environment;
@@ -291,7 +293,16 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         &self,
         props: &'y ObjectExpression<'x>,
     ) -> Result<Value<'s, 'v>, EvalError> {
-        let mut kv_map = BTreeMap::new();
+        let target = BTreeMap::new();
+
+        self.eval_into_object(target, props).map(Value::Object)
+    }
+
+    fn eval_into_object<'x: 's, 'y>(
+        &self,
+        mut into: ValueObjectMap<'s, 'v>,
+        props: &'y ObjectExpression<'x>,
+    ) -> Result<ValueObjectMap<'s, 'v>, EvalError> {
 
         for prop in props {
             match prop {
@@ -299,7 +310,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                     let keyval = Cow::Owned(name.to_string());
                     let valval = self.eval_identifier(id)?;
 
-                    kv_map.insert(keyval, Cow::Owned(valval.to_owned()));
+                    into.insert(keyval, Cow::Owned(valval.to_owned()));
                 }
                 ObjectProperty::Property(Property {
                     key,
@@ -318,7 +329,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                         }
                     };
                     let valval = self.eval_expr(value_expr)?;
-                    kv_map.insert(keyval, Cow::Owned(valval.to_owned()));
+                    into.insert(keyval, Cow::Owned(valval.to_owned()));
                 }
                 ObjectProperty::Spread(expr) => {
                     let to_spread = self.eval_expr(expr)?;
@@ -326,24 +337,28 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                         return Err(EvalError::TypeError);
                     };
                     for (k, v) in map {
-                        kv_map.insert(k, v);
+                        into.insert(k, v);
                     }
                 }
             }
         }
 
-        Ok(Value::<'s, 'v>::Object(kv_map))
+        Ok(into)
     }
 
     fn eval_array<'x: 's, 'y>(&self, vec: &'y [ArrayItem<'x>]) -> Result<Value<'s, 'v>, EvalError> {
-        let mut result = vec![];
+        let result = vec![];
 
+        self.eval_into_array(result, vec).map(Value::Array)
+    }
+
+    fn eval_into_array<'x: 's, 'y>(&self, mut target: Vec<Cow<'v, Value<'s, 'v>>>, vec: &'y [ArrayItem<'x>]) -> Result<ValueArray<'s, 'v>, EvalError> {
         for item in vec {
             match item {
                 ArrayItem::Single(exp) => {
                     let v = self.eval_expr(exp)?;
 
-                    result.push(Cow::Owned(v));
+                    target.push(Cow::Owned(v));
                 }
                 ArrayItem::Spread(exp) => {
                     let v = self.eval_expr(exp)?;
@@ -351,12 +366,12 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                         return Err(EvalError::TypeError);
                     };
 
-                    result.append(&mut multiples);
+                    target.append(&mut multiples);
                 }
             }
         }
 
-        Ok(Value::Array(result))
+        Ok(target)
     }
 
     fn eval_logic<'x: 's, 'y>(
@@ -517,20 +532,24 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
 
     fn eval_array_comprehension<'x: 's>(
         &self,
-        _comp: &ArrayComprehension<'x>,
+        comp: &ArrayComprehension<'x>,
     ) -> Result<Value<'s, 'v>, EvalError> {
-        let _envs: Box<dyn Iterator<Item = Environment>> =
+        let mut envs: Box<dyn Iterator<Item = Environment>> =
             Box::new(Some(self.env.clone()).into_iter());
 
-        // for source in &comp.sources {
-        //     let new_envs: &Result<Vec<Vec<Environment<'_, '_, '_>>>, EvalError> = &envs
-        //         .map(|e| Evaluation::new(&e.clone()).eval_comprehension_source(&source))
-        //         .flatten();
+        for source in &comp.sources {
+            let new_envs = envs
+                .map(|e| Evaluation::new(&e.clone()).eval_comprehension_source(source))
+                .flatten();
 
-        //     envs = Box::new(new_envs.into_iter().flatten().flatten().cloned());
-        // }
+            envs = Box::new(new_envs.into_iter().flatten());
+        }
 
-        todo!()
+        envs.try_fold(vec![], |result, e| {
+            let eval = Evaluation::new(&e);
+
+            eval.eval_into_array(result, &comp.projection)
+        }).map(Value::Array)
     }
 
     fn eval_comprehension_source<'x: 's>(
@@ -571,10 +590,25 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         Ok(results.into_iter())
     }
 
-    fn eval_object_comprehension<'x>(
+    fn eval_object_comprehension<'x: 's>(
         &self,
-        _comp: &ObjectComprehension<'x>,
+        comp: &ObjectComprehension<'x>,
     ) -> Result<Value<'s, 'v>, EvalError> {
-        todo!()
+        let mut envs: Box<dyn Iterator<Item = Environment>> =
+            Box::new(Some(self.env.clone()).into_iter());
+
+        for source in &comp.sources {
+            let new_envs = envs
+                .map(|e| Evaluation::new(&e.clone()).eval_comprehension_source(source))
+                .flatten();
+
+            envs = Box::new(new_envs.into_iter().flatten());
+        }
+
+        envs.try_fold(BTreeMap::new(), |result, e| {
+            let eval = Evaluation::new(&e);
+
+            eval.eval_into_object(result, &comp.projection)
+        }).map(Value::Object)
     }
 }

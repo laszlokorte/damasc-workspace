@@ -11,11 +11,13 @@ pub enum Value<'s, 'v> {
     String(Cow<'s, str>),
     Integer(i64),
     Boolean(bool),
-    Array(Vec<Cow<'v, Value<'s, 'v>>>),
+    Array(ValueArray<'s, 'v>),
     Object(ValueObjectMap<'s, 'v>),
     Type(ValueType),
     Lambda(Environment<'s, 's, 's>, Pattern<'s>, Expression<'s>),
 }
+
+pub(crate) type ValueArray<'s, 'v> = Vec<Cow<'v, Value<'s, 'v>>>;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct ValueBag<'s, 'v> {
