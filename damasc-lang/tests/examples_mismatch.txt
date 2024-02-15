@@ -46,3 +46,4 @@ true = !true;true = !true
 false = !false;false = !false
 {_x1,_y} = {x1: 23, _y:42};{_x1,_y} = {x1: 23, _y:42}
 [_x,_x] = [1,2];[_x,_x] = [1,2]
+x=10;x=20

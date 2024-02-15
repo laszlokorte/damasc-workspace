@@ -218,10 +218,18 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
             Err(PatternFail::LiteralMismatch)
         }
     }
+    
     pub fn new<'x: 'e>(env: &'x Environment<'i, 's, 'v>) -> Self {
         Self {
             outer_env: env,
             local_env: Environment::new(),
+        }
+    }
+    
+    pub fn new_with_local<'x: 'e>(outer_env: &'x Environment<'i, 's, 'v>, local_env: Environment<'i, 's, 'v>) -> Self {
+        Self {
+             outer_env,
+             local_env,
         }
     }
 
@@ -232,9 +240,6 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         match assignments.sort_topological() {
             Ok(sorted_set) => {
                 let mut local_env = self.outer_env.clone();
-                local_env
-                    .bindings
-                    .append(&mut self.local_env.bindings.clone());
                 let mut collected_env = Environment::default();
 
                 for Assignment {
@@ -242,7 +247,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                     expression,
                 } in sorted_set.assignments
                 {
-                    let mut matcher = Matcher::new(&local_env);
+                    let mut matcher = Matcher::new_with_local(&local_env, collected_env.clone());
                     let evaluation = Evaluation::new(&local_env);
                     let Ok(value) = evaluation.eval_expr(&expression) else {
                         return Err(AssignmentError::EvalError);
