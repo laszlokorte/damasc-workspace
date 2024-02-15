@@ -1,3 +1,4 @@
+use crate::value_type::ValueType;
 use crate::value::ValueArray;
 use crate::value::ValueObjectMap;
 use std::{borrow::Cow, collections::BTreeMap};
@@ -12,7 +13,6 @@ use crate::syntax::expression::LambdaAbstraction;
 use crate::syntax::expression::LambdaApplication;
 use crate::syntax::expression::ObjectComprehension;
 use crate::value::Value;
-use crate::value::ValueType;
 use crate::{
     identifier::Identifier,
     literal::Literal,

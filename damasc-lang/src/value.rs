@@ -1,3 +1,4 @@
+use crate::value_type::ValueType;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 
@@ -41,23 +42,6 @@ impl<'s, 'v> ValueBag<'s, 'v> {
 
 pub(crate) type ValueObjectMap<'s, 'v> = BTreeMap<Cow<'s, str>, Cow<'v, Value<'s, 'v>>>;
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub enum ValueType {
-    Null,
-    String,
-    Integer,
-    Boolean,
-    Array,
-    Object,
-    Type,
-    Lambda,
-}
-
-impl std::fmt::Display for ValueType {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{self:?}")
-    }
-}
 
 impl<'s, 'v> Value<'s, 'v> {
     pub fn get_type(&self) -> ValueType {

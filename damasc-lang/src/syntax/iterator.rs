@@ -1,3 +1,4 @@
+use nom::lib::std::collections::HashSet;
 use std::collections::VecDeque;
 
 use either::Either::{self, Left, Right};
@@ -294,10 +295,10 @@ impl Expression<'_> {
                 as Box<dyn Iterator<Item = &Identifier>>),
             Expression::Identifier(id) => Right(Some(id).into_iter()),
             Expression::Abstraction(LambdaAbstraction { arguments, body }) => {
-                let mut locally_bound = arguments.get_identifiers();
+                let locally_bound = arguments.get_identifiers().collect::<HashSet<_>>();
                 let inner_free = body
                     .get_identifiers()
-                    .filter(move |v| !locally_bound.any(|b| b == *v));
+                    .filter(move |v| !locally_bound.contains(v));
 
                 Left(Box::new(inner_free.into_iter()) as Box<dyn Iterator<Item = &Identifier>>)
             }

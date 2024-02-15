@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::value::ValueType;
+use crate::value_type::ValueType;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Literal<'s> {

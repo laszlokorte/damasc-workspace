@@ -1,3 +1,4 @@
+use crate::value_type::ValueType;
 use std::borrow::Cow;
 
 use nom::{
@@ -8,7 +9,7 @@ use nom::{
     sequence::delimited,
 };
 
-use crate::{literal::Literal, value::ValueType};
+use crate::{literal::Literal};
 
 use super::io::{ParserError, ParserInput, ParserResult};
 

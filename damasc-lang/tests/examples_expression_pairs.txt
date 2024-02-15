@@ -352,3 +352,6 @@ fn x => (x is Lambda)
 (fn x => x).(fn x => x)
 (fn x => x)
 ---
+((fn f => (fn x => f.(fn a => (x.(x)).(a))).(fn x => f.(fn a => (x.(x)).(a)))).(fn R => fn x => x>0 && (x==1 || (R.(x-1))))).(10)
+true
+---
