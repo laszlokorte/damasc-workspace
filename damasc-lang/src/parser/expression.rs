@@ -1,3 +1,7 @@
+use crate::syntax::expression::ArrayComprehension;
+use crate::syntax::expression::ComprehensionSource;
+use crate::parser::pattern::pattern;
+use nom::multi::many1;
 use std::borrow::Cow;
 
 use nom::{
@@ -129,6 +133,36 @@ fn expression_array<'v, 's, E: ParserError<'s>>(
     )(input)
 }
 
+fn expression_array_comprehension<'v, 's, E: ParserError<'s>>(
+    input: ParserInput<'s>,
+) -> ParserResult<Expression<'v>, E> {
+    context(
+        "expression_array_comprehension",
+        map(delimited(
+            ws(tag("[")),
+            tuple((
+                terminated(
+                    separated_list0(ws(tag(",")), expression_array_item),
+                    opt(ws(tag(","))),
+                ),
+                many1(map(tuple((preceded(ws(tag("for")), pattern), preceded(ws(tag("in")), expression), opt(preceded(ws(tag("if")), expression)))), |(pattern, collection, predicate)| {
+                    ComprehensionSource {
+                        pattern, 
+                        collection: Box::new(collection), 
+                        predicate: predicate.map(Box::new)
+                    }
+                }))
+            )),
+            ws(tag("]")),
+        ), |(projection, sources)| {
+            Expression::ArrayComp(ArrayComprehension {
+                projection,
+                sources
+            })
+        }),
+    )(input)
+}
+
 fn expression_object_property<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<ObjectProperty<'v>, E> {
@@ -199,6 +233,7 @@ fn expression_literal<'v, 's, E: ParserError<'s>>(
         alt((
             expression_object,
             expression_array,
+            expression_array_comprehension,
             expression_string_template,
             expression_call,
             expression_atom,

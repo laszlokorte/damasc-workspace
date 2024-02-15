@@ -1,6 +1,8 @@
-use crate::value::ValueObjectMap;
 use crate::value::ValueArray;
+use crate::value::ValueObjectMap;
 use std::{borrow::Cow, collections::BTreeMap};
+
+use itertools::Itertools;
 
 use super::env::Environment;
 use crate::runtime::matching::Matcher;
@@ -21,7 +23,7 @@ use crate::{
     },
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum EvalError {
     KindError,
     TypeError,
@@ -303,7 +305,6 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         mut into: ValueObjectMap<'s, 'v>,
         props: &'y ObjectExpression<'x>,
     ) -> Result<ValueObjectMap<'s, 'v>, EvalError> {
-
         for prop in props {
             match prop {
                 ObjectProperty::Single(id @ Identifier { name }) => {
@@ -352,7 +353,11 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         self.eval_into_array(result, vec).map(Value::Array)
     }
 
-    fn eval_into_array<'x: 's, 'y>(&self, mut target: Vec<Cow<'v, Value<'s, 'v>>>, vec: &'y [ArrayItem<'x>]) -> Result<ValueArray<'s, 'v>, EvalError> {
+    fn eval_into_array<'x: 's, 'y>(
+        &self,
+        mut target: Vec<Cow<'v, Value<'s, 'v>>>,
+        vec: &'y [ArrayItem<'x>],
+    ) -> Result<ValueArray<'s, 'v>, EvalError> {
         for item in vec {
             match item {
                 ArrayItem::Single(exp) => {
@@ -534,22 +539,17 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         &self,
         comp: &ArrayComprehension<'x>,
     ) -> Result<Value<'s, 'v>, EvalError> {
-        let mut envs: Box<dyn Iterator<Item = Environment>> =
-            Box::new(Some(self.env.clone()).into_iter());
-
-        for source in &comp.sources {
-            let new_envs = envs
-                .map(|e| Evaluation::new(&e.clone()).eval_comprehension_source(source))
-                .flatten();
-
-            envs = Box::new(new_envs.into_iter().flatten());
-        }
+        let mut envs : Box<dyn Iterator<Item=Result<Environment, EvalError>>> = comp.sources.iter().fold(Box::new(Some(Ok(self.env.clone())).into_iter()), |current_envs, source| {
+            Box::new(current_envs.map(|e| Evaluation::new(&e?).eval_comprehension_source(source)).flatten_ok())
+        });
 
         envs.try_fold(vec![], |result, e| {
-            let eval = Evaluation::new(&e);
+            let binding = e?;
+            let eval = Evaluation::new(&binding);
 
             eval.eval_into_array(result, &comp.projection)
-        }).map(Value::Array)
+        })
+        .map(Value::Array)
     }
 
     fn eval_comprehension_source<'x: 's>(
@@ -573,18 +573,18 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             let local_eval = Evaluation::new(&local_env);
 
             if let Some(p) = &source.predicate {
-                let Ok(pred_result) = local_eval.eval_expr(p) else {
-                    continue;
-                };
+                let pred_result = local_eval.eval_expr(p)?;
 
                 let Value::Boolean(pred_result_bool) = pred_result else {
                     return Err(EvalError::TypeError);
                 };
 
-                if pred_result_bool {
-                    results.push(local_env)
+                if !pred_result_bool {
+                    continue;
                 }
             }
+
+            results.push(local_env)
         }
 
         Ok(results.into_iter())
@@ -594,21 +594,16 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         &self,
         comp: &ObjectComprehension<'x>,
     ) -> Result<Value<'s, 'v>, EvalError> {
-        let mut envs: Box<dyn Iterator<Item = Environment>> =
-            Box::new(Some(self.env.clone()).into_iter());
-
-        for source in &comp.sources {
-            let new_envs = envs
-                .map(|e| Evaluation::new(&e.clone()).eval_comprehension_source(source))
-                .flatten();
-
-            envs = Box::new(new_envs.into_iter().flatten());
-        }
+        let mut envs : Box<dyn Iterator<Item=Result<Environment, EvalError>>> = comp.sources.iter().fold(Box::new(Some(Ok(self.env.clone())).into_iter()), |current_envs, source| {
+            Box::new(current_envs.map(|e| Evaluation::new(&e?).eval_comprehension_source(source)).flatten_ok())
+        });
 
         envs.try_fold(BTreeMap::new(), |result, e| {
-            let eval = Evaluation::new(&e);
+            let binding = e?;
+            let eval = Evaluation::new(&binding);
 
             eval.eval_into_object(result, &comp.projection)
-        }).map(Value::Object)
+        })
+        .map(Value::Object)
     }
 }
