@@ -161,9 +161,14 @@ impl std::fmt::Display for Expression<'_> {
                     collection,
                     pattern,
                     predicate,
+                    strong_pattern,
                 } in sources
-                {
-                    write!(f, "for {pattern} in {collection}")?;
+                {   
+                    if *strong_pattern {
+                        write!(f, "for {pattern} in {collection}")?;
+                    } else {
+                        write!(f, "for match {pattern} in {collection}")?;
+                    }
                     if let Some(p) = predicate {
                         write!(f, " if {p}")?;
                     }
@@ -193,9 +198,14 @@ impl std::fmt::Display for Expression<'_> {
                     collection,
                     pattern,
                     predicate,
+                    strong_pattern,
                 } in sources
                 {
-                    write!(f, "for {pattern} in {collection}")?;
+                    if *strong_pattern {
+                        write!(f, "for {pattern} in {collection}")?;
+                    } else {
+                        write!(f, "for match {pattern} in {collection}")?;
+                    }
                     if let Some(p) = predicate {
                         write!(f, " if {p}")?;
                     }
@@ -376,6 +386,7 @@ impl ObjectComprehension<'_> {
 pub struct ComprehensionSource<'a> {
     pub collection: Box<Expression<'a>>,
     pub pattern: Pattern<'a>,
+    pub strong_pattern: bool,
     pub predicate: Option<Box<Expression<'a>>>,
 }
 impl ComprehensionSource<'_> {
@@ -383,6 +394,7 @@ impl ComprehensionSource<'_> {
         ComprehensionSource {
             collection: Box::new(self.collection.deep_clone()),
             pattern: self.pattern.deep_clone(),
+            strong_pattern: self.strong_pattern,
             predicate: self.predicate.clone().map(|b| Box::new(b.deep_clone())),
         }
     }

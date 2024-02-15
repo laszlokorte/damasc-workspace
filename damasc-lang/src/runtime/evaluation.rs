@@ -566,7 +566,11 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         for val in vals {
             let mut matcher = Matcher::new(self.env);
             if let Err(_e) = matcher.match_pattern(&source.pattern, &val) {
-                return Err(EvalError::PatternError);
+                if source.strong_pattern {
+                    return Err(EvalError::PatternError)
+                } else {
+                    continue
+                }
             };
 
             let local_env = matcher.into_env();
