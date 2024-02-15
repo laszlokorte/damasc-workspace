@@ -12,26 +12,28 @@ fn test_expression_parsing() {
 }
 #[test]
 fn test_expression_evaluation() {
-    let lines = include_str!("./examples_expression_pairs.txt").lines();
+    let lines = include_str!("./examples_expression_pairs.txt").lines().enumerate();
 
-    for [a, b, sep] in lines.array_chunks() {
+    for [(line_a,a), (line_b,b), (_,sep)] in lines.array_chunks() {
         assert_eq!(sep, "---");
         let Some(a) = parser::expression::expression_many1_all_consuming(a) else {
-            dbg!(a);
+            eprintln!("Parse error at line {}: {}", line_a + 1, a);
             unreachable!("Parse error");
         };
 
         let Some(b) = parser::expression::expression_many1_all_consuming(b) else {
-            dbg!(a);
+            eprintln!("Parse error at line {}: {}", line_b + 1, b);
             unreachable!("Parse error");
         };
 
         for (a, b) in a.expressions.into_iter().zip(b.expressions.into_iter()) {
             let eval = Evaluation::default();
             let Ok(res_a) = eval.eval_expr(&a) else {
+                eprintln!("Evaluation error at line {}: {}", line_a + 1, a);
                 unreachable!("Evaluation error");
             };
             let Ok(res_b) = eval.eval_expr(&b) else {
+                eprintln!("Evaluation error at line {}: {}", line_b + 1, b);
                 unreachable!("Evaluation error");
             };
 

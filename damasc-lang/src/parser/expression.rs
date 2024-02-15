@@ -1,3 +1,4 @@
+use crate::syntax::expression::ObjectComprehension;
 use crate::syntax::expression::ArrayComprehension;
 use crate::syntax::expression::ComprehensionSource;
 use crate::parser::pattern::pattern;
@@ -225,6 +226,36 @@ fn expression_object<'v, 's, E: ParserError<'s>>(
     )(input)
 }
 
+
+
+fn expression_object_comprehension<'v, 's, E: ParserError<'s>>(
+    input: ParserInput<'s>,
+) -> ParserResult<Expression<'v>, E> {
+    context(
+        "expression_object",
+        map(delimited(
+            ws(tag("{")),
+            tuple((terminated(
+                    separated_list0(ws(tag(",")), expression_object_property),
+                    opt(ws(tag(","))),
+                ),
+                many1(map(tuple((preceded(ws(tag("for")), pattern), preceded(ws(tag("in")), expression), opt(preceded(ws(tag("if")), expression)))), |(pattern, collection, predicate)| {
+                    ComprehensionSource {
+                        pattern, 
+                        collection: Box::new(collection), 
+                        predicate: predicate.map(Box::new)
+                    }
+                })))),
+            ws(tag("}")),
+        ), |(projection, sources)| {
+            Expression::ObjectComp(ObjectComprehension {
+                projection,
+                sources
+            })
+        }),
+    )(input)
+}
+
 fn expression_literal<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<Expression<'v>, E> {
@@ -234,6 +265,7 @@ fn expression_literal<'v, 's, E: ParserError<'s>>(
             expression_object,
             expression_array,
             expression_array_comprehension,
+            expression_object_comprehension,
             expression_string_template,
             expression_call,
             expression_atom,
