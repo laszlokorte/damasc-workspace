@@ -1,5 +1,6 @@
 #![feature(iter_array_chunks)]
 
+use itertools::Itertools;
 use damasc_lang::runtime::env::Environment;
 use damasc_lang::runtime::evaluation::Evaluation;
 use damasc_lang::value::Value;
@@ -39,7 +40,9 @@ fn test_transformation() {
             .filter_map(|e| evaluation.eval_expr(e).ok());
         let trans_iterator = MultiProjectionIterator::new(env, transformation.projection, iter);
 
-        let transform_result = trans_iterator.flatten().flatten().collect::<Vec<_>>();
+        let Ok(transform_result) = trans_iterator.flatten_ok().collect::<Result<Vec<_>, _>>() else {
+            unreachable!("Result Eval error");
+        };
 
         assert_eq!(transform_result, result_values);
     }

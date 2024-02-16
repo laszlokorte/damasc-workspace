@@ -25,3 +25,6 @@
 { [1,5];[5,1];[4,3];[4,4];1;5;4;2;3;{x: false};{x: true} } |> map {x};[a,b] where x != (a>b) into [x,a,b];x;a
 {[false, 5,1];false;5;[false, 4,3];false;4;[true,1,5];true;1;[true,4,4];true;4}
 ---
+{fn x => x; fn x => x*x; 6;10;12} |> map x;y where x is Lambda && y is Integer into x.(y)
+{6;10;12;36;100;144}
+---

@@ -1,3 +1,6 @@
+use damasc_query::predicate::PredicateError;
+use damasc_query::projection::ProjectionError;
+use itertools::Itertools;
 use std::collections::BTreeSet;
 
 use damasc_lang::identifier::Identifier;
@@ -52,10 +55,14 @@ impl<'i, 's> State<'i, 's> {
                     iter,
                 );
 
-                let transform_result = trans_iterator.flatten().flatten().collect::<Vec<_>>();
+                let transform_result = trans_iterator.flatten_ok().collect::<Result<Vec<_>, _>>();
 
                 Ok(ReplOutput::Values(ValueBag {
-                    values: transform_result,
+                    values: transform_result.map_err(|e| match e {
+                        ProjectionError::PredicateError(PredicateError::PatternError) => ReplError::MatchError,
+                        ProjectionError::PredicateError(PredicateError::GuardError) => ReplError::EvalError,
+                        ProjectionError::EvalError => ReplError::EvalError,
+                    })?,
                 }))
             }
             Command::Assign(assignments) => {

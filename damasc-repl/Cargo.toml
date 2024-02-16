@@ -9,3 +9,4 @@ edition = "2021"
 nom = "7.1.3"
 damasc-query = {path = "../damasc-query"}
 damasc-lang = {path = "../damasc-lang"}
+itertools = "0.12.1"
