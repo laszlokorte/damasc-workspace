@@ -143,3 +143,4 @@ a=b;b=7
 a=23;b=42
 [_,p,_]=[1,"hello",3];y=z[p];z={"hello":"foo"}
 f=fn x => 2*x;y = f.(10);y=20
+o=99;k = [y for y in [y*2 for y in [y,y,y]]]; y = p[2]; p=[y for y in [1,2,3,4,o] if y > 2]

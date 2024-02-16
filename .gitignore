@@ -3,3 +3,4 @@
 /Cargo.lock
 /history.txt
 **/.DS_Store
+publish.sh
