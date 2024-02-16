@@ -101,6 +101,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             Expression::Application(app) => self.eval_application(app),
             Expression::ArrayComp(comp) => self.eval_array_comprehension(comp),
             Expression::ObjectComp(comp) => self.eval_object_comprehension(comp),
+            Expression::Match(_) => todo!("Implement Matching"),
         }
     }
 

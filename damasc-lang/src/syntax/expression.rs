@@ -21,6 +21,7 @@ pub enum Expression<'s> {
     Application(LambdaApplication<'s>),
     ArrayComp(ArrayComprehension<'s>),
     ObjectComp(ObjectComprehension<'s>),
+    Match(MatchExpression<'s>),
 }
 impl<'s> Expression<'s> {
     pub(crate) fn deep_clone<'x>(&self) -> Expression<'x> {
@@ -39,6 +40,7 @@ impl<'s> Expression<'s> {
             Expression::Application(x) => Expression::Application(x.deep_clone()),
             Expression::ArrayComp(x) => Expression::ArrayComp(x.deep_clone()),
             Expression::ObjectComp(x) => Expression::ObjectComp(x.deep_clone()),
+            Expression::Match(x) => Expression::Match(x.deep_clone()),
         }
     }
 }
@@ -144,6 +146,9 @@ impl std::fmt::Display for Expression<'_> {
             }
             Expression::Application(LambdaApplication { lambda, parameter }) => {
                 write!(f, "{lambda}({parameter})")
+            }
+            Expression::Match(MatchExpression { cases }) => {
+                todo!("Implement Matching")
             }
             Expression::ArrayComp(ArrayComprehension {
                 sources,
@@ -350,6 +355,35 @@ impl LambdaApplication<'_> {
         LambdaApplication {
             lambda: Box::new(self.lambda.deep_clone()),
             parameter: Box::new(self.parameter.deep_clone()),
+        }
+    }
+}
+
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct MatchCase<'a> {
+    pub pattern: Pattern<'a>,
+    pub body: Box<Expression<'a>>,
+}
+
+impl MatchCase<'_> {
+    fn deep_clone<'x>(&self) -> MatchCase<'x> {
+        MatchCase {
+            pattern: self.pattern.deep_clone(),
+            body: Box::new(self.body.deep_clone()),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct MatchExpression<'a> {
+    pub cases: Vec<MatchCase<'a>>,
+}
+
+impl MatchExpression<'_> {
+    fn deep_clone<'x>(&self) -> MatchExpression<'x> {
+        MatchExpression {
+            cases: self.cases.iter().map(|p| p.deep_clone()).collect(),
         }
     }
 }

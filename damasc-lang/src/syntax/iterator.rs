@@ -268,7 +268,8 @@ impl<'s, 'e: 's> ExpressionIterator<'e, 's> {
                         }
                     }
                 }
-            }
+            },
+            Expression::Match(_) => todo!("Implement Matching")
         }
     }
 }
