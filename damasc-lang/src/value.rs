@@ -130,7 +130,7 @@ impl<'s, 'v> std::fmt::Display for Value<'s, 'v> {
                 write!(f, "}}")
             }
             Value::Type(t) => write!(f, "{t}"),
-            Value::Lambda(_, pat, expr) => write!(f, "({pat}) => {expr}"),
+            Value::Lambda(_, pat, expr) => write!(f, "fn ({pat}) => {expr}"),
         };
         write!(f, "")
     }

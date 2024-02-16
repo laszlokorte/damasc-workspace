@@ -283,27 +283,6 @@ fn expression_lambda_abstraction<'v, 's, E: ParserError<'s>>(
     )(input)
 }
 
-fn expression_lambda_application<'v, 's, E: ParserError<'s>>(
-    input: ParserInput<'s>,
-) -> ParserResult<Expression<'v>, E> {
-    context(
-        "expression_lambda_application",
-        map(tuple((
-            alt((expression_with_paren, expression_member)),
-            delimited(
-                ws(tag(".(")),
-                expression,
-                ws(tag(")"))
-            )
-        )), |(lambda, parameter)| {
-            Expression::Application(LambdaApplication {
-                lambda: Box::new(lambda),
-                parameter: Box::new(parameter),
-            })
-        }),
-    )(input)
-}
-
 
 
 fn expression_literal<'v, 's, E: ParserError<'s>>(
@@ -691,22 +670,39 @@ fn expression_indexed<'v, 's, E: ParserError<'s>>(
     )(input)
 }
 
+
+enum LambdaOrProp<'a> {
+    Lamba(Expression<'a>),
+    Prop(Identifier<'a>)
+}
+
 fn expression_member<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<Expression<'v>, E> {
     let (input, init) = context("expression_member_lhs", expression_primary)(input)?;
 
     fold_many0(
-        alt((preceded(
+        alt((map(preceded(
             ws(tag(".")),
             context("expression_member_rhs", identifier),
-        ),)),
+        ), LambdaOrProp::Prop),
+        map(preceded(
+            ws(tag(".")),
+            expression_with_paren
+        ), LambdaOrProp::Lamba))),
         move || init.clone(),
         |acc, ident| {
-            Expression::Member(MemberExpression {
+            match ident {
+                LambdaOrProp::Lamba(param) => 
+                Expression::Application(LambdaApplication {
+                    lambda: Box::new(acc),
+                    parameter: Box::new(param),
+                }),
+                LambdaOrProp::Prop(ident) => Expression::Member(MemberExpression {
                 object: Box::new(acc),
                 property: Box::new(Expression::Literal(Literal::String(ident.name))),
-            })
+            }),
+            }
         },
     )(input)
 }
@@ -803,7 +799,6 @@ pub fn expression<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context("expression", alt((
         expression_lambda_abstraction,
-        expression_lambda_application,
         expression_logic_additive,
     )))(input)
 }

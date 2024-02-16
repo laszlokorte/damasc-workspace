@@ -140,7 +140,7 @@ impl std::fmt::Display for Expression<'_> {
                 write!(f, "{suffix}`")
             }
             Expression::Abstraction(LambdaAbstraction { arguments, body }) => {
-                write!(f, "({arguments}) => {body}")
+                write!(f, "fn ({arguments}) => {body}")
             }
             Expression::Application(LambdaApplication { lambda, parameter }) => {
                 write!(f, "{lambda}({parameter})")

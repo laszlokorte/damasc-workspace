@@ -355,3 +355,6 @@ fn x => (x is Lambda)
 ((fn f => (fn x => f.(fn a => (x.(x)).(a))).(fn x => f.(fn a => (x.(x)).(a)))).(fn R => fn x => x>0 && (x==1 || (R.(x-1))))).(10)
 true
 ---
+({foo: fn x => x}).foo.({x:fn [a,a,...] => 2*a}).x.([9,9,9])
+18
+---
