@@ -244,7 +244,7 @@ fn expression_comprehension_source<'v, 's, E: ParserError<'s>>(
             )),
             |((weak, pattern), collection, predicate)| ComprehensionSource {
                 strong_pattern: weak.is_none(),
-                pattern: pattern,
+                pattern,
                 collection: Box::new(collection),
                 predicate: predicate.map(Box::new),
             },

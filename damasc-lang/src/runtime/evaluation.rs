@@ -640,7 +640,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
 
         for case in &match_expr.cases {
             let mut matcher = Matcher::new(self.env);
-            if let Err(_) = matcher.match_pattern(&case.pattern, &subject_value) {
+            if matcher.match_pattern(&case.pattern, &subject_value).is_err() {
                 continue;
             };
 

@@ -271,11 +271,11 @@ impl<'s, 'e: 's> ExpressionIterator<'e, 's> {
                 }
             }
             Expression::Match(MatchExpression { cases, subject }) => {
-                self.expression_stack.push_front(&subject);
+                self.expression_stack.push_front(subject);
 
                 for case in cases {
                     for expr in case.pattern.get_expressions() {
-                        self.expression_stack.push_front(&expr)
+                        self.expression_stack.push_front(expr)
                     }
                     if self.deep {
                         self.expression_stack.push_front(&case.body)
@@ -316,13 +316,67 @@ impl Expression<'_> {
                 Left(Box::new(inner_free) as Box<dyn Iterator<Item = &Identifier>>)
             }
             Expression::ArrayComp(ArrayComprehension {
-                sources: _,
-                projection: _,
+                sources,
+                projection,
             }) => {
-                todo!("implent")
+                let (inner_identifiers, locally_bound) : (Box<dyn Iterator<Item = &Identifier>>, HashSet<_>) = sources.iter().fold((Box::new(std::iter::empty::<&Identifier>()), HashSet::<&Identifier>::new()), |(iter, outer_bound), source| {
+                    let mut locally_bound = outer_bound.clone();
+                    // TODO get rid of those clones
+                    let outer_bound1 = outer_bound.clone();
+                    let outer_bound2 = outer_bound.clone();
+                    locally_bound.extend(source.pattern.get_identifiers());
+                    let locally_bound2 = locally_bound.clone();
+
+                    let collection_identifiers = source.collection.get_identifiers().filter(move |v| !outer_bound1.contains(v));
+                    let pattern_identifiers = source.pattern.get_expressions().flat_map(|e|e.get_identifiers()).filter(move |v| !outer_bound2.contains(v));
+                    let predicate_identifiers = source.predicate.iter().flat_map(|s|s.get_identifiers()).filter(move |v| !locally_bound2.contains(v));
+                    
+
+                    let this_level_identifiers = collection_identifiers.chain(predicate_identifiers).chain(pattern_identifiers);
+
+                    (Box::new(iter.chain(this_level_identifiers)), locally_bound)
+                });
+
+                let projection_identifiers = projection.iter().flat_map(|p : &ArrayItem| {
+                    match p {
+                        ArrayItem::Single(i) => i.get_identifiers(),
+                        ArrayItem::Spread(i) => i.get_identifiers(),
+                    }
+                }).filter(move |v| !locally_bound.contains(v));
+
+                Left(Box::new(inner_identifiers.chain(projection_identifiers)) as Box<dyn Iterator<Item = &Identifier>>)
             }
-            Expression::ObjectComp(ObjectComprehension { .. }) => {
-                todo!("implent")
+            Expression::ObjectComp(ObjectComprehension { sources,
+                projection, }) => {
+                // TODO refactor duplicate code between ObjectComprehension and ArrayComprehension
+                let (inner_identifiers, locally_bound) : (Box<dyn Iterator<Item = &Identifier>>, HashSet<_>) = sources.iter().fold((Box::new(std::iter::empty::<&Identifier>()), HashSet::<&Identifier>::new()), |(iter, outer_bound), source| {
+                    let mut locally_bound = outer_bound.clone();
+                    // TODO get rid of those clones
+                    let outer_bound1 = outer_bound.clone();
+                    let outer_bound2 = outer_bound.clone();
+                    locally_bound.extend(source.pattern.get_identifiers());
+                    let locally_bound2 = locally_bound.clone();
+
+                    let collection_identifiers = source.collection.get_identifiers().filter(move |v| !outer_bound1.contains(v));
+                    let pattern_identifiers = source.pattern.get_expressions().flat_map(|e|e.get_identifiers()).filter(move |v| !outer_bound2.contains(v));
+                    let predicate_identifiers = source.predicate.iter().flat_map(|s|s.get_identifiers()).filter(move |v| !locally_bound2.contains(v));
+                    
+
+                    let this_level_identifiers = collection_identifiers.chain(predicate_identifiers).chain(pattern_identifiers);
+
+                    (Box::new(iter.chain(this_level_identifiers)), locally_bound)
+                });
+
+                let projection_identifiers = projection.iter().flat_map(|p : &ObjectProperty| {
+                    match p {
+                        ObjectProperty::Single(id) => Box::new(std::iter::once(id)) as Box<dyn Iterator<Item = &Identifier>>,
+                        ObjectProperty::Property(Property { key: PropertyKey::Identifier(id), value }) => Box::new(std::iter::once(id).chain(value.get_identifiers())) as Box<dyn Iterator<Item = &Identifier>>,
+                        ObjectProperty::Property(Property { key: PropertyKey::Expression(expr), value }) => Box::new(expr.get_identifiers().chain(value.get_identifiers())) as Box<dyn Iterator<Item = &Identifier>>,
+                        ObjectProperty::Spread(expr) => Box::new(expr.get_identifiers()) as Box<dyn Iterator<Item = &Identifier>>,
+                    }
+                }).filter(move |v| !locally_bound.contains(v));
+
+                Left(Box::new(inner_identifiers.chain(projection_identifiers)) as Box<dyn Iterator<Item = &Identifier>>)
             }
             Expression::Match(MatchExpression { cases, .. }) => {
                 let inner_free = cases.iter().flat_map(|case| {
