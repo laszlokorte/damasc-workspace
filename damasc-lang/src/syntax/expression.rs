@@ -147,8 +147,12 @@ impl std::fmt::Display for Expression<'_> {
             Expression::Application(LambdaApplication { lambda, parameter }) => {
                 write!(f, "{lambda}({parameter})")
             }
-            Expression::Match(MatchExpression { cases }) => {
-                todo!("Implement Matching")
+            Expression::Match(MatchExpression { subject, cases }) => {
+                write!(f, "match ({subject}) {{")?;
+                for case in cases {
+                    write!(f, "({0})  => {1}", case.pattern, case.body)?;
+                }
+                write!(f, "}}")
             }
             Expression::ArrayComp(ArrayComprehension {
                 sources,
@@ -377,12 +381,14 @@ impl MatchCase<'_> {
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MatchExpression<'a> {
+    pub subject: Box<Expression<'a>>,
     pub cases: Vec<MatchCase<'a>>,
 }
 
 impl MatchExpression<'_> {
     fn deep_clone<'x>(&self) -> MatchExpression<'x> {
         MatchExpression {
+            subject: Box::new(self.subject.deep_clone()),
             cases: self.cases.iter().map(|p| p.deep_clone()).collect(),
         }
     }

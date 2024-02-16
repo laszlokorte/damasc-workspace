@@ -1,3 +1,4 @@
+use crate::syntax::expression::MatchExpression;
 use nom::lib::std::collections::HashSet;
 use std::collections::VecDeque;
 
@@ -269,7 +270,18 @@ impl<'s, 'e: 's> ExpressionIterator<'e, 's> {
                     }
                 }
             },
-            Expression::Match(_) => todo!("Implement Matching")
+            Expression::Match(MatchExpression { cases, subject }) => {
+                self.expression_stack.push_front(&subject);
+
+                for case in cases {
+                    for expr in case.pattern.get_expressions() {
+                        self.expression_stack.push_front(&expr)
+                    }
+                    if self.deep {
+                        self.expression_stack.push_front(&case.body)
+                    }
+                }
+            }
         }
     }
 }
@@ -301,7 +313,7 @@ impl Expression<'_> {
                     .get_identifiers()
                     .filter(move |v| !locally_bound.contains(v));
 
-                Left(Box::new(inner_free.into_iter()) as Box<dyn Iterator<Item = &Identifier>>)
+                Left(Box::new(inner_free) as Box<dyn Iterator<Item = &Identifier>>)
             }
             Expression::ArrayComp(ArrayComprehension {
                 sources: _,
@@ -311,6 +323,16 @@ impl Expression<'_> {
             }
             Expression::ObjectComp(ObjectComprehension { .. }) => {
                 todo!("implent")
+            }
+            Expression::Match(MatchExpression { cases, .. }) => {
+                let inner_free = cases.iter().flat_map(|case| {
+                    let locally_bound = case.pattern.get_identifiers().collect::<HashSet<_>>();
+
+                    case.body.get_identifiers()
+                    .filter(move |v| !locally_bound.contains(v))
+                });
+
+                Left(Box::new(inner_free) as Box<dyn Iterator<Item = &Identifier>>)
             }
             _ => Right(None.into_iter()),
         })

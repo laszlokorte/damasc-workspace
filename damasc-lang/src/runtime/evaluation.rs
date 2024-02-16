@@ -1,3 +1,4 @@
+use crate::syntax::expression::MatchExpression;
 use crate::value_type::ValueType;
 use crate::value::ValueArray;
 use crate::value::ValueObjectMap;
@@ -101,7 +102,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             Expression::Application(app) => self.eval_application(app),
             Expression::ArrayComp(comp) => self.eval_array_comprehension(comp),
             Expression::ObjectComp(comp) => self.eval_object_comprehension(comp),
-            Expression::Match(_) => todo!("Implement Matching"),
+            Expression::Match(matching) => self.eval_match(matching),
         }
     }
 
@@ -610,5 +611,26 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             eval.eval_into_object(result, &comp.projection)
         })
         .map(Value::Object)
+    }
+
+    fn eval_match<'x: 's>(
+        &self,
+        match_expr: &MatchExpression<'x>,
+    ) -> Result<Value<'s, 'v>, EvalError> {
+        let subject_value = self.eval_expr(&match_expr.subject)?;
+
+        for case in &match_expr.cases {
+            let mut matcher = Matcher::new(self.env);
+            if let Err(_) = matcher.match_pattern(&case.pattern, &subject_value) {
+                continue
+            };
+
+            let local_env = matcher.into_env();
+            let local_eval = Evaluation::new(&local_env);
+
+            return local_eval.eval_expr(&case.body);
+        }
+
+        Err(EvalError::PatternError)
     }
 }
