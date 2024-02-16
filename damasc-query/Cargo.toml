@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 damasc-lang = { path = "../damasc-lang" }
-itertools = "0.10.5"
+itertools = "0.12.1"
 nom = "7.1.3"
