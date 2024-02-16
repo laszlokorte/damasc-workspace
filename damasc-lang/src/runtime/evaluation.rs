@@ -1,7 +1,7 @@
 use crate::syntax::expression::MatchExpression;
-use crate::value_type::ValueType;
 use crate::value::ValueArray;
 use crate::value::ValueObjectMap;
+use crate::value_type::ValueType;
 use std::{borrow::Cow, collections::BTreeMap};
 
 use itertools::Itertools;
@@ -93,7 +93,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
             Expression::Template(template) => self.eval_template(template),
             Expression::Abstraction(LambdaAbstraction { arguments, body }) => {
-                let Some(new_env) = self.env.extract_except(body.get_identifiers(), arguments.get_identifiers()) else {
+                let Some(new_env) = self
+                    .env
+                    .extract_except(body.get_identifiers(), arguments.get_identifiers())
+                else {
                     return Err(EvalError::UnknownIdentifier);
                 };
 
@@ -541,9 +544,17 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         &self,
         comp: &ArrayComprehension<'x>,
     ) -> Result<Value<'s, 'v>, EvalError> {
-        let mut envs : Box<dyn Iterator<Item=Result<Environment, EvalError>>> = comp.sources.iter().fold(Box::new(Some(Ok(self.env.clone())).into_iter()), |current_envs, source| {
-            Box::new(current_envs.map(|e| Evaluation::new(&e?).eval_comprehension_source(source)).flatten_ok())
-        });
+        let mut envs: Box<dyn Iterator<Item = Result<Environment, EvalError>>> =
+            comp.sources.iter().fold(
+                Box::new(Some(Ok(self.env.clone())).into_iter()),
+                |current_envs, source| {
+                    Box::new(
+                        current_envs
+                            .map(|e| Evaluation::new(&e?).eval_comprehension_source(source))
+                            .flatten_ok(),
+                    )
+                },
+            );
 
         envs.try_fold(vec![], |result, e| {
             let binding = e?;
@@ -569,9 +580,9 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             let mut matcher = Matcher::new(self.env);
             if let Err(_e) = matcher.match_pattern(&source.pattern, &val) {
                 if source.strong_pattern {
-                    return Err(EvalError::PatternError)
+                    return Err(EvalError::PatternError);
                 } else {
-                    continue
+                    continue;
                 }
             };
 
@@ -600,9 +611,17 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         &self,
         comp: &ObjectComprehension<'x>,
     ) -> Result<Value<'s, 'v>, EvalError> {
-        let mut envs : Box<dyn Iterator<Item=Result<Environment, EvalError>>> = comp.sources.iter().fold(Box::new(Some(Ok(self.env.clone())).into_iter()), |current_envs, source| {
-            Box::new(current_envs.map(|e| Evaluation::new(&e?).eval_comprehension_source(source)).flatten_ok())
-        });
+        let mut envs: Box<dyn Iterator<Item = Result<Environment, EvalError>>> =
+            comp.sources.iter().fold(
+                Box::new(Some(Ok(self.env.clone())).into_iter()),
+                |current_envs, source| {
+                    Box::new(
+                        current_envs
+                            .map(|e| Evaluation::new(&e?).eval_comprehension_source(source))
+                            .flatten_ok(),
+                    )
+                },
+            );
 
         envs.try_fold(BTreeMap::new(), |result, e| {
             let binding = e?;
@@ -622,7 +641,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         for case in &match_expr.cases {
             let mut matcher = Matcher::new(self.env);
             if let Err(_) = matcher.match_pattern(&case.pattern, &subject_value) {
-                continue
+                continue;
             };
 
             let local_env = matcher.into_env();

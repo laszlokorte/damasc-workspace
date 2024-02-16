@@ -12,9 +12,11 @@ fn test_expression_parsing() {
 }
 #[test]
 fn test_expression_evaluation() {
-    let lines = include_str!("./examples_expression_pairs.txt").lines().enumerate();
+    let lines = include_str!("./examples_expression_pairs.txt")
+        .lines()
+        .enumerate();
 
-    for [(line_a,a), (line_b,b), (_,sep)] in lines.array_chunks() {
+    for [(line_a, a), (line_b, b), (_, sep)] in lines.array_chunks() {
         assert_eq!(sep, "---");
         let Some(a) = parser::expression::expression_many1_all_consuming(a) else {
             eprintln!("Parse error at line {}: {}", line_a + 1, a);

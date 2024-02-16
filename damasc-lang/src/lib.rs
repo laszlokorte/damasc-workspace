@@ -8,5 +8,5 @@ pub mod parser;
 pub mod runtime;
 pub mod syntax;
 pub mod topology;
-pub mod value_type;
 pub mod value;
+pub mod value_type;

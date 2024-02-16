@@ -172,7 +172,7 @@ impl std::fmt::Display for Expression<'_> {
                     predicate,
                     strong_pattern,
                 } in sources
-                {   
+                {
                     if *strong_pattern {
                         write!(f, "for {pattern} in {collection}")?;
                     } else {
@@ -362,7 +362,6 @@ impl LambdaApplication<'_> {
         }
     }
 }
-
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MatchCase<'a> {

@@ -42,7 +42,6 @@ impl<'s, 'v> ValueBag<'s, 'v> {
 
 pub(crate) type ValueObjectMap<'s, 'v> = BTreeMap<Cow<'s, str>, Cow<'v, Value<'s, 'v>>>;
 
-
 impl<'s, 'v> Value<'s, 'v> {
     pub fn get_type(&self) -> ValueType {
         match self {

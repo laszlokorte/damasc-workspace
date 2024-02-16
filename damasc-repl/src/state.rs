@@ -59,8 +59,12 @@ impl<'i, 's> State<'i, 's> {
 
                 Ok(ReplOutput::Values(ValueBag {
                     values: transform_result.map_err(|e| match e {
-                        ProjectionError::PredicateError(PredicateError::PatternError) => ReplError::MatchError,
-                        ProjectionError::PredicateError(PredicateError::GuardError) => ReplError::EvalError,
+                        ProjectionError::PredicateError(PredicateError::PatternError) => {
+                            ReplError::MatchError
+                        }
+                        ProjectionError::PredicateError(PredicateError::GuardError) => {
+                            ReplError::EvalError
+                        }
                         ProjectionError::EvalError => ReplError::EvalError,
                     })?,
                 }))

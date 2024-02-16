@@ -269,7 +269,7 @@ impl<'s, 'e: 's> ExpressionIterator<'e, 's> {
                         }
                     }
                 }
-            },
+            }
             Expression::Match(MatchExpression { cases, subject }) => {
                 self.expression_stack.push_front(&subject);
 
@@ -328,8 +328,9 @@ impl Expression<'_> {
                 let inner_free = cases.iter().flat_map(|case| {
                     let locally_bound = case.pattern.get_identifiers().collect::<HashSet<_>>();
 
-                    case.body.get_identifiers()
-                    .filter(move |v| !locally_bound.contains(v))
+                    case.body
+                        .get_identifiers()
+                        .filter(move |v| !locally_bound.contains(v))
                 });
 
                 Left(Box::new(inner_free) as Box<dyn Iterator<Item = &Identifier>>)

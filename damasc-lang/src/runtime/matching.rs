@@ -218,18 +218,21 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
             Err(PatternFail::LiteralMismatch)
         }
     }
-    
+
     pub fn new<'x: 'e>(env: &'x Environment<'i, 's, 'v>) -> Self {
         Self {
             outer_env: env,
             local_env: Environment::new(),
         }
     }
-    
-    pub fn new_with_local<'x: 'e>(outer_env: &'x Environment<'i, 's, 'v>, local_env: Environment<'i, 's, 'v>) -> Self {
+
+    pub fn new_with_local<'x: 'e>(
+        outer_env: &'x Environment<'i, 's, 'v>,
+        local_env: Environment<'i, 's, 'v>,
+    ) -> Self {
         Self {
-             outer_env,
-             local_env,
+            outer_env,
+            local_env,
         }
     }
 

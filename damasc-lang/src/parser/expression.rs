@@ -1,9 +1,9 @@
-use crate::syntax::expression::LambdaApplication;
-use crate::syntax::expression::LambdaAbstraction;
-use crate::syntax::expression::ObjectComprehension;
+use crate::parser::pattern::pattern;
 use crate::syntax::expression::ArrayComprehension;
 use crate::syntax::expression::ComprehensionSource;
-use crate::parser::pattern::pattern;
+use crate::syntax::expression::LambdaAbstraction;
+use crate::syntax::expression::LambdaApplication;
+use crate::syntax::expression::ObjectComprehension;
 use nom::multi::many1;
 use std::borrow::Cow;
 
@@ -124,13 +124,16 @@ fn expression_array<'v, 's, E: ParserError<'s>>(
         "expression_array",
         delimited(
             ws(tag("[")),
-            map(opt(terminated(
-                map(
-                    separated_list1(ws(tag(",")), expression_array_item),
-                    Expression::Array,
-                ),
-                opt(ws(tag(","))),
-            )), |v| v.unwrap_or_else(|| Expression::Array(vec![]))),
+            map(
+                opt(terminated(
+                    map(
+                        separated_list1(ws(tag(",")), expression_array_item),
+                        Expression::Array,
+                    ),
+                    opt(ws(tag(","))),
+                )),
+                |v| v.unwrap_or_else(|| Expression::Array(vec![])),
+            ),
             ws(tag("]")),
         ),
     )(input)
@@ -141,22 +144,25 @@ fn expression_array_comprehension<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression_array_comprehension",
-        map(delimited(
-            ws(tag("[")),
-            tuple((
-                terminated(
-                    separated_list1(ws(tag(",")), expression_array_item),
-                    opt(ws(tag(","))),
-                ),
-                expression_comprehension_source
-            )),
-            ws(tag("]")),
-        ), |(projection, sources)| {
-            Expression::ArrayComp(ArrayComprehension {
-                projection,
-                sources
-            })
-        }),
+        map(
+            delimited(
+                ws(tag("[")),
+                tuple((
+                    terminated(
+                        separated_list1(ws(tag(",")), expression_array_item),
+                        opt(ws(tag(","))),
+                    ),
+                    expression_comprehension_source,
+                )),
+                ws(tag("]")),
+            ),
+            |(projection, sources)| {
+                Expression::ArrayComp(ArrayComprehension {
+                    projection,
+                    sources,
+                })
+            },
+        ),
     )(input)
 }
 
@@ -210,13 +216,16 @@ fn expression_object<'v, 's, E: ParserError<'s>>(
         "expression_object",
         delimited(
             ws(tag("{")),
-            map(opt(terminated(
-                map(
-                    separated_list1(ws(tag(",")), expression_object_property),
-                    Expression::Object,
-                ),
-                opt(ws(tag(","))),
-            )), |v| v.unwrap_or_else(|| Expression::Object(vec![]))),
+            map(
+                opt(terminated(
+                    map(
+                        separated_list1(ws(tag(",")), expression_object_property),
+                        Expression::Object,
+                    ),
+                    opt(ws(tag(","))),
+                )),
+                |v| v.unwrap_or_else(|| Expression::Object(vec![])),
+            ),
             ws(tag("}")),
         ),
     )(input)
@@ -227,36 +236,46 @@ fn expression_comprehension_source<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Vec<ComprehensionSource<'v>>, E> {
     context(
         "expression_comprehension_source",
-    many1(map(tuple((preceded(ws(tag("for")), tuple((opt(ws(tag("match"))), pattern))), preceded(ws(tag("in")), expression), opt(preceded(ws(tag("if")), expression)))), |((weak, pattern), collection, predicate)| {
-        ComprehensionSource {
-            strong_pattern: weak.is_none(),
-            pattern: pattern, 
-            collection: Box::new(collection), 
-            predicate: predicate.map(Box::new)
-        }
-    })))(input)
+        many1(map(
+            tuple((
+                preceded(ws(tag("for")), tuple((opt(ws(tag("match"))), pattern))),
+                preceded(ws(tag("in")), expression),
+                opt(preceded(ws(tag("if")), expression)),
+            )),
+            |((weak, pattern), collection, predicate)| ComprehensionSource {
+                strong_pattern: weak.is_none(),
+                pattern: pattern,
+                collection: Box::new(collection),
+                predicate: predicate.map(Box::new),
+            },
+        )),
+    )(input)
 }
-
 
 fn expression_object_comprehension<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression_object_comprehension",
-        map(delimited(
-            ws(tag("{")),
-            tuple((terminated(
-                    separated_list1(ws(tag(",")), expression_object_property),
-                    opt(ws(tag(","))),
-                ),
-                expression_comprehension_source)),
-            ws(tag("}")),
-        ), |(projection, sources)| {
-            Expression::ObjectComp(ObjectComprehension {
-                projection,
-                sources
-            })
-        }),
+        map(
+            delimited(
+                ws(tag("{")),
+                tuple((
+                    terminated(
+                        separated_list1(ws(tag(",")), expression_object_property),
+                        opt(ws(tag(","))),
+                    ),
+                    expression_comprehension_source,
+                )),
+                ws(tag("}")),
+            ),
+            |(projection, sources)| {
+                Expression::ObjectComp(ObjectComprehension {
+                    projection,
+                    sources,
+                })
+            },
+        ),
     )(input)
 }
 
@@ -265,25 +284,23 @@ fn expression_lambda_abstraction<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression_lambda_abstraction",
-        map(tuple((
-            preceded(
-                ws(tag("fn")),
-                alt((delimited(ws(tag("(")), pattern, ws(tag(")"))), pattern))
-            ),
-            preceded(
-                ws(tag("=>")),
-                expression
-            )
-        )), |(arg, body)| {
-            Expression::Abstraction(LambdaAbstraction {
-                arguments: arg,
-                body: Box::new(body),
-            })
-        }),
+        map(
+            tuple((
+                preceded(
+                    ws(tag("fn")),
+                    alt((delimited(ws(tag("(")), pattern, ws(tag(")"))), pattern)),
+                ),
+                preceded(ws(tag("=>")), expression),
+            )),
+            |(arg, body)| {
+                Expression::Abstraction(LambdaAbstraction {
+                    arguments: arg,
+                    body: Box::new(body),
+                })
+            },
+        ),
     )(input)
 }
-
-
 
 fn expression_literal<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
@@ -670,10 +687,9 @@ fn expression_indexed<'v, 's, E: ParserError<'s>>(
     )(input)
 }
 
-
 enum LambdaOrProp<'a> {
     Lamba(Expression<'a>),
-    Prop(Identifier<'a>)
+    Prop(Identifier<'a>),
 }
 
 fn expression_member<'v, 's, E: ParserError<'s>>(
@@ -682,27 +698,26 @@ fn expression_member<'v, 's, E: ParserError<'s>>(
     let (input, init) = context("expression_member_lhs", expression_primary)(input)?;
 
     fold_many0(
-        alt((map(preceded(
-            ws(tag(".")),
-            context("expression_member_rhs", identifier),
-        ), LambdaOrProp::Prop),
-        map(preceded(
-            ws(tag(".")),
-            expression_with_paren
-        ), LambdaOrProp::Lamba))),
+        alt((
+            map(
+                preceded(ws(tag(".")), context("expression_member_rhs", identifier)),
+                LambdaOrProp::Prop,
+            ),
+            map(
+                preceded(ws(tag(".")), expression_with_paren),
+                LambdaOrProp::Lamba,
+            ),
+        )),
         move || init.clone(),
-        |acc, ident| {
-            match ident {
-                LambdaOrProp::Lamba(param) => 
-                Expression::Application(LambdaApplication {
-                    lambda: Box::new(acc),
-                    parameter: Box::new(param),
-                }),
-                LambdaOrProp::Prop(ident) => Expression::Member(MemberExpression {
+        |acc, ident| match ident {
+            LambdaOrProp::Lamba(param) => Expression::Application(LambdaApplication {
+                lambda: Box::new(acc),
+                parameter: Box::new(param),
+            }),
+            LambdaOrProp::Prop(ident) => Expression::Member(MemberExpression {
                 object: Box::new(acc),
                 property: Box::new(Expression::Literal(Literal::String(ident.name))),
             }),
-            }
         },
     )(input)
 }
@@ -797,8 +812,8 @@ fn expression_unary_numeric<'v, 's, E: ParserError<'s>>(
 pub fn expression<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<Expression<'v>, E> {
-    context("expression", alt((
-        expression_lambda_abstraction,
-        expression_logic_additive,
-    )))(input)
+    context(
+        "expression",
+        alt((expression_lambda_abstraction, expression_logic_additive)),
+    )(input)
 }

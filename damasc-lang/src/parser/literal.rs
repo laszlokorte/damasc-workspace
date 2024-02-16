@@ -9,7 +9,7 @@ use nom::{
     sequence::delimited,
 };
 
-use crate::{literal::Literal};
+use crate::literal::Literal;
 
 use super::io::{ParserError, ParserInput, ParserResult};
 

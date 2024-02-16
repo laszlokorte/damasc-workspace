@@ -53,7 +53,7 @@ impl<'i, 's, 'v> Environment<'i, 's, 'v> {
     pub(crate) fn extract_except<'x, 'y: 'x, 'ii, 'ss, 'vv>(
         &self,
         identifiers: impl Iterator<Item = &'x Identifier<'y>>,
-        exceptions: impl Iterator<Item = &'x Identifier<'y>>
+        exceptions: impl Iterator<Item = &'x Identifier<'y>>,
     ) -> Option<Environment<'i, 's, 'v>> {
         let mut env = Environment::new();
         let skip = exceptions.collect::<HashSet<_>>();
@@ -62,7 +62,7 @@ impl<'i, 's, 'v> Environment<'i, 's, 'v> {
             if skip.contains(id) {
                 continue;
             }
-            
+
             let current_value = self.bindings.get(id)?;
             env.bindings.insert(id.deep_clone(), current_value.clone());
         }

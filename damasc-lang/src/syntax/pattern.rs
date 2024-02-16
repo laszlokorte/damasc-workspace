@@ -1,7 +1,7 @@
-use crate::value_type::ValueType;
 use crate::identifier::Identifier;
 use crate::literal::Literal;
 use crate::syntax::expression::PropertyKey;
+use crate::value_type::ValueType;
 
 #[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]
 pub enum Pattern<'s> {

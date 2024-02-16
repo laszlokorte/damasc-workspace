@@ -1,4 +1,3 @@
-
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum ValueType {
     Null,
