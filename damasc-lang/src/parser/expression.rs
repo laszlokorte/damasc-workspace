@@ -772,23 +772,37 @@ fn expression_numeric_exponential<'v, 's, E: ParserError<'s>>(
     )(input)
 }
 
+
+enum LambdaOrIndex<'a> {
+    Lamba(Expression<'a>),
+    Index(Expression<'a>),
+}
+
 fn expression_indexed<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<Expression<'v>, E> {
     let (input, init) = context("expression_indexed_lhs", expression_member)(input)?;
 
     fold_many0(
-        delimited(
-            ws(tag("[")),
-            context("expression_indexed_rhs", expression),
-            ws(tag("]")),
-        ),
+        alt((
+            map(delimited(
+                ws(tag("[")),
+                context("expression_indexed_rhs", expression),
+                ws(tag("]")),
+            ), LambdaOrIndex::Index),
+
+            map(preceded(ws(tag(".")), expression_with_paren), LambdaOrIndex::Lamba)
+        )),
         move || init.clone(),
-        |acc, ident| {
-            Expression::Member(MemberExpression {
+        |acc, ident| match ident {
+            LambdaOrIndex::Lamba(param) => Expression::Application(LambdaApplication {
+                lambda: Box::new(acc),
+                parameter: Box::new(param),
+            }),
+            LambdaOrIndex::Index(expr) => Expression::Member(MemberExpression {
                 object: Box::new(acc),
-                property: Box::new(ident),
-            })
+                property: Box::new(expr),
+            }),
         },
     )(input)
 }

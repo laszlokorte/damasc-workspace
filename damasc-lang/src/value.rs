@@ -114,17 +114,20 @@ impl<'s, 'v> std::fmt::Display for Value<'s, 'v> {
             Value::Integer(i) => write!(f, "{i}"),
             Value::Boolean(b) => write!(f, "{b}"),
             Value::Array(a) => {
-                let _ = write!(f, "[");
+                let _ = write!(f, "[")?;
                 for v in a {
-                    let _ = write!(f, "{v}, ",);
+                    let _ = write!(f, "{v}, ",)?;
                 }
                 write!(f, "]")
             }
             Value::Object(o) => {
                 let _ = write!(f, "{{");
                 for (k, v) in o {
-                    let _ = write!(f, "{k}: ",);
-                    let _ = write!(f, "{v}, ",);
+                    if k.chars().all(|x| x.is_alphanumeric()) { 
+                        write!(f, "{}: {v},", k)?;
+                    } else {
+                        write!(f, "\"{}\": {v},", k.replace("\"","\\\""))?;
+                    }
                 }
                 write!(f, "}}")
             }

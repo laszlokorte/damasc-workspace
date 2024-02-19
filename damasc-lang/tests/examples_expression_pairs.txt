@@ -388,3 +388,15 @@ if true { 23 }
 if false { 23 }
 null
 ---
+rebind([(fn x => fn y => 2*x).(23), {x: 108}]).(42)
+216
+---
+(fn vs => {[`${x}*${y}`]:x*y for x in vs for y in vs if x<y}).([1,2,3,4])
+{"1*2": 2,"1*3": 3,"1*4": 4,"2*3": 6,"2*4": 8,"3*4": 12,}
+---
+(fn vs => [x*y for x in vs for y in vs if x<y]).([1,2,3,4])
+[2, 3, 4, 6, 8, 12, ]
+---
+(fn fs => [fs.foo[1].(42), fs.foo[0].(23)]).({foo: [fn x => x*2, fn x => x*3]})
+[126, 46, ]
+---

@@ -10,3 +10,7 @@ members = [
     "damasc-http",
     "damasc-join",
 ]
+
+[profile.release]
+opt-level = 3
+strip = "debuginfo"

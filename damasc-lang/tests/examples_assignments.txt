@@ -149,3 +149,4 @@ x = match (true) { true => "a", false => y, }; y=10
 res = if x != 0 { y/x } else { y }; x = 2; y = 42
 e = env(f); f = fn (x) => x + a * y; y = 20; a = 5; b = 33
 g = rebind([f, env(f)]); f = fn x => y; y = 10
+f1 = fs[1].(10); fs = [fn x => x*2, fn x => x*3]; f2 = fs[0].(23)
