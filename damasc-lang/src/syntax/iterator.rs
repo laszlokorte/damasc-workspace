@@ -1,3 +1,4 @@
+use crate::syntax::expression::IfElseExpression;
 use crate::syntax::expression::MatchExpression;
 use nom::lib::std::collections::HashSet;
 use std::collections::VecDeque;
@@ -280,6 +281,13 @@ impl<'s, 'e: 's> ExpressionIterator<'e, 's> {
                     if self.deep {
                         self.expression_stack.push_front(&case.body)
                     }
+                }
+            }
+            Expression::Condition(IfElseExpression { condition, true_branch, false_branch }) => {
+                self.expression_stack.push_front(condition);
+                self.expression_stack.push_front(true_branch);
+                if let Some(fb) = false_branch {
+                    self.expression_stack.push_front(fb);
                 }
             }
         }

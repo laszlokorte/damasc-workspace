@@ -1,3 +1,4 @@
+use crate::syntax::expression::IfElseExpression;
 use crate::syntax::expression::MatchExpression;
 use crate::value::ValueArray;
 use crate::value::ValueObjectMap;
@@ -106,6 +107,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             Expression::ArrayComp(comp) => self.eval_array_comprehension(comp),
             Expression::ObjectComp(comp) => self.eval_object_comprehension(comp),
             Expression::Match(matching) => self.eval_match(matching),
+            Expression::Condition(if_else) => self.eval_condition(if_else),
         }
     }
 
@@ -488,6 +490,35 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 Value::Object(o) => o.values().cloned().collect(),
                 _ => return Err(EvalError::TypeError),
             }),
+            "env" => Value::Object(match argument {
+                Value::Lambda(env, _, _) => env.bindings.iter().map(|(k,v)| (Cow::Owned(k.to_string()),Cow::Owned(v.to_owned()))).collect(),
+                _ => return Err(EvalError::TypeError),
+            }),
+            "rebind" => match argument {
+                Value::Array(arr) => {
+                    let Some(x) = arr.get(0) else {
+                        return Err(EvalError::TypeError)
+                    };
+
+                    let Value::Lambda(env, pattern, expression) = x.clone().into_owned() else {
+                        return Err(EvalError::TypeError)
+                    };
+
+                    let Some(y) = arr.get(1) else {
+                        return Err(EvalError::TypeError)
+                    };
+
+                    let Value::Object(obj) = y.clone().into_owned() else {
+                        return Err(EvalError::TypeError)
+                    };
+
+                    let mut new_env = env.clone();
+                    new_env.replace(obj.into_iter().map(|(k,v)| (Identifier::new_owned(k.into_owned()),v.clone().into_owned())));
+
+                    Value::Lambda(new_env, pattern.clone(), expression.clone())
+                },
+                _ => return Err(EvalError::TypeError),
+            },
             "type" => Value::Type(argument.get_type()),
             _ => return Err(EvalError::UnknownFunction),
         })
@@ -654,5 +685,24 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         }
 
         Err(EvalError::PatternError)
+    }
+
+    fn eval_condition<'x: 's>(
+        &self,
+        if_else: &IfElseExpression<'x>,
+    ) -> Result<Value<'s, 'v>, EvalError> {
+        let condition_value = self.eval_expr(&if_else.condition)?;
+
+        let Value::Boolean(condition_bool) = condition_value else {
+            return Err(EvalError::TypeError);
+        };
+
+        if condition_bool {
+            self.eval_expr(&if_else.true_branch)
+        } else if let Some(ref fb) = &if_else.false_branch {
+            self.eval_expr(fb)
+        } else {
+            return Ok(Value::Null)
+        }
     }
 }

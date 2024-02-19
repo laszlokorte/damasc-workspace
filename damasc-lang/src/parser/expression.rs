@@ -1,3 +1,4 @@
+use crate::syntax::expression::IfElseExpression;
 use crate::syntax::pattern::Pattern;
 use crate::syntax::expression::MatchExpression;
 use crate::syntax::expression::MatchCase;
@@ -343,6 +344,35 @@ fn expression_match<'v, 's, E: ParserError<'s>>(
                 Expression::Match(MatchExpression {
                     subject: Box::new(subject),
                     cases: cases.unwrap_or_else(|| Vec::new()),
+                })
+            },
+        ),
+    )(input)
+}
+
+fn expression_condition<'v, 's, E: ParserError<'s>>(
+    input: ParserInput<'s>,
+) -> ParserResult<Expression<'v>, E> {
+    context(
+        "expression_condition",
+        map(
+            tuple((
+                preceded(
+                    ws(tag("if")),
+                    alt((delimited(ws(tag("(")), expression, ws(tag(")"))), expression)),
+                ),
+                delimited(ws(tag("{")), 
+                    expression
+                , ws(tag("}"))),
+                opt(preceded(ws(tag("else")), delimited(ws(tag("{")), 
+                    expression
+                , ws(tag("}")))))
+            )),
+            |(condition, true_branch, false_branch)| {
+                Expression::Condition(IfElseExpression {
+                    condition: Box::new(condition),
+                    true_branch: Box::new(true_branch),
+                    false_branch: false_branch.map(Box::new),
                 })
             },
         ),
@@ -890,6 +920,6 @@ pub fn expression<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression",
-        alt((expression_lambda_match_abstraction, expression_lambda_abstraction, expression_match, expression_logic_additive)),
+        alt((expression_lambda_match_abstraction, expression_lambda_abstraction, expression_match, expression_condition, expression_logic_additive)),
     )(input)
 }

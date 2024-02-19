@@ -36,6 +36,15 @@ impl<'i, 's, 'v> Environment<'i, 's, 'v> {
         Some(Environment { bindings })
     }
 
+    pub(crate) fn replace<'x: 'i, 'y: 'x, 'ii, 'ss, 'vv>(
+        &mut self,
+        identifiers: impl Iterator<Item = (Identifier<'y>, Value<'s, 'v>)>,
+    ) {
+        for (id, val) in identifiers {
+            self.bindings.entry(id.clone()).and_modify(|old| *old = val);
+        }
+    }
+
     pub(crate) fn extract<'x, 'y: 'x, 'ii, 'ss, 'vv>(
         &self,
         identifiers: impl Iterator<Item = &'x Identifier<'y>>,

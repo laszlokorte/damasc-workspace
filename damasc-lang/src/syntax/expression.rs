@@ -21,6 +21,7 @@ pub enum Expression<'s> {
     Application(LambdaApplication<'s>),
     ArrayComp(ArrayComprehension<'s>),
     ObjectComp(ObjectComprehension<'s>),
+    Condition(IfElseExpression<'s>),
     Match(MatchExpression<'s>),
 }
 impl<'s> Expression<'s> {
@@ -41,6 +42,7 @@ impl<'s> Expression<'s> {
             Expression::ArrayComp(x) => Expression::ArrayComp(x.deep_clone()),
             Expression::ObjectComp(x) => Expression::ObjectComp(x.deep_clone()),
             Expression::Match(x) => Expression::Match(x.deep_clone()),
+            Expression::Condition(x) => Expression::Condition(x.deep_clone()),
         }
     }
 }
@@ -153,6 +155,14 @@ impl std::fmt::Display for Expression<'_> {
                     write!(f, "({0})  => {1}", case.pattern, case.body)?;
                 }
                 write!(f, "}}")
+            }
+            Expression::Condition(IfElseExpression { condition, true_branch, false_branch }) => {
+                write!(f, "if ({condition}) {{ {true_branch} }}")?;
+                if let Some(fb) = false_branch {
+                    write!(f, "else {{ {fb} }}")
+                } else {
+                    Ok(())
+                }
             }
             Expression::ArrayComp(ArrayComprehension {
                 sources,
@@ -389,6 +399,25 @@ impl MatchExpression<'_> {
         MatchExpression {
             subject: Box::new(self.subject.deep_clone()),
             cases: self.cases.iter().map(|p| p.deep_clone()).collect(),
+        }
+    }
+}
+
+
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct IfElseExpression<'a> {
+    pub condition: Box<Expression<'a>>,
+    pub true_branch: Box<Expression<'a>>,
+    pub false_branch: Option<Box<Expression<'a>>>,
+}
+
+impl IfElseExpression<'_> {
+    fn deep_clone<'x>(&self) -> IfElseExpression<'x> {
+        IfElseExpression {
+            condition: Box::new(self.condition.deep_clone()),
+            true_branch: Box::new(self.true_branch.deep_clone()),
+            false_branch: self.false_branch.clone().map(|fb| Box::new(fb.deep_clone())),
         }
     }
 }

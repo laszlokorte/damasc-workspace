@@ -376,3 +376,15 @@ match ("blub") { _ => 42 }
 ((fn f => (fn x => f.(fn a => (x.(x)).(a))).(fn x => f.(fn a => (x.(x)).(a)))).(fn R => fn match { 0 => 1, #match => #match * R.(#match-1) })).(5)
 120
 ---
+if true { 23 } else { 42 }
+23
+---
+if false { 23 } else { 42 }
+42
+---
+if true { 23 }
+23
+---
+if false { 23 }
+null
+---
