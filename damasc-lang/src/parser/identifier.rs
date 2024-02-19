@@ -15,7 +15,7 @@ use crate::identifier::Identifier;
 use super::io::{ParserError, ParserInput, ParserResult};
 
 fn no_keyword(input: &ParserInput) -> bool {
-    !matches!(input.fragment(), &"where" | &"into" | &"limit" | &"with")
+    !matches!(input.fragment(), &"where" | &"into" | &"limit" | &"with" | &"fn" | &"match" | &"if" | &"else")
 }
 
 fn identifier_name<'e, E: ParserError<'e>>(input: ParserInput<'e>) -> ParserResult<ParserInput, E> {

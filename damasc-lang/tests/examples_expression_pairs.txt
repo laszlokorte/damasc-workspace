@@ -370,3 +370,9 @@ match (false) { true => "a", false => "b", }
 match ("blub") { _ => 42 }
 42
 ---
+((fn f => (fn x => f.(fn a => (x.(x)).(a))).(fn x => f.(fn a => (x.(x)).(a)))).(fn R => fn match { 0 => 1, x => x * R.(x-1) })).(5)
+120
+---
+((fn f => (fn x => f.(fn a => (x.(x)).(a))).(fn x => f.(fn a => (x.(x)).(a)))).(fn R => fn match { 0 => 1, #match => #match * R.(#match-1) })).(5)
+120
+---
