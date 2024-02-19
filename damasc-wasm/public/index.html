@@ -67,6 +67,9 @@
       '[_,m,_]=[1,2,3]',
       't=type(x);{x:[_ is Integer, x]}={x:[23,true]}',
       'let [x,y] = [23,42]',
+      '[x*y for x in vs for y in vs if x<y] with vs=[1,2,3,4]',
+      'fn x => x + y with y = 22',
+      '{[(x*y) as String]: `${x}*${y}` for x in [23,42] for y in [15,16]}',
       ];
       init().then(() => {
         const r = new WasmRepl();
