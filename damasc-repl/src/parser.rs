@@ -1,3 +1,5 @@
+use nom::combinator::opt;
+use nom::sequence::tuple;
 use damasc_lang::{
     parser::{
         assignment::assignment_set1,
@@ -54,8 +56,8 @@ pub(crate) fn command<'a, 'b, 's, E: ParserError<'s>>(
                 context(
                     "cmd_let",
                     map(
-                        all_consuming(preceded(ws(tag("let ")), assignment_set1)),
-                        Command::Assign,
+                        all_consuming(tuple((preceded(ws(tag("let ")), assignment_set1), opt(preceded(ws(tag("with")), assignment_set1))))),
+                        |(assignments, locals)| Command::Assign(assignments, locals),
                     ),
                 ),
                 context(

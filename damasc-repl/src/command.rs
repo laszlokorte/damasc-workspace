@@ -9,7 +9,7 @@ pub enum Command<'a, 'b> {
     ShowEnv,
     ClearEnv,
     Transform(Transformation<'a, 'b>),
-    Assign(AssignmentSet<'a, 'b>),
+    Assign(AssignmentSet<'a, 'b>, Option<AssignmentSet<'a, 'b>>),
     Match(AssignmentSet<'a, 'b>),
     Eval(AssignmentSet<'a, 'b>, ExpressionSet<'a>),
 }

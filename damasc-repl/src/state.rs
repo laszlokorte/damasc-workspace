@@ -69,8 +69,24 @@ impl<'i, 's> State<'i, 's> {
                     })?,
                 }))
             }
-            Command::Assign(assignments) => {
-                let matcher = Matcher::new(&self.environment);
+            Command::Assign(assignments, locals) => {
+                let local_env = if let Some(loc) = locals {
+                    let local_matcher = Matcher::new(&self.environment);
+                    match local_matcher.eval_assigment_set(loc) {
+                        Ok(mut new_bindings) => {
+                            let mut local_env = self.environment.clone();
+                            local_env.bindings.append(&mut new_bindings.bindings);
+                            local_env
+                        }
+                        Err(AssignmentError::EvalError) => return Err(ReplError::EvalError),
+                        Err(AssignmentError::MatchError) => return Err(ReplError::MatchError),
+                        Err(AssignmentError::TopologyError) => return Err(ReplError::TopologyError),
+                    }
+                } else {
+                    self.environment.clone()
+                };
+
+                let matcher = Matcher::new(&local_env);
                 match matcher.eval_assigment_set(assignments) {
                     Ok(new_bindings) => {
                         self.environment
