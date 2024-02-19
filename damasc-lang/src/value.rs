@@ -132,7 +132,23 @@ impl<'s, 'v> std::fmt::Display for Value<'s, 'v> {
                 write!(f, "}}")
             }
             Value::Type(t) => write!(f, "{t}"),
-            Value::Lambda(_, pat, expr) => write!(f, "fn ({pat}) => {expr}"),
+            Value::Lambda(env, pat, expr) => {
+                write!(f, "fn ({pat}) => {expr}")?;
+
+                if env.bindings.len() > 0 {
+                    write!(f, " with ")?;
+
+                    for (i, (k, v)) in env.bindings.iter().enumerate() {
+                        if i > 0 {
+                            write!(f, "; {}={v}", k)?;
+                        } else {
+                            write!(f, "{}={v}", k)?;
+                        }
+                    }
+                }
+
+                write!(f, "")
+            },
         };
         write!(f, "")
     }
