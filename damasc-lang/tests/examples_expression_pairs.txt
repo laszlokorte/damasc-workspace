@@ -361,3 +361,12 @@ true
 (fn x => x.(x).(x).(x).(x)).(fn x => x)
 fn (x) => x
 ---
+match (true) { true => "a", false => "b", }
+"a"
+---
+match (false) { true => "a", false => "b", }
+"b"
+---
+match ("blub") { _ => 42 }
+42
+---

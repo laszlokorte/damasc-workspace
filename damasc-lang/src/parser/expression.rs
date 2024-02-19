@@ -1,3 +1,6 @@
+use crate::syntax::pattern::Pattern;
+use crate::syntax::expression::MatchExpression;
+use crate::syntax::expression::MatchCase;
 use crate::parser::pattern::pattern;
 use crate::syntax::expression::ArrayComprehension;
 use crate::syntax::expression::ComprehensionSource;
@@ -296,6 +299,79 @@ fn expression_lambda_abstraction<'v, 's, E: ParserError<'s>>(
                 Expression::Abstraction(LambdaAbstraction {
                     arguments: arg,
                     body: Box::new(body),
+                })
+            },
+        ),
+    )(input)
+}
+
+
+fn expression_match_arm<'v, 's, E: ParserError<'s>>(
+    input: ParserInput<'s>,
+) -> ParserResult<MatchCase<'v>, E> {
+    map(separated_pair(
+        alt((delimited(ws(tag("(")), pattern, ws(tag(")"))), pattern)),
+        ws(tag("=>")),
+        expression
+    ), |(pattern, body)| {
+        MatchCase {
+            pattern: pattern, 
+            body: Box::new(body)
+        }
+    })(input)
+}
+
+fn expression_match<'v, 's, E: ParserError<'s>>(
+    input: ParserInput<'s>,
+) -> ParserResult<Expression<'v>, E> {
+    context(
+        "expression_match",
+        map(
+            tuple((
+                preceded(
+                    ws(tag("match")),
+                    alt((delimited(ws(tag("(")), expression, ws(tag(")"))), expression)),
+                ),
+                delimited(ws(tag("{")), 
+                    opt(terminated(
+                        separated_list1(ws(tag(",")), expression_match_arm),
+                        opt(ws(tag(","))),
+                    ))
+                , ws(tag("}"))),
+            )),
+            |(subject, cases)| {
+                Expression::Match(MatchExpression {
+                    subject: Box::new(subject),
+                    cases: cases.unwrap_or_else(|| Vec::new()),
+                })
+            },
+        ),
+    )(input)
+}
+
+fn expression_lambda_match_abstraction<'v, 's, E: ParserError<'s>>(
+    input: ParserInput<'s>,
+) -> ParserResult<Expression<'v>, E> {
+    context(
+        "expression_lambda_match_abstraction",
+        map(
+            preceded(
+                ws(tag("fn match")),
+                delimited(ws(tag("{")), 
+                    opt(terminated(
+                        separated_list1(ws(tag(",")), expression_match_arm),
+                        opt(ws(tag(","))),
+                    ))
+                , ws(tag("}"))),
+            ),
+            |cases| {
+                let local_identifier = Identifier::new("___local");
+                Expression::Abstraction(LambdaAbstraction {
+                    arguments: Pattern::Identifier(local_identifier.clone()),
+                    body: Box::new(Expression::Match(MatchExpression {
+                        subject: Box::new(Expression::Identifier(local_identifier)),
+                        cases: cases.unwrap_or_else(|| Vec::new()),
+                    })),
                 })
             },
         ),
@@ -814,6 +890,6 @@ pub fn expression<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression",
-        alt((expression_lambda_abstraction, expression_logic_additive)),
+        alt((expression_lambda_match_abstraction, expression_lambda_abstraction, expression_match, expression_logic_additive)),
     )(input)
 }
