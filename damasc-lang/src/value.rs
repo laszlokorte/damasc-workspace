@@ -123,7 +123,7 @@ impl<'s, 'v> std::fmt::Display for Value<'s, 'v> {
             Value::Object(o) => {
                 let _ = write!(f, "{{");
                 for (k, v) in o {
-                    if k.chars().all(|x| x.is_alphanumeric()) { 
+                    if k.chars().next().map_or(false, |c| c.is_alphabetic()) && k.chars().all(|x| x.is_alphanumeric()) { 
                         write!(f, "{}: {v},", k)?;
                     } else {
                         write!(f, "\"{}\": {v},", k.replace("\"","\\\""))?;
