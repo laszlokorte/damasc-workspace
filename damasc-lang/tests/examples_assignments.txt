@@ -151,3 +151,5 @@ e = env(f); f = fn (x) => x + a * y; y = 20; a = 5; b = 33
 g = rebind([f, env(f)]); f = fn x => y; y = 10
 f1 = fs[1].(10); fs = [fn x => x*2, fn x => x*3]; f2 = fs[0].(23)
 [^x,^(x+1),^y] = [5,6,x-2]; x = y+2; y=3
+{y} = env(ff); ff = fn match { x if y < 5 => x, _ => 42 }; y = 10
+^(env(ff)) = {y}; ff = fn match { x if y < 5 => x, _ => 42 }; y = 10

@@ -311,12 +311,14 @@ fn expression_match_arm<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<MatchCase<'v>, E> {
     map(separated_pair(
-        alt((delimited(ws(tag("(")), pattern, ws(tag(")"))), pattern)),
+        tuple((alt((delimited(ws(tag("(")), pattern, ws(tag(")"))), pattern)),
+        opt(preceded(ws(tag("if")), expression)))),
         ws(tag("=>")),
         expression
-    ), |(pattern, body)| {
+    ), |((pattern, guard), body)| {
         MatchCase {
             pattern: pattern, 
+            guard: guard.map(Box::new),
             body: Box::new(body)
         }
     })(input)

@@ -681,6 +681,19 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             let local_env = matcher.into_env();
             let local_eval = Evaluation::new(&local_env);
 
+            if let Some(guard) = &case.guard {
+                let guard_val = local_eval.eval_expr(&guard)?;
+
+                let Value::Boolean(guard_bool) = guard_val else {
+                    return Err(EvalError::TypeError);
+                };
+
+                if !guard_bool {
+                    continue
+                }
+            }
+
+
             return local_eval.eval_expr(&case.body);
         }
 

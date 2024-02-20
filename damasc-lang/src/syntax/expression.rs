@@ -376,6 +376,7 @@ impl LambdaApplication<'_> {
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MatchCase<'a> {
     pub pattern: Pattern<'a>,
+    pub guard: Option<Box<Expression<'a>>>,
     pub body: Box<Expression<'a>>,
 }
 
@@ -383,6 +384,7 @@ impl MatchCase<'_> {
     fn deep_clone<'x>(&self) -> MatchCase<'x> {
         MatchCase {
             pattern: self.pattern.deep_clone(),
+            guard: self.guard.clone().map(|g| Box::new(g.deep_clone())),
             body: Box::new(self.body.deep_clone()),
         }
     }

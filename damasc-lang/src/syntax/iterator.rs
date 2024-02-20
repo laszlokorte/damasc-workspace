@@ -282,7 +282,11 @@ impl<'s, 'e: 's> ExpressionIterator<'e, 's> {
                         self.expression_stack.push_front(expr)
                     }
                     if self.deep {
-                        self.expression_stack.push_front(&case.body)
+                        if let Some(guard) = &case.guard {
+                            self.expression_stack.push_front(&guard);
+                        }
+
+                        self.expression_stack.push_front(&case.body);
                     }
                 }
             }
@@ -454,6 +458,7 @@ impl Expression<'_> {
 
                     case.body
                         .get_identifiers()
+                        .chain(case.guard.iter().flat_map(|g| g.get_identifiers()))
                         .filter(move |v| !locally_bound.contains(v))
                 });
 
