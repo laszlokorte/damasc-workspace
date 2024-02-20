@@ -94,28 +94,30 @@ impl<'i: 's, 's, 'p> Iterator for BagMultiPredicateIterator<'i, 's, 's, 'p> {
     type Item = Result<IdentifiedEnvironment<'i, 's, 's>, PredicateError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let items = self.iter.next()?;
+        let mut items = self.iter.next()?;
 
-        match (
-            &self.bag_id,
-            apply_identified(self.predicate, &self.env, items.iter()),
-        ) {
-            (Some(bag_id), Ok(Some(e))) => Some(Ok(IdentifiedEnvironment {
-                used_ids: items
-                    .into_iter()
-                    .map(|v| BagAndValueId {
-                        value_id: v.id,
-                        bag_id: bag_id.clone(),
-                    })
-                    .collect(),
-                environment: e,
-            })),
-            (None, Ok(Some(e))) => Some(Ok(IdentifiedEnvironment {
-                used_ids: HashSet::new(),
-                environment: e,
-            })),
-            (_, Ok(None)) => self.next(),
-            (_, Err(e)) => Some(Err(e)),
+        loop {
+            match (
+                &self.bag_id,
+                apply_identified(self.predicate, &self.env, items.iter()),
+            ) {
+                (Some(bag_id), Ok(Some(e))) => return Some(Ok(IdentifiedEnvironment {
+                    used_ids: items
+                        .into_iter()
+                        .map(|v| BagAndValueId {
+                            value_id: v.id,
+                            bag_id: bag_id.clone(),
+                        })
+                        .collect(),
+                    environment: e,
+                })),
+                (None, Ok(Some(e))) => return Some(Ok(IdentifiedEnvironment {
+                    used_ids: HashSet::new(),
+                    environment: e,
+                })),
+                (_, Ok(None)) => items = self.iter.next()?,
+                (_, Err(e)) => return Some(Err(e)),
+            }
         }
     }
 }

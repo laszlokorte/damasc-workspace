@@ -41,12 +41,14 @@ impl<'i: 's, 's, I: Iterator<Item = &'s Value<'s, 's>>> Iterator
     type Item = Result<&'s Value<'s, 's>, PredicateError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let item = self.iter.next()?;
+        let mut item = self.iter.next()?;
 
-        match self.predicate.apply(&self.env, item) {
-            Ok(true) => Some(Ok(item)),
-            Ok(false) => self.next(),
-            Err(e) => Some(Err(e)),
+        loop {
+            match self.predicate.apply(&self.env, item) {
+                Ok(true) => return Some(Ok(item)),
+                Ok(false) => item = self.iter.next()?,
+                Err(e) => return Some(Err(e)),
+            }
         }
     }
 }
@@ -91,12 +93,14 @@ impl<'i: 's, 's, I: Iterator<Item = Value<'s, 's>>> Iterator
     type Item = Result<Vec<Value<'s, 's>>, PredicateError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let items = self.iter.next()?;
+        let mut items = self.iter.next()?;
 
-        match self.predicate.apply(&self.env, items.iter()) {
-            Ok(true) => Some(Ok(items)),
-            Ok(false) => self.next(),
-            Err(e) => Some(Err(e)),
+        loop {
+            match self.predicate.apply(&self.env, items.iter()) {
+                Ok(true) => return Some(Ok(items)),
+                Ok(false) => items = self.iter.next()?,
+                Err(e) => return Some(Err(e)),
+            }
         }
     }
 }
@@ -136,12 +140,14 @@ impl<'i: 's, 's, I: Iterator<Item = &'s Value<'s, 's>>> Iterator
     type Item = Result<Value<'s, 's>, ProjectionError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let item = self.iter.next()?;
+        let mut item = self.iter.next()?;
 
-        match self.projection.apply(&self.env, item) {
-            Ok(Some(v)) => Some(Ok(v)),
-            Ok(None) => self.next(),
-            Err(e) => Some(Err(e)),
+        loop {
+            match self.projection.apply(&self.env, item) {
+                Ok(Some(v)) => return Some(Ok(v)),
+                Ok(None) => item = self.iter.next()?,
+                Err(e) => return Some(Err(e)),
+            }
         }
     }
 }
@@ -186,12 +192,14 @@ impl<'i: 's, 's, I: Iterator<Item = Value<'s, 's>>> Iterator
     type Item = Result<Vec<Value<'s, 's>>, ProjectionError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let items = self.iter.next()?;
+        let mut items = self.iter.next()?;
 
-        match self.projection.apply(&self.env, &mut items.iter()) {
-            Ok(Some(vs)) => Some(Ok(vs)),
-            Ok(None) => self.next(),
-            Err(e) => Some(Err(e)),
+        loop {
+            match self.projection.apply(&self.env, &mut items.iter()) {
+                Ok(Some(vs)) => return Some(Ok(vs)),
+                Ok(None) => items = self.iter.next()?,
+                Err(e) => return Some(Err(e)),
+            }
         }
     }
 }
@@ -231,12 +239,14 @@ impl<'i: 's, 's, I: Iterator<Item = (usize, &'s Value<'s, 's>)>> Iterator
     type Item = Result<(usize, &'s Value<'s, 's>), (usize, PredicateError)>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (index, item) = self.iter.next()?;
+        let (mut index, mut item) = self.iter.next()?;
 
-        match self.predicate.apply(&self.env, item) {
-            Ok(true) => Some(Ok((index, item))),
-            Ok(false) => self.next(),
-            Err(e) => Some(Err((index, e))),
+        loop {
+            match self.predicate.apply(&self.env, item) {
+                Ok(true) => return Some(Ok((index, item))),
+                Ok(false) => (index, item) = self.iter.next()?,
+                Err(e) => return Some(Err((index, e))),
+            }
         }
     }
 }
