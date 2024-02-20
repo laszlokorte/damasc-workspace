@@ -34,18 +34,19 @@ impl Pattern<'_> {
             Pattern::TypedDiscard(_) => Either::Left(None.into_iter()),
             Pattern::Literal(_) => Either::Left(None.into_iter()),
             Pattern::Array(_, _) => Either::Left(None.into_iter()),
+            Pattern::PinnedExpression(_) => Either::Left(None.into_iter()),
         })
     }
 
     pub(crate) fn get_expressions(&self) -> impl Iterator<Item = &Expression> {
         PatternIterator::new(self).flat_map(|p| match &p {
-            Pattern::Object(props, _) => Either::Left(props.iter().filter_map(|p| match p {
+            Pattern::Object(props, _) => Either::Left(Box::new(props.iter().filter_map(|p| match p {
                 ObjectPropertyPattern::Single(_id) => None,
                 ObjectPropertyPattern::Match(PropertyPattern { key, .. }) => match key {
                     PropertyKey::Identifier(_id) => None,
                     PropertyKey::Expression(expr) => Some(expr),
                 },
-            })),
+            })) as Box<dyn Iterator<Item = &Expression>>),
             Pattern::Discard => Either::Right(None.into_iter()),
             Pattern::Capture(_, _) => Either::Right(None.into_iter()),
             Pattern::Identifier(_) => Either::Right(None.into_iter()),
@@ -53,6 +54,7 @@ impl Pattern<'_> {
             Pattern::TypedIdentifier(_, _) => Either::Right(None.into_iter()),
             Pattern::Literal(_) => Either::Right(None.into_iter()),
             Pattern::Array(_, _) => Either::Right(None.into_iter()),
+            Pattern::PinnedExpression(e) => Either::Left(Box::new(Some(e.as_ref()).into_iter()) as Box<dyn Iterator<Item = &Expression>>),
         })
     }
 }
@@ -75,6 +77,7 @@ impl<'e, 's> PatternIterator<'e, 's> {
             Pattern::Capture(_, _) => {}
             Pattern::Identifier(_) => {}
             Pattern::TypedDiscard(_) => {}
+            Pattern::PinnedExpression(_) => {}
             Pattern::TypedIdentifier(_, _) => {}
             Pattern::Literal(_) => {}
             Pattern::Object(props, rest) => {

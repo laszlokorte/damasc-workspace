@@ -431,7 +431,7 @@ fn expression_atom<'v, 's, E: ParserError<'s>>(
     context("expression_atom", map(literal, Expression::Literal))(input)
 }
 
-fn expression_identifier<'v, 's, E: ParserError<'s>>(
+pub(crate) fn expression_identifier<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<Expression<'v>, E> {
     context(

@@ -31,6 +31,7 @@ pub enum PatternFail {
     ObjectKeyMismatch,
     EvalError,
     LiteralMismatch,
+    ExpressionMissmatch,
 }
 
 #[derive(Clone, Debug)]
@@ -83,6 +84,32 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                 self.match_array(items, rest, a)
             }
             Pattern::Literal(l) => self.match_literal(l, value),
+            Pattern::PinnedExpression(expr) => {
+                let eval = Evaluation::new(&self.outer_env);
+                
+                let Ok(val) = eval.eval_expr(expr) else {
+                    return Err(PatternFail::EvalError);
+                };
+
+                if &val == value {
+                    Ok(())
+                } else {
+                    Err(PatternFail::ExpressionMissmatch)
+                }
+
+                // let local_env = self.clone().into_env();
+
+                // let eval = Evaluation::new(&local_env);
+                // let Ok(val) = eval.eval_expr(expr) else {
+                //     return Err(PatternFail::EvalError);
+                // };
+
+                // if &val == value {
+                //     Ok(())
+                // } else {
+                //     Err(PatternFail::ExpressionMissmatch)
+                // }
+            },
         }
     }
 

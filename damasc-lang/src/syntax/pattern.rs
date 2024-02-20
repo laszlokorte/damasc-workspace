@@ -1,3 +1,4 @@
+use crate::syntax::expression::Expression;
 use crate::identifier::Identifier;
 use crate::literal::Literal;
 use crate::syntax::expression::PropertyKey;
@@ -8,6 +9,7 @@ pub enum Pattern<'s> {
     Discard,
     Capture(Identifier<'s>, Box<Pattern<'s>>),
     Identifier(Identifier<'s>),
+    PinnedExpression(Box<Expression<'s>>),
     TypedDiscard(ValueType),
     TypedIdentifier(Identifier<'s>, ValueType),
     Literal(Literal<'s>),
@@ -31,6 +33,7 @@ impl<'s> Pattern<'s> {
                 pat.iter().map(|e| e.deep_clone()).collect(),
                 rst.deep_clone(),
             ),
+            Pattern::PinnedExpression(e) => Pattern::PinnedExpression(Box::new(e.deep_clone())),
         }
     }
 }
@@ -43,6 +46,7 @@ impl<'a> std::fmt::Display for Pattern<'a> {
             Pattern::Capture(id, pat) => write!(f, "{id} @ {pat}"),
             Pattern::TypedDiscard(t) => write!(f, "_ is {t}"),
             Pattern::Identifier(id) => write!(f, "{id}"),
+            Pattern::PinnedExpression(expr) => write!(f, "^{expr}"),
             Pattern::TypedIdentifier(id, t) => write!(f, "{id} is {t}"),
             Pattern::Object(props, rest) => {
                 let _ = write!(f, "{{");
