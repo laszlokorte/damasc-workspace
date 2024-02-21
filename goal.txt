@@ -1,0 +1,53 @@
+template example(minvalue is Integer, maxcount is Integer) {
+
+	bag A { 1;2;3; }
+	bag B { 1;2;3; }
+	bag C { 1;2;3; }
+
+	@interface(in=bazing) 
+	bag L { 42 }
+
+	@interface(out=chaka) 
+	bag N { true }
+
+	bag R { 1;2;3 }
+
+	bag S {1;2;3} only x where x < 10 limit maxcount
+	bag T {1;2;3} only x where x < 10 limit maxcount
+
+
+	action foo(a, b) {
+		take A: a;
+		put B: b;
+	}
+
+	@interface(in=baz) 
+	action bar {
+		take A: x;y where x != y;
+		put B: x+y;
+		put C: somevar;
+		test L: 42
+		test not N: true
+
+		take all S: lst
+		put many T: lst
+		take many T: lst
+
+
+		reserve R: p;q where p > q
+
+		trigger foo(2, 3);
+
+		emit {event: "foo", payload: somevar} if x==20;
+
+		guard x + y > 20;
+		guard y >= minvalue;
+
+		with somevar=23*x+y;
+	}
+
+	@manual
+	action debug {
+		put L: 42
+	}
+}
