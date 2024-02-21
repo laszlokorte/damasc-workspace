@@ -1,8 +1,16 @@
 template example(minvalue is Integer, maxcount is Integer) {
 
+	init {
+		put W: init someNet(2,3)
+	}
+
+	bag W { }
 	bag A { 1;2;3; }
 	bag B { 1;2;3; }
 	bag C { 1;2;3; }
+
+	alias bag A as AAAA
+	alias action bar as baaar
 
 	@interface(in=bazing) 
 	bag L { 42 }
@@ -36,6 +44,9 @@ template example(minvalue is Integer, maxcount is Integer) {
 
 		reserve R: p;q where p > q
 
+		reserve W: otherNet;
+
+		trigger otherNet.doStuff;
 		trigger foo(2, 3);
 
 		emit {event: "foo", payload: somevar} if x==20;
@@ -44,6 +55,8 @@ template example(minvalue is Integer, maxcount is Integer) {
 		guard y >= minvalue;
 
 		with somevar=23*x+y;
+
+		return [x, y];
 	}
 
 	@manual

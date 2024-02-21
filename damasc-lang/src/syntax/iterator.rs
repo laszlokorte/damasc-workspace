@@ -1,11 +1,12 @@
+use crate::syntax::expression::AnnotatedExpression;
+use crate::syntax::expression::AnnotatedIdentifier;
+use crate::syntax::pattern::AnnotatedPattern;
 use crate::syntax::expression::IfElseExpression;
 use crate::syntax::expression::MatchExpression;
 use nom::lib::std::collections::HashSet;
 use std::collections::VecDeque;
 
 use either::Either::{self, Left, Right};
-
-use crate::identifier::Identifier;
 
 use super::{
     expression::{
@@ -17,9 +18,9 @@ use super::{
     pattern::{ArrayPatternItem, ObjectPropertyPattern, Pattern, PropertyPattern, Rest},
 };
 
-impl Pattern<'_> {
-    pub(crate) fn get_identifiers(&self) -> impl Iterator<Item = &Identifier> {
-        PatternIterator::new(self).flat_map(|p| match &p {
+impl<Annotation> AnnotatedPattern<'_, Annotation> {
+    pub(crate) fn get_identifiers(&self) -> impl Iterator<Item = &AnnotatedIdentifier<Annotation>> {
+        PatternIterator::<Annotation>::new(self).flat_map(|p| match &p.body {
             Pattern::Capture(id, _) => Either::Left(Some(id).into_iter()),
             Pattern::Identifier(id) => Either::Left(Some(id).into_iter()),
             Pattern::TypedIdentifier(id, _) => Either::Left(Some(id).into_iter()),
@@ -38,15 +39,15 @@ impl Pattern<'_> {
         })
     }
 
-    pub(crate) fn get_expressions(&self) -> impl Iterator<Item = &Expression> {
-        PatternIterator::new(self).flat_map(|p| match &p {
+    pub(crate) fn get_expressions(&self) -> impl Iterator<Item = &AnnotatedExpression<Annotation>> {
+        PatternIterator::<Annotation>::new(self).flat_map(|p| match &p.body {
             Pattern::Object(props, _) => Either::Left(Box::new(props.iter().filter_map(|p| match p {
                 ObjectPropertyPattern::Single(_id) => None,
                 ObjectPropertyPattern::Match(PropertyPattern { key, .. }) => match key {
                     PropertyKey::Identifier(_id) => None,
                     PropertyKey::Expression(expr) => Some(expr),
                 },
-            })) as Box<dyn Iterator<Item = &Expression>>),
+            })) as Box<dyn Iterator<Item = &AnnotatedExpression<Annotation>>>),
             Pattern::Discard => Either::Right(None.into_iter()),
             Pattern::Capture(_, _) => Either::Right(None.into_iter()),
             Pattern::Identifier(_) => Either::Right(None.into_iter()),
@@ -54,25 +55,25 @@ impl Pattern<'_> {
             Pattern::TypedIdentifier(_, _) => Either::Right(None.into_iter()),
             Pattern::Literal(_) => Either::Right(None.into_iter()),
             Pattern::Array(_, _) => Either::Right(None.into_iter()),
-            Pattern::PinnedExpression(e) => Either::Left(Box::new(Some(e.as_ref()).into_iter()) as Box<dyn Iterator<Item = &Expression>>),
+            Pattern::PinnedExpression(e) => Either::Left(Box::new(Some(e.as_ref()).into_iter()) as Box<dyn Iterator<Item = &AnnotatedExpression<Annotation>>>),
         })
     }
 }
 
-struct PatternIterator<'e, 's> {
-    pattern_stack: VecDeque<&'e Pattern<'s>>,
+struct PatternIterator<'e, 's, Annotation> {
+    pattern_stack: VecDeque<&'e AnnotatedPattern<'s, Annotation>>,
 }
 
-impl<'e, 's> PatternIterator<'e, 's> {
-    fn new(pattern: &'e Pattern<'s>) -> Self {
+impl<'e, 's, Annotation> PatternIterator<'e, 's, Annotation> {
+    fn new(pattern: &'e AnnotatedPattern<'s, Annotation>) -> Self {
         let mut pattern_stack = VecDeque::new();
         pattern_stack.push_front(pattern);
 
         Self { pattern_stack }
     }
 
-    fn push_children(&mut self, pattern: &'e Pattern<'s>) {
-        match &pattern {
+    fn push_children(&mut self, pattern: &'e AnnotatedPattern<'s, Annotation>) {
+        match &pattern.body {
             Pattern::Discard => {}
             Pattern::Capture(_, _) => {}
             Pattern::Identifier(_) => {}
@@ -109,8 +110,8 @@ impl<'e, 's> PatternIterator<'e, 's> {
     }
 }
 
-impl<'e, 's> Iterator for PatternIterator<'e, 's> {
-    type Item = &'e Pattern<'s>;
+impl<'e, 's, Annotation> Iterator for PatternIterator<'e, 's, Annotation> {
+    type Item = &'e AnnotatedPattern<'s, Annotation>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.pattern_stack.pop_front()?;
@@ -121,13 +122,13 @@ impl<'e, 's> Iterator for PatternIterator<'e, 's> {
     }
 }
 
-struct ExpressionIterator<'e, 's> {
-    expression_stack: VecDeque<&'e Expression<'s>>,
+struct ExpressionIterator<'e, 's, Annotation> {
+    expression_stack: VecDeque<&'e AnnotatedExpression<'s, Annotation>>,
     deep: bool,
 }
 
-impl<'s, 'e: 's> ExpressionIterator<'e, 's> {
-    fn new(expression: &'e Expression<'s>, deep: bool) -> Self {
+impl<'s, 'e: 's, Annotation> ExpressionIterator<'e, 's, Annotation> {
+    fn new(expression: &'e AnnotatedExpression<'s, Annotation>, deep: bool) -> Self {
         let mut expression_stack = VecDeque::new();
         expression_stack.push_front(expression);
 
@@ -137,8 +138,8 @@ impl<'s, 'e: 's> ExpressionIterator<'e, 's> {
         }
     }
 
-    fn push_children(&mut self, expression: &'e Expression<'s>) {
-        match expression {
+    fn push_children(&mut self, expression: &'e AnnotatedExpression<'s, Annotation>) {
+        match &expression.body {
             Expression::Array(arr) => {
                 for item in arr {
                     match item {
@@ -301,8 +302,8 @@ impl<'s, 'e: 's> ExpressionIterator<'e, 's> {
     }
 }
 
-impl<'s, 'e: 's> Iterator for ExpressionIterator<'e, 's> {
-    type Item = &'e Expression<'s>;
+impl<'s, 'e: 's, Annotation> Iterator for ExpressionIterator<'e, 's, Annotation> {
+    type Item = &'e AnnotatedExpression<'s, Annotation>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.expression_stack.pop_front()?;
@@ -313,14 +314,14 @@ impl<'s, 'e: 's> Iterator for ExpressionIterator<'e, 's> {
     }
 }
 
-impl Expression<'_> {
-    pub(crate) fn get_identifiers(&self) -> impl Iterator<Item = &Identifier> {
-        ExpressionIterator::new(self, false).flat_map(|e| match e {
+impl<Annotation: std::cmp::Eq+std::hash::Hash+std::cmp::Eq+std::hash::Hash> AnnotatedExpression<'_, Annotation> {
+    pub(crate) fn get_identifiers(&self) -> impl Iterator<Item = &AnnotatedIdentifier<Annotation>> {
+        ExpressionIterator::new(self, false).flat_map(|e| match &e.body {
             Expression::Object(props) => Left(Box::new(props.iter().filter_map(|p| match p {
                 ObjectProperty::Single(id) => Some(id),
                 _ => None,
             }))
-                as Box<dyn Iterator<Item = &Identifier>>),
+                as Box<dyn Iterator<Item = &AnnotatedIdentifier<Annotation>>>),
             Expression::Identifier(id) => Right(Some(id).into_iter()),
             Expression::Abstraction(LambdaAbstraction { arguments, body }) => {
                 let locally_bound = arguments.get_identifiers().collect::<HashSet<_>>();
@@ -328,19 +329,19 @@ impl Expression<'_> {
                     .get_identifiers()
                     .filter(move |v| !locally_bound.contains(v));
 
-                Left(Box::new(inner_free) as Box<dyn Iterator<Item = &Identifier>>)
+                Left(Box::new(inner_free) as Box<dyn Iterator<Item = &AnnotatedIdentifier<Annotation>>>)
             }
             Expression::ArrayComp(ArrayComprehension {
                 sources,
                 projection,
             }) => {
                 let (inner_identifiers, locally_bound): (
-                    Box<dyn Iterator<Item = &Identifier>>,
+                    Box<dyn Iterator<Item = &AnnotatedIdentifier<Annotation>>>,
                     HashSet<_>,
                 ) = sources.iter().fold(
                     (
-                        Box::new(std::iter::empty::<&Identifier>()),
-                        HashSet::<&Identifier>::new(),
+                        Box::new(std::iter::empty::<&AnnotatedIdentifier<Annotation>>()),
+                        HashSet::<&AnnotatedIdentifier<Annotation>>::new(),
                     ),
                     |(iter, outer_bound), source| {
                         let mut locally_bound = outer_bound.clone();
@@ -375,14 +376,14 @@ impl Expression<'_> {
 
                 let projection_identifiers = projection
                     .iter()
-                    .flat_map(|p: &ArrayItem| match p {
+                    .flat_map(|p: &ArrayItem<Annotation>| match p {
                         ArrayItem::Single(i) => i.get_identifiers(),
                         ArrayItem::Spread(i) => i.get_identifiers(),
                     })
                     .filter(move |v| !locally_bound.contains(v));
 
                 Left(Box::new(inner_identifiers.chain(projection_identifiers))
-                    as Box<dyn Iterator<Item = &Identifier>>)
+                    as Box<dyn Iterator<Item = &AnnotatedIdentifier<Annotation>>>)
             }
             Expression::ObjectComp(ObjectComprehension {
                 sources,
@@ -390,12 +391,12 @@ impl Expression<'_> {
             }) => {
                 // TODO refactor duplicate code between ObjectComprehension and ArrayComprehension
                 let (inner_identifiers, locally_bound): (
-                    Box<dyn Iterator<Item = &Identifier>>,
+                    Box<dyn Iterator<Item = &AnnotatedIdentifier<Annotation>>>,
                     HashSet<_>,
                 ) = sources.iter().fold(
                     (
-                        Box::new(std::iter::empty::<&Identifier>()),
-                        HashSet::<&Identifier>::new(),
+                        Box::new(std::iter::empty::<&AnnotatedIdentifier<Annotation>>()),
+                        HashSet::<&AnnotatedIdentifier<Annotation>>::new(),
                     ),
                     |(iter, outer_bound), source| {
                         let mut locally_bound = outer_bound.clone();
@@ -430,27 +431,27 @@ impl Expression<'_> {
 
                 let projection_identifiers = projection
                     .iter()
-                    .flat_map(|p: &ObjectProperty| match p {
+                    .flat_map(|p: &ObjectProperty<Annotation>| match p {
                         ObjectProperty::Single(id) => {
-                            Box::new(std::iter::once(id)) as Box<dyn Iterator<Item = &Identifier>>
+                            Box::new(std::iter::once(id)) as Box<dyn Iterator<Item = &AnnotatedIdentifier<Annotation>>>
                         }
                         ObjectProperty::Property(Property {
                             key: PropertyKey::Identifier(id),
                             value,
                         }) => Box::new(std::iter::once(id).chain(value.get_identifiers()))
-                            as Box<dyn Iterator<Item = &Identifier>>,
+                            as Box<dyn Iterator<Item = &AnnotatedIdentifier<Annotation>>>,
                         ObjectProperty::Property(Property {
                             key: PropertyKey::Expression(expr),
                             value,
                         }) => Box::new(expr.get_identifiers().chain(value.get_identifiers()))
-                            as Box<dyn Iterator<Item = &Identifier>>,
+                            as Box<dyn Iterator<Item = &AnnotatedIdentifier<Annotation>>>,
                         ObjectProperty::Spread(expr) => Box::new(expr.get_identifiers())
-                            as Box<dyn Iterator<Item = &Identifier>>,
+                            as Box<dyn Iterator<Item = &AnnotatedIdentifier<Annotation>>>,
                     })
                     .filter(move |v| !locally_bound.contains(v));
 
                 Left(Box::new(inner_identifiers.chain(projection_identifiers))
-                    as Box<dyn Iterator<Item = &Identifier>>)
+                    as Box<dyn Iterator<Item = &AnnotatedIdentifier<Annotation>>>)
             }
             Expression::Match(MatchExpression { cases, .. }) => {
                 let inner_free = cases.iter().flat_map(|case| {
@@ -462,7 +463,7 @@ impl Expression<'_> {
                         .filter(move |v| !locally_bound.contains(v))
                 });
 
-                Left(Box::new(inner_free) as Box<dyn Iterator<Item = &Identifier>>)
+                Left(Box::new(inner_free) as Box<dyn Iterator<Item = &AnnotatedIdentifier<Annotation>>>)
             }
             _ => Right(None.into_iter()),
         })

@@ -1,14 +1,17 @@
+use crate::syntax::pattern::AnnotatedPattern;
+use crate::syntax::expression::AnnotatedExpression;
 use crate::{
     identifier::Identifier,
     topology::{sort_topological, Node, TopologyError},
 };
 
-use super::{expression::Expression, pattern::Pattern};
+
 
 #[derive(Clone, Debug)]
-pub struct Assignment<'a, 'b> {
-    pub pattern: Pattern<'a>,
-    pub expression: Expression<'b>,
+pub struct Assignment<'a, 'b, Annotation : Default = ()> {
+    pub pattern: AnnotatedPattern<'a, Annotation>,
+    pub expression: AnnotatedExpression<'b, Annotation>,
+    pub annotation: Annotation,
 }
 
 impl std::fmt::Display for Assignment<'_, '_> {

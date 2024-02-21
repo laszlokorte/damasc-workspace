@@ -1,23 +1,37 @@
-use crate::syntax::expression::Expression;
-use crate::identifier::Identifier;
-use crate::literal::Literal;
+use crate::syntax::expression::AnnotatedIdentifier;
+use crate::syntax::expression::AnnotatedLiteral;
+use crate::syntax::expression::BoxedExpression;
 use crate::syntax::expression::PropertyKey;
 use crate::value_type::ValueType;
 
 #[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]
-pub enum Pattern<'s> {
-    Discard,
-    Capture(Identifier<'s>, Box<Pattern<'s>>),
-    Identifier(Identifier<'s>),
-    PinnedExpression(Box<Expression<'s>>),
-    TypedDiscard(ValueType),
-    TypedIdentifier(Identifier<'s>, ValueType),
-    Literal(Literal<'s>),
-    Object(ObjectPattern<'s>, Rest<'s>),
-    Array(ArrayPattern<'s>, Rest<'s>),
+pub struct AnnotatedPattern<'s, Annotation> {
+    pub body: Pattern<'s, Annotation>,
+    pub annotation: Annotation,
 }
-impl<'s> Pattern<'s> {
-    pub(crate) fn deep_clone<'x>(&self) -> Pattern<'x> {
+
+impl<'a, Annotation> std::fmt::Display for AnnotatedPattern<'a, Annotation> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.body)
+    }
+}
+
+pub type BoxedPattern<'s, Annotation> = Box<AnnotatedPattern<'s, Annotation>>;
+
+#[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]
+pub enum Pattern<'s, Annotation> {
+    Discard,
+    Capture(AnnotatedIdentifier<'s, Annotation>, BoxedPattern<'s, Annotation>),
+    Identifier(AnnotatedIdentifier<'s, Annotation>),
+    PinnedExpression(BoxedExpression<'s, Annotation>),
+    TypedDiscard(ValueType),
+    TypedIdentifier(AnnotatedIdentifier<'s, Annotation>, ValueType),
+    Literal(AnnotatedLiteral<'s, Annotation>),
+    Object(ObjectPattern<'s, Annotation>, Rest<'s, Annotation>),
+    Array(ArrayPattern<'s, Annotation>, Rest<'s, Annotation>),
+}
+impl<'s, Annotation:Clone> Pattern<'s, Annotation> {
+    pub(crate) fn deep_clone<'x>(&self) -> Pattern<'x, Annotation> {
         match self {
             Pattern::Discard => Pattern::Discard,
             Pattern::Capture(i, p) => Pattern::Capture(i.deep_clone(), Box::new(p.deep_clone())),
@@ -38,7 +52,17 @@ impl<'s> Pattern<'s> {
     }
 }
 
-impl<'a> std::fmt::Display for Pattern<'a> {
+
+impl<'s, Annotation : Clone> AnnotatedPattern<'s, Annotation> {
+    pub(crate) fn deep_clone<'x>(&self) -> AnnotatedPattern<'x, Annotation> {
+        AnnotatedPattern {
+            body: self.body.deep_clone(),
+            annotation: self.annotation.clone(),
+        }
+    }
+}
+
+impl<'a, Annotation> std::fmt::Display for Pattern<'a, Annotation> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let _ = match self {
             Pattern::Discard => write!(f, "_"),
@@ -105,18 +129,18 @@ impl<'a> std::fmt::Display for Pattern<'a> {
 }
 
 #[derive(Clone, Debug)]
-pub struct PatternSet<'s> {
-    pub patterns: Vec<Pattern<'s>>,
+pub struct PatternSet<'s, Annotation> {
+    pub patterns: Vec<Pattern<'s, Annotation>>,
 }
 
 #[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]
-pub enum Rest<'s> {
+pub enum Rest<'s, Annotation> {
     Exact,
     Discard,
-    Collect(Box<Pattern<'s>>),
+    Collect(BoxedPattern<'s, Annotation>),
 }
-impl Rest<'_> {
-    fn deep_clone<'x>(&self) -> Rest<'x> {
+impl<Annotation: Clone> Rest<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> Rest<'x, Annotation> {
         match self {
             Rest::Exact => Rest::Exact,
             Rest::Discard => Rest::Discard,
@@ -125,16 +149,16 @@ impl Rest<'_> {
     }
 }
 
-pub type ObjectPattern<'a> = Vec<ObjectPropertyPattern<'a>>;
-pub type ArrayPattern<'a> = Vec<ArrayPatternItem<'a>>;
+pub type ObjectPattern<'a, Annotation> = Vec<ObjectPropertyPattern<'a, Annotation>>;
+pub type ArrayPattern<'a, Annotation> = Vec<ArrayPatternItem<'a, Annotation>>;
 
 #[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]
-pub enum ArrayPatternItem<'a> {
-    Pattern(Pattern<'a>),
+pub enum ArrayPatternItem<'a, Annotation> {
+    Pattern(AnnotatedPattern<'a, Annotation>),
     //Expression(Expression<'a>),
 }
-impl ArrayPatternItem<'_> {
-    fn deep_clone<'x>(&self) -> ArrayPatternItem<'x> {
+impl<Annotation: Clone> ArrayPatternItem<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> ArrayPatternItem<'x, Annotation> {
         match self {
             ArrayPatternItem::Pattern(p) => ArrayPatternItem::Pattern(p.deep_clone()),
         }
@@ -142,12 +166,12 @@ impl ArrayPatternItem<'_> {
 }
 
 #[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]
-pub enum ObjectPropertyPattern<'a> {
-    Single(Identifier<'a>),
-    Match(PropertyPattern<'a>),
+pub enum ObjectPropertyPattern<'a, Annotation> {
+    Single(AnnotatedIdentifier<'a, Annotation>),
+    Match(PropertyPattern<'a, Annotation>),
 }
-impl ObjectPropertyPattern<'_> {
-    fn deep_clone<'x>(&self) -> ObjectPropertyPattern<'x> {
+impl<Annotation:Clone> ObjectPropertyPattern<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> ObjectPropertyPattern<'x, Annotation> {
         match self {
             ObjectPropertyPattern::Single(s) => ObjectPropertyPattern::Single(s.deep_clone()),
             ObjectPropertyPattern::Match(m) => ObjectPropertyPattern::Match(m.deep_clone()),
@@ -156,12 +180,13 @@ impl ObjectPropertyPattern<'_> {
 }
 
 #[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]
-pub struct PropertyPattern<'a> {
-    pub key: PropertyKey<'a>,
-    pub value: Pattern<'a>,
+pub struct PropertyPattern<'a, Annotation> {
+    pub key: PropertyKey<'a, Annotation>,
+    pub value: AnnotatedPattern<'a, Annotation>,
 }
-impl PropertyPattern<'_> {
-    fn deep_clone<'x>(&self) -> PropertyPattern<'x> {
+
+impl<Annotation:Clone> PropertyPattern<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> PropertyPattern<'x, Annotation> {
         PropertyPattern {
             key: self.key.deep_clone(),
             value: self.value.deep_clone(),

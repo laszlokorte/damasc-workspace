@@ -9,3 +9,4 @@
 * add span info to expression and pattern
 * pretty error reporting for syntax, evaluation and pattern errors
 * implement a proper declarative grammar
+* allow Foreign type in values

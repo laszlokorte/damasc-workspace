@@ -1,31 +1,106 @@
+use crate::syntax::pattern::AnnotatedPattern;
 use std::borrow::Cow;
 
 use crate::identifier::Identifier;
 use crate::literal::Literal;
 
-use super::pattern::Pattern;
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct AnnotatedExpression<'s, Annotation> {
+    pub body: Expression<'s, Annotation>,
+    pub annotation: Annotation,
+}
+
+impl<'s, Annotation:Clone> AnnotatedExpression<'s, Annotation> {
+    pub(crate) fn deep_clone<'x>(&self) -> AnnotatedExpression<'x, Annotation> {
+        AnnotatedExpression {
+            body: self.body.deep_clone(),
+            annotation: self.annotation.clone(),
+        }
+    }
+}
+
+
+impl<Annotation> std::fmt::Display for AnnotatedExpression<'_, Annotation> {
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { 
+        write!(f, "{}", self.body)
+    }
+
+}
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Expression<'s> {
-    Array(ArrayExpression<'s>),
-    Binary(BinaryExpression<'s>),
-    Identifier(Identifier<'s>),
-    Literal(Literal<'s>),
-    Logical(LogicalExpression<'s>),
-    Member(MemberExpression<'s>),
-    Object(ObjectExpression<'s>),
-    Unary(UnaryExpression<'s>),
-    Call(CallExpression<'s>),
-    Template(StringTemplate<'s>),
-    Abstraction(LambdaAbstraction<'s>),
-    Application(LambdaApplication<'s>),
-    ArrayComp(ArrayComprehension<'s>),
-    ObjectComp(ObjectComprehension<'s>),
-    Condition(IfElseExpression<'s>),
-    Match(MatchExpression<'s>),
+pub struct AnnotatedIdentifier<'s, Annotation> {
+    pub body: Identifier<'s>,
+    pub annotation: Annotation,
 }
-impl<'s> Expression<'s> {
-    pub(crate) fn deep_clone<'x>(&self) -> Expression<'x> {
+
+impl<'s, Annotation:Clone> AnnotatedIdentifier<'s, Annotation> {
+    pub(crate) fn deep_clone<'x>(&self) -> AnnotatedIdentifier<'x, Annotation> {
+        AnnotatedIdentifier {
+            body: self.body.deep_clone(),
+            annotation: self.annotation.clone(),
+        }
+    }
+}
+
+
+impl<Annotation> std::fmt::Display for AnnotatedIdentifier<'_, Annotation> {
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { 
+        write!(f, "{}", self.body)
+    }
+
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct AnnotatedLiteral<'s, Annotation> {
+    pub body: Literal<'s>,
+    pub annotation: Annotation,
+}
+impl<'s, Annotation:Clone> AnnotatedLiteral<'s, Annotation> {
+    pub(crate) fn deep_clone<'x>(&self) -> AnnotatedLiteral<'x, Annotation> {
+        AnnotatedLiteral {
+            body: self.body.deep_clone(),
+            annotation: self.annotation.clone(),
+        }
+    }
+}
+
+
+
+impl<Annotation> std::fmt::Display for AnnotatedLiteral<'_, Annotation> {
+
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { 
+        write!(f, "{}", self.body)
+    }
+
+}
+
+pub type BoxedExpression<'s, Annotation> = Box<AnnotatedExpression<'s, Annotation>>;
+
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Expression<'s, Annotation> {
+    Array(ArrayExpression<'s, Annotation>),
+    Binary(BinaryExpression<'s, Annotation>),
+    Identifier(AnnotatedIdentifier<'s, Annotation>),
+    Literal(AnnotatedLiteral<'s, Annotation>),
+    Logical(LogicalExpression<'s, Annotation>),
+    Member(MemberExpression<'s, Annotation>),
+    Object(ObjectExpression<'s, Annotation>),
+    Unary(UnaryExpression<'s, Annotation>),
+    Call(CallExpression<'s, Annotation>),
+    Template(StringTemplate<'s, Annotation>),
+    Abstraction(LambdaAbstraction<'s, Annotation>),
+    Application(LambdaApplication<'s, Annotation>),
+    ArrayComp(ArrayComprehension<'s, Annotation>),
+    ObjectComp(ObjectComprehension<'s, Annotation>),
+    Condition(IfElseExpression<'s, Annotation>),
+    Match(MatchExpression<'s, Annotation>),
+}
+
+impl<'s, Annotation:Clone> Expression<'s, Annotation> {
+    pub(crate) fn deep_clone<'x>(&self) -> Expression<'x, Annotation> {
         match self {
             Self::Array(a) => Expression::Array(a.iter().map(|e| e.deep_clone()).collect()),
             Expression::Binary(b) => Expression::Binary(b.deep_clone()),
@@ -47,7 +122,7 @@ impl<'s> Expression<'s> {
     }
 }
 
-impl std::fmt::Display for Expression<'_> {
+impl<Annotation> std::fmt::Display for Expression<'_, Annotation> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Expression::Literal(l) => write!(f, "{l}"),
@@ -237,19 +312,19 @@ impl std::fmt::Display for Expression<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct ExpressionSet<'s> {
-    pub expressions: Vec<Expression<'s>>,
+pub struct ExpressionSet<'s, Annotation> {
+    pub expressions: Vec<Expression<'s, Annotation>>,
 }
 
-type ArrayExpression<'a> = Vec<ArrayItem<'a>>;
+type ArrayExpression<'a, Annotation> = Vec<ArrayItem<'a, Annotation>>;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum ArrayItem<'a> {
-    Single(Expression<'a>),
-    Spread(Expression<'a>),
+pub enum ArrayItem<'a, Annotation> {
+    Single(AnnotatedExpression<'a, Annotation>),
+    Spread(AnnotatedExpression<'a, Annotation>),
 }
-impl ArrayItem<'_> {
-    fn deep_clone<'x>(&self) -> ArrayItem<'x> {
+impl<Annotation:Clone> ArrayItem<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> ArrayItem<'x, Annotation> {
         match self {
             ArrayItem::Single(inner) => ArrayItem::Single(inner.deep_clone()),
             ArrayItem::Spread(inner) => ArrayItem::Spread(inner.deep_clone()),
@@ -257,16 +332,16 @@ impl ArrayItem<'_> {
     }
 }
 
-pub type ObjectExpression<'a> = Vec<ObjectProperty<'a>>;
+pub type ObjectExpression<'a, Annotation> = Vec<ObjectProperty<'a, Annotation>>;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum ObjectProperty<'a> {
-    Single(Identifier<'a>),
-    Property(Property<'a>),
-    Spread(Expression<'a>),
+pub enum ObjectProperty<'a, Annotation> {
+    Single(AnnotatedIdentifier<'a, Annotation>),
+    Property(Property<'a, Annotation>),
+    Spread(AnnotatedExpression<'a, Annotation>),
 }
-impl ObjectProperty<'_> {
-    fn deep_clone<'x>(&self) -> ObjectProperty<'x> {
+impl<Annotation:Clone> ObjectProperty<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> ObjectProperty<'x, Annotation> {
         match self {
             ObjectProperty::Single(i) => ObjectProperty::Single(i.deep_clone()),
             ObjectProperty::Property(p) => ObjectProperty::Property(p.deep_clone()),
@@ -276,12 +351,12 @@ impl ObjectProperty<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Property<'a> {
-    pub key: PropertyKey<'a>,
-    pub value: Expression<'a>,
+pub struct Property<'a, Annotation> {
+    pub key: PropertyKey<'a, Annotation>,
+    pub value: AnnotatedExpression<'a, Annotation>,
 }
-impl Property<'_> {
-    fn deep_clone<'x>(&self) -> Property<'x> {
+impl<Annotation:Clone> Property<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> Property<'x, Annotation> {
         Property {
             key: self.key.deep_clone(),
             value: self.value.deep_clone(),
@@ -290,12 +365,12 @@ impl Property<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum PropertyKey<'a> {
-    Identifier(Identifier<'a>),
-    Expression(Expression<'a>),
+pub enum PropertyKey<'a, Annotation> {
+    Identifier(AnnotatedIdentifier<'a, Annotation>),
+    Expression(AnnotatedExpression<'a, Annotation>),
 }
-impl PropertyKey<'_> {
-    pub fn deep_clone<'x>(&self) -> PropertyKey<'x> {
+impl<Annotation:Clone> PropertyKey<'_, Annotation> {
+    pub fn deep_clone<'x>(&self) -> PropertyKey<'x, Annotation> {
         match self {
             PropertyKey::Identifier(i) => PropertyKey::Identifier(i.deep_clone()),
             PropertyKey::Expression(e) => PropertyKey::Expression(e.deep_clone()),
@@ -304,12 +379,12 @@ impl PropertyKey<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct CallExpression<'a> {
-    pub function: Identifier<'a>,
-    pub argument: Box<Expression<'a>>,
+pub struct CallExpression<'a, Annotation> {
+    pub function: AnnotatedIdentifier<'a, Annotation>,
+    pub argument: BoxedExpression<'a, Annotation>,
 }
-impl CallExpression<'_> {
-    fn deep_clone<'x>(&self) -> CallExpression<'x> {
+impl<Annotation:Clone> CallExpression<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> CallExpression<'x, Annotation> {
         CallExpression {
             function: self.function.deep_clone(),
             argument: Box::new(self.argument.deep_clone()),
@@ -318,12 +393,12 @@ impl CallExpression<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct StringTemplate<'a> {
-    pub parts: Vec<StringTemplatePart<'a>>,
+pub struct StringTemplate<'a, Annotation> {
+    pub parts: Vec<StringTemplatePart<'a, Annotation>>,
     pub suffix: Cow<'a, str>,
 }
-impl StringTemplate<'_> {
-    fn deep_clone<'x>(&self) -> StringTemplate<'x> {
+impl<Annotation:Clone> StringTemplate<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> StringTemplate<'x, Annotation> {
         StringTemplate {
             parts: self.parts.iter().map(|p| p.deep_clone()).collect(),
             suffix: Cow::Owned(self.suffix.to_string()),
@@ -332,12 +407,12 @@ impl StringTemplate<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct StringTemplatePart<'a> {
+pub struct StringTemplatePart<'a,Annotation> {
     pub fixed_start: Cow<'a, str>,
-    pub dynamic_end: Box<Expression<'a>>,
+    pub dynamic_end: BoxedExpression<'a,Annotation>,
 }
-impl StringTemplatePart<'_> {
-    fn deep_clone<'x>(&self) -> StringTemplatePart<'x> {
+impl<Annotation:Clone> StringTemplatePart<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> StringTemplatePart<'x, Annotation> {
         StringTemplatePart {
             fixed_start: Cow::Owned(self.fixed_start.to_string()),
             dynamic_end: Box::new(self.dynamic_end.deep_clone()),
@@ -346,12 +421,12 @@ impl StringTemplatePart<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct LambdaAbstraction<'a> {
-    pub arguments: Pattern<'a>,
-    pub body: Box<Expression<'a>>,
+pub struct LambdaAbstraction<'a,Annotation> {
+    pub arguments: AnnotatedPattern<'a, Annotation>,
+    pub body: BoxedExpression<'a, Annotation>,
 }
-impl LambdaAbstraction<'_> {
-    fn deep_clone<'x>(&self) -> LambdaAbstraction<'x> {
+impl<Annotation:Clone> LambdaAbstraction<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> LambdaAbstraction<'x, Annotation> {
         LambdaAbstraction {
             arguments: self.arguments.deep_clone(),
             body: Box::new(self.body.deep_clone()),
@@ -360,12 +435,12 @@ impl LambdaAbstraction<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct LambdaApplication<'a> {
-    pub lambda: Box<Expression<'a>>,
-    pub parameter: Box<Expression<'a>>,
+pub struct LambdaApplication<'a, Annotation> {
+    pub lambda: BoxedExpression<'a, Annotation>,
+    pub parameter: BoxedExpression<'a, Annotation>,
 }
-impl LambdaApplication<'_> {
-    fn deep_clone<'x>(&self) -> LambdaApplication<'x> {
+impl<Annotation:Clone> LambdaApplication<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> LambdaApplication<'x, Annotation> {
         LambdaApplication {
             lambda: Box::new(self.lambda.deep_clone()),
             parameter: Box::new(self.parameter.deep_clone()),
@@ -374,14 +449,14 @@ impl LambdaApplication<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct MatchCase<'a> {
-    pub pattern: Pattern<'a>,
-    pub guard: Option<Box<Expression<'a>>>,
-    pub body: Box<Expression<'a>>,
+pub struct MatchCase<'a, Annotation> {
+    pub pattern: AnnotatedPattern<'a, Annotation>,
+    pub guard: Option<BoxedExpression<'a, Annotation>>,
+    pub body: BoxedExpression<'a, Annotation>,
 }
 
-impl MatchCase<'_> {
-    fn deep_clone<'x>(&self) -> MatchCase<'x> {
+impl<Annotation:Clone> MatchCase<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> MatchCase<'x, Annotation> {
         MatchCase {
             pattern: self.pattern.deep_clone(),
             guard: self.guard.clone().map(|g| Box::new(g.deep_clone())),
@@ -391,13 +466,13 @@ impl MatchCase<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct MatchExpression<'a> {
-    pub subject: Box<Expression<'a>>,
-    pub cases: Vec<MatchCase<'a>>,
+pub struct MatchExpression<'a, Annotation> {
+    pub subject: BoxedExpression<'a, Annotation>,
+    pub cases: Vec<MatchCase<'a, Annotation>>,
 }
 
-impl MatchExpression<'_> {
-    fn deep_clone<'x>(&self) -> MatchExpression<'x> {
+impl<Annotation:Clone> MatchExpression<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> MatchExpression<'x, Annotation> {
         MatchExpression {
             subject: Box::new(self.subject.deep_clone()),
             cases: self.cases.iter().map(|p| p.deep_clone()).collect(),
@@ -408,14 +483,14 @@ impl MatchExpression<'_> {
 
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct IfElseExpression<'a> {
-    pub condition: Box<Expression<'a>>,
-    pub true_branch: Box<Expression<'a>>,
-    pub false_branch: Option<Box<Expression<'a>>>,
+pub struct IfElseExpression<'a, Annotation> {
+    pub condition: BoxedExpression<'a, Annotation>,
+    pub true_branch: BoxedExpression<'a, Annotation>,
+    pub false_branch: Option<BoxedExpression<'a, Annotation>>,
 }
 
-impl IfElseExpression<'_> {
-    fn deep_clone<'x>(&self) -> IfElseExpression<'x> {
+impl<Annotation:Clone> IfElseExpression<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> IfElseExpression<'x, Annotation> {
         IfElseExpression {
             condition: Box::new(self.condition.deep_clone()),
             true_branch: Box::new(self.true_branch.deep_clone()),
@@ -425,12 +500,12 @@ impl IfElseExpression<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ArrayComprehension<'a> {
-    pub sources: Vec<ComprehensionSource<'a>>,
-    pub projection: ArrayExpression<'a>,
+pub struct ArrayComprehension<'a, Annotation> {
+    pub sources: Vec<ComprehensionSource<'a, Annotation>>,
+    pub projection: ArrayExpression<'a, Annotation>,
 }
-impl ArrayComprehension<'_> {
-    fn deep_clone<'x>(&self) -> ArrayComprehension<'x> {
+impl<Annotation:Clone> ArrayComprehension<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> ArrayComprehension<'x, Annotation> {
         ArrayComprehension {
             sources: self.sources.iter().map(|e| e.deep_clone()).collect(),
             projection: self.projection.iter().map(|e| e.deep_clone()).collect(),
@@ -439,12 +514,12 @@ impl ArrayComprehension<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ObjectComprehension<'a> {
-    pub sources: Vec<ComprehensionSource<'a>>,
-    pub projection: ObjectExpression<'a>,
+pub struct ObjectComprehension<'a, Annotation> {
+    pub sources: Vec<ComprehensionSource<'a, Annotation>>,
+    pub projection: ObjectExpression<'a, Annotation>,
 }
-impl ObjectComprehension<'_> {
-    fn deep_clone<'x>(&self) -> ObjectComprehension<'x> {
+impl<Annotation:Clone> ObjectComprehension<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> ObjectComprehension<'x, Annotation> {
         ObjectComprehension {
             sources: self.sources.iter().map(|e| e.deep_clone()).collect(),
             projection: self.projection.iter().map(|e| e.deep_clone()).collect(),
@@ -453,14 +528,14 @@ impl ObjectComprehension<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ComprehensionSource<'a> {
-    pub collection: Box<Expression<'a>>,
-    pub pattern: Pattern<'a>,
+pub struct ComprehensionSource<'a, Annotation> {
+    pub collection: BoxedExpression<'a, Annotation>,
+    pub pattern: AnnotatedPattern<'a, Annotation>,
     pub strong_pattern: bool,
-    pub predicate: Option<Box<Expression<'a>>>,
+    pub predicate: Option<BoxedExpression<'a, Annotation>>,
 }
-impl ComprehensionSource<'_> {
-    fn deep_clone<'x>(&self) -> ComprehensionSource<'x> {
+impl<Annotation:Clone> ComprehensionSource<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> ComprehensionSource<'x, Annotation> {
         ComprehensionSource {
             collection: Box::new(self.collection.deep_clone()),
             pattern: self.pattern.deep_clone(),
@@ -471,12 +546,12 @@ impl ComprehensionSource<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct UnaryExpression<'a> {
+pub struct UnaryExpression<'a, Annotation> {
     pub operator: UnaryOperator,
-    pub argument: Box<Expression<'a>>,
+    pub argument: BoxedExpression<'a, Annotation>,
 }
-impl UnaryExpression<'_> {
-    fn deep_clone<'x>(&self) -> UnaryExpression<'x> {
+impl<Annotation:Clone> UnaryExpression<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> UnaryExpression<'x, Annotation> {
         UnaryExpression {
             operator: self.operator,
             argument: Box::new(self.argument.deep_clone()),
@@ -485,13 +560,13 @@ impl UnaryExpression<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct BinaryExpression<'a> {
+pub struct BinaryExpression<'a, Annotation> {
     pub operator: BinaryOperator,
-    pub left: Box<Expression<'a>>,
-    pub right: Box<Expression<'a>>,
+    pub left: BoxedExpression<'a, Annotation>,
+    pub right: BoxedExpression<'a, Annotation>,
 }
-impl BinaryExpression<'_> {
-    fn deep_clone<'x>(&self) -> BinaryExpression<'x> {
+impl<Annotation:Clone> BinaryExpression<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> BinaryExpression<'x, Annotation> {
         BinaryExpression {
             operator: self.operator,
             left: Box::new(self.left.deep_clone()),
@@ -501,13 +576,13 @@ impl BinaryExpression<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct LogicalExpression<'a> {
+pub struct LogicalExpression<'a, Annotation> {
     pub operator: LogicalOperator,
-    pub left: Box<Expression<'a>>,
-    pub right: Box<Expression<'a>>,
+    pub left: BoxedExpression<'a, Annotation>,
+    pub right: BoxedExpression<'a, Annotation>,
 }
-impl LogicalExpression<'_> {
-    fn deep_clone<'x>(&self) -> LogicalExpression<'x> {
+impl<Annotation: Clone> LogicalExpression<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> LogicalExpression<'x, Annotation> {
         LogicalExpression {
             operator: self.operator,
             left: Box::new(self.left.deep_clone()),
@@ -558,12 +633,12 @@ pub enum UnaryOperator {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct MemberExpression<'a> {
-    pub object: Box<Expression<'a>>,
-    pub property: Box<Expression<'a>>,
+pub struct MemberExpression<'a, Annotation> {
+    pub object: BoxedExpression<'a, Annotation>,
+    pub property: BoxedExpression<'a, Annotation>,
 }
-impl MemberExpression<'_> {
-    fn deep_clone<'x>(&self) -> MemberExpression<'x> {
+impl<Annotation:Clone> MemberExpression<'_, Annotation> {
+    fn deep_clone<'x>(&self) -> MemberExpression<'x, Annotation> {
         MemberExpression {
             object: Box::new(self.object.deep_clone()),
             property: Box::new(self.property.deep_clone()),
