@@ -1,11 +1,10 @@
+use crate::syntax::level::SyntaxLevel;
 use crate::syntax::expression::IfElseExpression;
 use crate::syntax::expression::MatchExpression;
 use crate::value::ValueArray;
 use crate::value::ValueObjectMap;
 use crate::value_type::ValueType;
 use std::{borrow::Cow, collections::BTreeMap};
-
-use itertools::Itertools;
 
 use super::env::Environment;
 use crate::runtime::matching::Matcher;
@@ -56,9 +55,9 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         Self { env }
     }
 
-    pub fn eval_expr<'x: 's, 'y>(
+    pub fn eval_expr<'x: 's, 'y, Level: SyntaxLevel>(
         &self,
-        expression: &'y Expression<'x>,
+        expression: &'y Expression<'x, Level>,
     ) -> Result<Value<'s, 'v>, EvalError> {
         match expression {
             Expression::Array(vec) => self.eval_array(vec),
@@ -298,19 +297,19 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         }
     }
 
-    fn eval_object<'x: 's, 'y>(
+    fn eval_object<'x: 's, 'y, Level: SyntaxLevel>(
         &self,
-        props: &'y ObjectExpression<'x>,
+        props: &'y ObjectExpression<'x, Level>,
     ) -> Result<Value<'s, 'v>, EvalError> {
         let target = BTreeMap::new();
 
         self.eval_into_object(target, props).map(Value::Object)
     }
 
-    fn eval_into_object<'x: 's, 'y>(
+    fn eval_into_object<'x: 's, 'y, Level: SyntaxLevel>(
         &self,
         mut into: ValueObjectMap<'s, 'v>,
-        props: &'y ObjectExpression<'x>,
+        props: &'y ObjectExpression<'x, Level>,
     ) -> Result<ValueObjectMap<'s, 'v>, EvalError> {
         for prop in props {
             match prop {
@@ -354,16 +353,16 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         Ok(into)
     }
 
-    fn eval_array<'x: 's, 'y>(&self, vec: &'y [ArrayItem<'x>]) -> Result<Value<'s, 'v>, EvalError> {
+    fn eval_array<'x: 's, 'y, Level: SyntaxLevel>(&self, vec: &'y [ArrayItem<'x, Level>]) -> Result<Value<'s, 'v>, EvalError> {
         let result = vec![];
 
         self.eval_into_array(result, vec).map(Value::Array)
     }
 
-    fn eval_into_array<'x: 's, 'y>(
+    fn eval_into_array<'x: 's, 'y, Level: SyntaxLevel>(
         &self,
         mut target: Vec<Cow<'v, Value<'s, 'v>>>,
-        vec: &'y [ArrayItem<'x>],
+        vec: &'y [ArrayItem<'x, Level>],
     ) -> Result<ValueArray<'s, 'v>, EvalError> {
         for item in vec {
             match item {
@@ -386,11 +385,11 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         Ok(target)
     }
 
-    fn eval_logic<'x: 's, 'y>(
+    fn eval_logic<'x: 's, 'y, Level: SyntaxLevel>(
         &self,
         operator: &LogicalOperator,
-        left: &'y Expression<'x>,
-        right: &'y Expression<'x>,
+        left: &'y Expression<'x, Level>,
+        right: &'y Expression<'x, Level>,
     ) -> Result<Value<'s, 'v>, EvalError> {
         let left_value = self.eval_expr(left)?;
         let Value::Boolean(left_bool) = left_value else {
@@ -524,9 +523,9 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         })
     }
 
-    fn eval_template<'x: 's, 'y>(
+    fn eval_template<'x: 's, 'y, Level: SyntaxLevel>(
         &self,
-        template: &'y StringTemplate<'x>,
+        template: &'y StringTemplate<'x, Level>,
     ) -> Result<Value<'s, 'v>, EvalError> {
         let joined = template
             .parts
@@ -549,9 +548,9 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         return Ok(Value::String(Cow::Owned(joined.join(""))));
     }
 
-    fn eval_application<'x: 's>(
+    fn eval_application<'x: 's, Level: SyntaxLevel>(
         &self,
-        app: &LambdaApplication<'x>,
+        app: &LambdaApplication<'x, Level>,
     ) -> Result<Value<'s, 'v>, EvalError> {
         let lambda = self.eval_expr(&app.lambda)?;
         let param = self.eval_expr(&app.parameter)?;
@@ -571,9 +570,9 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         local_eval.eval_expr(&lambda_body)
     }
 
-    fn eval_array_comprehension<'x: 's>(
+    fn eval_array_comprehension<'x: 's, Level: SyntaxLevel>(
         &self,
-        comp: &ArrayComprehension<'x>,
+        comp: &ArrayComprehension<'x, Level>,
     ) -> Result<Value<'s, 'v>, EvalError> {
         let mut envs: Box<dyn Iterator<Item = Result<Environment, EvalError>>> =
             comp.sources.iter().fold(
@@ -596,9 +595,9 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         .map(Value::Array)
     }
 
-    fn eval_comprehension_source<'x: 's>(
+    fn eval_comprehension_source<'x: 's, Level: SyntaxLevel>(
         &self,
-        source: &ComprehensionSource<'x>,
+        source: &ComprehensionSource<'x, Level>,
     ) -> Result<impl Iterator<Item = Environment<'i, 's, 'v>>, EvalError> {
         let expression_value: Value<'_, '_> = self.eval_expr(&source.collection)?;
         let Value::Array(vals) = expression_value else {
@@ -638,9 +637,9 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         Ok(results.into_iter())
     }
 
-    fn eval_object_comprehension<'x: 's>(
+    fn eval_object_comprehension<'x: 's, Level: SyntaxLevel>(
         &self,
-        comp: &ObjectComprehension<'x>,
+        comp: &ObjectComprehension<'x, Level>,
     ) -> Result<Value<'s, 'v>, EvalError> {
         let mut envs: Box<dyn Iterator<Item = Result<Environment, EvalError>>> =
             comp.sources.iter().fold(
@@ -663,9 +662,9 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         .map(Value::Object)
     }
 
-    fn eval_match<'x: 's>(
+    fn eval_match<'x: 's, Level: SyntaxLevel>(
         &self,
-        match_expr: &MatchExpression<'x>,
+        match_expr: &MatchExpression<'x, Level>,
     ) -> Result<Value<'s, 'v>, EvalError> {
         let subject_value = self.eval_expr(&match_expr.subject)?;
 
@@ -700,9 +699,9 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         Err(EvalError::PatternError)
     }
 
-    fn eval_condition<'x: 's>(
+    fn eval_condition<'x: 's, Level: SyntaxLevel>(
         &self,
-        if_else: &IfElseExpression<'x>,
+        if_else: &IfElseExpression<'x, Level>,
     ) -> Result<Value<'s, 'v>, EvalError> {
         let condition_value = self.eval_expr(&if_else.condition)?;
 

@@ -1,3 +1,4 @@
+use crate::syntax::level::SyntaxLevel;
 use std::{
     borrow::Cow,
     collections::{btree_map::Entry, BTreeMap, BTreeSet},
@@ -47,17 +48,17 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         result
     }
 
-    pub fn match_pattern<'x>(
+    pub fn match_pattern<'x, Level: SyntaxLevel>(
         &'x mut self,
-        pattern: &'x Pattern<'s>,
+        pattern: &'x Pattern<'s, Level>,
         value: &Value<'s, 'v>,
     ) -> Result<(), PatternFail> {
         match &pattern {
             Pattern::Discard => Ok(()),
             Pattern::Capture(name, pat) => self
                 .match_pattern(pat, value)
-                .and_then(|_| self.match_identifier(name, value)),
-            Pattern::Identifier(name) => self.match_identifier(name, value),
+                .and_then(|_| self.match_identifier::<Level>(name, value)),
+            Pattern::Identifier(name) => self.match_identifier::<Level>(name, value),
             Pattern::TypedDiscard(t) => {
                 if t == &value.get_type() {
                     Ok(())
@@ -69,7 +70,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                 if t != &value.get_type() {
                     return Err(PatternFail::TypeMismatch);
                 }
-                self.match_identifier(name, value)
+                self.match_identifier::<Level>(name, value)
             }
             Pattern::Object(pattern, rest) => {
                 let Value::Object(o) = value else {
@@ -113,7 +114,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         }
     }
 
-    fn match_identifier<'x>(
+    fn match_identifier<'x, Level: SyntaxLevel>(
         &'x mut self,
         name: &'x Identifier<'x>,
         value: &Value<'s, 'v>,
@@ -137,10 +138,10 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         }
     }
 
-    fn match_object<'x>(
+    fn match_object<'x, Level: SyntaxLevel>(
         &'x mut self,
-        props: &'x [ObjectPropertyPattern<'s>],
-        rest: &Rest<'s>,
+        props: &'x [ObjectPropertyPattern<'s, Level>],
+        rest: &Rest<'s, Level>,
         value: &ValueObjectMap<'s, 'v>,
     ) -> Result<(), PatternFail> {
         if let Rest::Exact = rest {
@@ -193,10 +194,10 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         }
     }
 
-    fn match_array<'x>(
+    fn match_array<'x, Level: SyntaxLevel>(
         &'x mut self,
-        items: &[ArrayPatternItem<'s>],
-        rest: &Rest<'s>,
+        items: &[ArrayPatternItem<'s, Level>],
+        rest: &Rest<'s, Level>,
         value: &[Cow<'v, Value<'s, 'v>>],
     ) -> Result<(), PatternFail> {
         if let Rest::Exact = rest {

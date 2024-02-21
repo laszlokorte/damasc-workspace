@@ -1,3 +1,4 @@
+use crate::syntax::level::EmptyLevel;
 use crate::parser::expression::expression_identifier;
 use nom::{
     branch::alt,
@@ -62,7 +63,7 @@ fn pattern_typed_identifier<'v, 's, E: ParserError<'s>>(
 
 fn pattern_object_prop<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<ObjectPropertyPattern<'v>, E> {
+) -> ParserResult<ObjectPropertyPattern<'v, EmptyLevel>, E> {
     context(
         "pattern_object_prop",
         alt((
@@ -115,7 +116,7 @@ fn pattern_object<'v, 's, E: ParserError<'s>>(
     )(input)
 }
 
-fn pattern_rest<'v, 's, E: ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Rest<'v>, E> {
+fn pattern_rest<'v, 's, E: ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Rest<'v, EmptyLevel>, E> {
     context(
         "pattern_rest",
         alt((
@@ -205,7 +206,7 @@ pub fn pattern_all_consuming<'v>(input: &str) -> Option<Pattern<'v>> {
 
 pub fn many0_pattern<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<PatternSet<'v>, E> {
+) -> ParserResult<PatternSet<'v, EmptyLevel>, E> {
     delimited(
         space0,
         map(separated_list0(ws(tag(";")), pattern), |patterns| {
@@ -217,7 +218,7 @@ pub fn many0_pattern<'v, 's, E: ParserError<'s>>(
 
 pub fn many1_pattern<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<PatternSet<'v>, E> {
+) -> ParserResult<PatternSet<'v, EmptyLevel>, E> {
     delimited(
         space0,
         map(separated_list1(ws(tag(";")), pattern), |patterns| {

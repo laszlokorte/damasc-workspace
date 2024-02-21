@@ -1,3 +1,4 @@
+use crate::syntax::level::EmptyLevel;
 use crate::{
     identifier::Identifier,
     topology::{sort_topological, Node, TopologyError},
@@ -8,7 +9,7 @@ use super::{expression::Expression, pattern::Pattern};
 #[derive(Clone, Debug)]
 pub struct Assignment<'a, 'b> {
     pub pattern: Pattern<'a>,
-    pub expression: Expression<'b>,
+    pub expression: Expression<'b, EmptyLevel>,
 }
 
 impl std::fmt::Display for Assignment<'_, '_> {

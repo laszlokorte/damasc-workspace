@@ -1,3 +1,5 @@
+use crate::syntax::level::EmptyLevel;
+use crate::syntax::level::SyntaxLevel;
 use std::borrow::Cow;
 
 use crate::identifier::Identifier;
@@ -6,28 +8,29 @@ use crate::literal::Literal;
 use super::pattern::Pattern;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Expression<'s> {
-    Array(ArrayExpression<'s>),
-    Binary(BinaryExpression<'s>),
+pub enum Expression<'s, Level: SyntaxLevel = EmptyLevel> {
+    Array(ArrayExpression<'s, Level>),
+    Binary(BinaryExpression<'s, Level>),
     Identifier(Identifier<'s>),
     Literal(Literal<'s>),
-    Logical(LogicalExpression<'s>),
-    Member(MemberExpression<'s>),
-    Object(ObjectExpression<'s>),
-    Unary(UnaryExpression<'s>),
-    Call(CallExpression<'s>),
-    Template(StringTemplate<'s>),
-    Abstraction(LambdaAbstraction<'s>),
-    Application(LambdaApplication<'s>),
-    ArrayComp(ArrayComprehension<'s>),
-    ObjectComp(ObjectComprehension<'s>),
-    Condition(IfElseExpression<'s>),
-    Match(MatchExpression<'s>),
+    Logical(LogicalExpression<'s, Level>),
+    Member(MemberExpression<'s, Level>),
+    Object(ObjectExpression<'s, Level>),
+    Unary(UnaryExpression<'s, Level>),
+    Call(CallExpression<'s, Level>),
+    Template(StringTemplate<'s, Level>),
+    Abstraction(LambdaAbstraction<'s, Level>),
+    Application(LambdaApplication<'s, Level>),
+    ArrayComp(ArrayComprehension<'s, Level>),
+    ObjectComp(ObjectComprehension<'s, Level>),
+    Condition(IfElseExpression<'s, Level>),
+    Match(MatchExpression<'s, Level>),
+    Anno(Level::Annotation),
 }
-impl<'s> Expression<'s> {
-    pub(crate) fn deep_clone<'x>(&self) -> Expression<'x> {
+impl<'s, Level: SyntaxLevel> Expression<'s, Level> {
+    pub(crate) fn deep_clone<'x>(&self) -> Expression<'x, Level> {
         match self {
-            Self::Array(a) => Expression::Array(a.iter().map(|e| e.deep_clone()).collect()),
+            Self::Array(a) => Expression::<Level>::Array(a.iter().map(|e| e.deep_clone()).collect()),
             Expression::Binary(b) => Expression::Binary(b.deep_clone()),
             Expression::Identifier(i) => Expression::Identifier(i.deep_clone()),
             Expression::Literal(l) => Expression::Literal(l.deep_clone()),
@@ -43,11 +46,12 @@ impl<'s> Expression<'s> {
             Expression::ObjectComp(x) => Expression::ObjectComp(x.deep_clone()),
             Expression::Match(x) => Expression::Match(x.deep_clone()),
             Expression::Condition(x) => Expression::Condition(x.deep_clone()),
+            Expression::Anno(_) => todo!(),
         }
     }
 }
 
-impl std::fmt::Display for Expression<'_> {
+impl<Level: SyntaxLevel> std::fmt::Display for Expression<'_, Level> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Expression::Literal(l) => write!(f, "{l}"),
@@ -231,44 +235,45 @@ impl std::fmt::Display for Expression<'_> {
                 }
 
                 write!(f, "}}")
-            }
+            },
+            Expression::Anno(_) => todo!()
         }
     }
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct ExpressionSet<'s> {
-    pub expressions: Vec<Expression<'s>>,
+pub struct ExpressionSet<'s, Level: SyntaxLevel = EmptyLevel> {
+    pub expressions: Vec<Expression<'s, Level>>,
 }
 
-type ArrayExpression<'a> = Vec<ArrayItem<'a>>;
+type ArrayExpression<'a, Level: SyntaxLevel> = Vec<ArrayItem<'a, Level>>;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum ArrayItem<'a> {
-    Single(Expression<'a>),
-    Spread(Expression<'a>),
+pub enum ArrayItem<'a, Level: SyntaxLevel> {
+    Single(Expression<'a, Level>),
+    Spread(Expression<'a, Level>),
 }
-impl ArrayItem<'_> {
-    fn deep_clone<'x>(&self) -> ArrayItem<'x> {
+impl<Level: SyntaxLevel> ArrayItem<'_, Level> {
+    fn deep_clone<'x>(&self) -> ArrayItem<'x, Level> {
         match self {
-            ArrayItem::Single(inner) => ArrayItem::Single(inner.deep_clone()),
+            ArrayItem::Single(inner) => ArrayItem::<Level>::Single(inner.deep_clone()),
             ArrayItem::Spread(inner) => ArrayItem::Spread(inner.deep_clone()),
         }
     }
 }
 
-pub type ObjectExpression<'a> = Vec<ObjectProperty<'a>>;
+pub type ObjectExpression<'a, Level: SyntaxLevel> = Vec<ObjectProperty<'a, Level>>;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum ObjectProperty<'a> {
+pub enum ObjectProperty<'a, Level: SyntaxLevel> {
     Single(Identifier<'a>),
-    Property(Property<'a>),
-    Spread(Expression<'a>),
+    Property(Property<'a, Level>),
+    Spread(Expression<'a, Level>),
 }
-impl ObjectProperty<'_> {
-    fn deep_clone<'x>(&self) -> ObjectProperty<'x> {
+impl<Level: SyntaxLevel> ObjectProperty<'_, Level> {
+    fn deep_clone<'x>(&self) -> ObjectProperty<'x, Level> {
         match self {
-            ObjectProperty::Single(i) => ObjectProperty::Single(i.deep_clone()),
+            ObjectProperty::Single(i) => ObjectProperty::<Level>::Single(i.deep_clone()),
             ObjectProperty::Property(p) => ObjectProperty::Property(p.deep_clone()),
             ObjectProperty::Spread(e) => ObjectProperty::Spread(e.deep_clone()),
         }
@@ -276,13 +281,13 @@ impl ObjectProperty<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Property<'a> {
-    pub key: PropertyKey<'a>,
-    pub value: Expression<'a>,
+pub struct Property<'a, Level: SyntaxLevel> {
+    pub key: PropertyKey<'a, Level>,
+    pub value: Expression<'a, Level>,
 }
-impl Property<'_> {
-    fn deep_clone<'x>(&self) -> Property<'x> {
-        Property {
+impl<Level: SyntaxLevel> Property<'_, Level> {
+    fn deep_clone<'x>(&self) -> Property<'x, Level> {
+        Property::<Level> {
             key: self.key.deep_clone(),
             value: self.value.deep_clone(),
         }
@@ -290,27 +295,27 @@ impl Property<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum PropertyKey<'a> {
+pub enum PropertyKey<'a, Level: SyntaxLevel> {
     Identifier(Identifier<'a>),
-    Expression(Expression<'a>),
+    Expression(Expression<'a, Level>),
 }
-impl PropertyKey<'_> {
-    pub fn deep_clone<'x>(&self) -> PropertyKey<'x> {
+impl<Level: SyntaxLevel> PropertyKey<'_, Level> {
+    pub fn deep_clone<'x>(&self) -> PropertyKey<'x, Level> {
         match self {
-            PropertyKey::Identifier(i) => PropertyKey::Identifier(i.deep_clone()),
+            PropertyKey::Identifier(i) => PropertyKey::<Level>::Identifier(i.deep_clone()),
             PropertyKey::Expression(e) => PropertyKey::Expression(e.deep_clone()),
         }
     }
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct CallExpression<'a> {
+pub struct CallExpression<'a, Level: SyntaxLevel> {
     pub function: Identifier<'a>,
-    pub argument: Box<Expression<'a>>,
+    pub argument: Box<Expression<'a, Level>>,
 }
-impl CallExpression<'_> {
-    fn deep_clone<'x>(&self) -> CallExpression<'x> {
-        CallExpression {
+impl<Level: SyntaxLevel> CallExpression<'_, Level> {
+    fn deep_clone<'x>(&self) -> CallExpression<'x, Level> {
+        CallExpression::<Level> {
             function: self.function.deep_clone(),
             argument: Box::new(self.argument.deep_clone()),
         }
@@ -318,13 +323,13 @@ impl CallExpression<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct StringTemplate<'a> {
-    pub parts: Vec<StringTemplatePart<'a>>,
+pub struct StringTemplate<'a, Level: SyntaxLevel> {
+    pub parts: Vec<StringTemplatePart<'a, Level>>,
     pub suffix: Cow<'a, str>,
 }
-impl StringTemplate<'_> {
-    fn deep_clone<'x>(&self) -> StringTemplate<'x> {
-        StringTemplate {
+impl<Level: SyntaxLevel> StringTemplate<'_, Level> {
+    fn deep_clone<'x>(&self) -> StringTemplate<'x, Level> {
+        StringTemplate::<Level> {
             parts: self.parts.iter().map(|p| p.deep_clone()).collect(),
             suffix: Cow::Owned(self.suffix.to_string()),
         }
@@ -332,13 +337,13 @@ impl StringTemplate<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct StringTemplatePart<'a> {
+pub struct StringTemplatePart<'a, Level: SyntaxLevel> {
     pub fixed_start: Cow<'a, str>,
-    pub dynamic_end: Box<Expression<'a>>,
+    pub dynamic_end: Box<Expression<'a, Level>>,
 }
-impl StringTemplatePart<'_> {
-    fn deep_clone<'x>(&self) -> StringTemplatePart<'x> {
-        StringTemplatePart {
+impl<Level: SyntaxLevel> StringTemplatePart<'_, Level> {
+    fn deep_clone<'x>(&self) -> StringTemplatePart<'x, Level> {
+        StringTemplatePart::<Level> {
             fixed_start: Cow::Owned(self.fixed_start.to_string()),
             dynamic_end: Box::new(self.dynamic_end.deep_clone()),
         }
@@ -346,13 +351,13 @@ impl StringTemplatePart<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct LambdaAbstraction<'a> {
-    pub arguments: Pattern<'a>,
-    pub body: Box<Expression<'a>>,
+pub struct LambdaAbstraction<'a, Level: SyntaxLevel> {
+    pub arguments: Pattern<'a, Level>,
+    pub body: Box<Expression<'a, Level>>,
 }
-impl LambdaAbstraction<'_> {
-    fn deep_clone<'x>(&self) -> LambdaAbstraction<'x> {
-        LambdaAbstraction {
+impl<Level: SyntaxLevel> LambdaAbstraction<'_, Level> {
+    fn deep_clone<'x>(&self) -> LambdaAbstraction<'x, Level> {
+        LambdaAbstraction::<Level> {
             arguments: self.arguments.deep_clone(),
             body: Box::new(self.body.deep_clone()),
         }
@@ -360,13 +365,13 @@ impl LambdaAbstraction<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct LambdaApplication<'a> {
-    pub lambda: Box<Expression<'a>>,
-    pub parameter: Box<Expression<'a>>,
+pub struct LambdaApplication<'a, Level: SyntaxLevel> {
+    pub lambda: Box<Expression<'a, Level>>,
+    pub parameter: Box<Expression<'a, Level>>,
 }
-impl LambdaApplication<'_> {
-    fn deep_clone<'x>(&self) -> LambdaApplication<'x> {
-        LambdaApplication {
+impl<Level: SyntaxLevel> LambdaApplication<'_, Level> {
+    fn deep_clone<'x>(&self) -> LambdaApplication<'x, Level> {
+        LambdaApplication::<Level> {
             lambda: Box::new(self.lambda.deep_clone()),
             parameter: Box::new(self.parameter.deep_clone()),
         }
@@ -374,15 +379,15 @@ impl LambdaApplication<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct MatchCase<'a> {
-    pub pattern: Pattern<'a>,
-    pub guard: Option<Box<Expression<'a>>>,
-    pub body: Box<Expression<'a>>,
+pub struct MatchCase<'a, Level: SyntaxLevel> {
+    pub pattern: Pattern<'a, Level>,
+    pub guard: Option<Box<Expression<'a, Level>>>,
+    pub body: Box<Expression<'a, Level>>,
 }
 
-impl MatchCase<'_> {
-    fn deep_clone<'x>(&self) -> MatchCase<'x> {
-        MatchCase {
+impl<Level: SyntaxLevel> MatchCase<'_, Level> {
+    fn deep_clone<'x>(&self) -> MatchCase<'x, Level> {
+        MatchCase::<Level> {
             pattern: self.pattern.deep_clone(),
             guard: self.guard.clone().map(|g| Box::new(g.deep_clone())),
             body: Box::new(self.body.deep_clone()),
@@ -391,14 +396,14 @@ impl MatchCase<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct MatchExpression<'a> {
-    pub subject: Box<Expression<'a>>,
-    pub cases: Vec<MatchCase<'a>>,
+pub struct MatchExpression<'a, Level: SyntaxLevel> {
+    pub subject: Box<Expression<'a, Level>>,
+    pub cases: Vec<MatchCase<'a, Level>>,
 }
 
-impl MatchExpression<'_> {
-    fn deep_clone<'x>(&self) -> MatchExpression<'x> {
-        MatchExpression {
+impl<Level: SyntaxLevel> MatchExpression<'_, Level> {
+    fn deep_clone<'x>(&self) -> MatchExpression<'x, Level> {
+        MatchExpression::<Level> {
             subject: Box::new(self.subject.deep_clone()),
             cases: self.cases.iter().map(|p| p.deep_clone()).collect(),
         }
@@ -408,15 +413,15 @@ impl MatchExpression<'_> {
 
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct IfElseExpression<'a> {
-    pub condition: Box<Expression<'a>>,
-    pub true_branch: Box<Expression<'a>>,
-    pub false_branch: Option<Box<Expression<'a>>>,
+pub struct IfElseExpression<'a, Level: SyntaxLevel> {
+    pub condition: Box<Expression<'a, Level>>,
+    pub true_branch: Box<Expression<'a, Level>>,
+    pub false_branch: Option<Box<Expression<'a, Level>>>,
 }
 
-impl IfElseExpression<'_> {
-    fn deep_clone<'x>(&self) -> IfElseExpression<'x> {
-        IfElseExpression {
+impl<Level: SyntaxLevel> IfElseExpression<'_, Level> {
+    fn deep_clone<'x>(&self) -> IfElseExpression<'x, Level> {
+        IfElseExpression::<Level> {
             condition: Box::new(self.condition.deep_clone()),
             true_branch: Box::new(self.true_branch.deep_clone()),
             false_branch: self.false_branch.clone().map(|fb| Box::new(fb.deep_clone())),
@@ -425,13 +430,13 @@ impl IfElseExpression<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ArrayComprehension<'a> {
-    pub sources: Vec<ComprehensionSource<'a>>,
-    pub projection: ArrayExpression<'a>,
+pub struct ArrayComprehension<'a, Level: SyntaxLevel> {
+    pub sources: Vec<ComprehensionSource<'a, Level>>,
+    pub projection: ArrayExpression<'a, Level>,
 }
-impl ArrayComprehension<'_> {
-    fn deep_clone<'x>(&self) -> ArrayComprehension<'x> {
-        ArrayComprehension {
+impl<Level: SyntaxLevel> ArrayComprehension<'_, Level> {
+    fn deep_clone<'x>(&self) -> ArrayComprehension<'x, Level> {
+        ArrayComprehension::<Level> {
             sources: self.sources.iter().map(|e| e.deep_clone()).collect(),
             projection: self.projection.iter().map(|e| e.deep_clone()).collect(),
         }
@@ -439,13 +444,13 @@ impl ArrayComprehension<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ObjectComprehension<'a> {
-    pub sources: Vec<ComprehensionSource<'a>>,
-    pub projection: ObjectExpression<'a>,
+pub struct ObjectComprehension<'a, Level: SyntaxLevel> {
+    pub sources: Vec<ComprehensionSource<'a, Level>>,
+    pub projection: ObjectExpression<'a, Level>,
 }
-impl ObjectComprehension<'_> {
-    fn deep_clone<'x>(&self) -> ObjectComprehension<'x> {
-        ObjectComprehension {
+impl<Level: SyntaxLevel> ObjectComprehension<'_, Level> {
+    fn deep_clone<'x>(&self) -> ObjectComprehension<'x, Level> {
+        ObjectComprehension::<Level> {
             sources: self.sources.iter().map(|e| e.deep_clone()).collect(),
             projection: self.projection.iter().map(|e| e.deep_clone()).collect(),
         }
@@ -453,15 +458,15 @@ impl ObjectComprehension<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ComprehensionSource<'a> {
-    pub collection: Box<Expression<'a>>,
-    pub pattern: Pattern<'a>,
+pub struct ComprehensionSource<'a, Level: SyntaxLevel> {
+    pub collection: Box<Expression<'a, Level>>,
+    pub pattern: Pattern<'a, Level>,
     pub strong_pattern: bool,
-    pub predicate: Option<Box<Expression<'a>>>,
+    pub predicate: Option<Box<Expression<'a, Level>>>,
 }
-impl ComprehensionSource<'_> {
-    fn deep_clone<'x>(&self) -> ComprehensionSource<'x> {
-        ComprehensionSource {
+impl<Level: SyntaxLevel> ComprehensionSource<'_, Level> {
+    fn deep_clone<'x>(&self) -> ComprehensionSource<'x, Level> {
+        ComprehensionSource::<Level> {
             collection: Box::new(self.collection.deep_clone()),
             pattern: self.pattern.deep_clone(),
             strong_pattern: self.strong_pattern,
@@ -471,13 +476,13 @@ impl ComprehensionSource<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct UnaryExpression<'a> {
+pub struct UnaryExpression<'a, Level: SyntaxLevel> {
     pub operator: UnaryOperator,
-    pub argument: Box<Expression<'a>>,
+    pub argument: Box<Expression<'a, Level>>,
 }
-impl UnaryExpression<'_> {
-    fn deep_clone<'x>(&self) -> UnaryExpression<'x> {
-        UnaryExpression {
+impl<Level: SyntaxLevel> UnaryExpression<'_, Level> {
+    fn deep_clone<'x>(&self) -> UnaryExpression<'x, Level> {
+        UnaryExpression::<Level> {
             operator: self.operator,
             argument: Box::new(self.argument.deep_clone()),
         }
@@ -485,14 +490,14 @@ impl UnaryExpression<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct BinaryExpression<'a> {
+pub struct BinaryExpression<'a, Level: SyntaxLevel> {
     pub operator: BinaryOperator,
-    pub left: Box<Expression<'a>>,
-    pub right: Box<Expression<'a>>,
+    pub left: Box<Expression<'a, Level>>,
+    pub right: Box<Expression<'a, Level>>,
 }
-impl BinaryExpression<'_> {
-    fn deep_clone<'x>(&self) -> BinaryExpression<'x> {
-        BinaryExpression {
+impl<Level: SyntaxLevel> BinaryExpression<'_, Level> {
+    fn deep_clone<'x>(&self) -> BinaryExpression<'x, Level> {
+        BinaryExpression::<Level> {
             operator: self.operator,
             left: Box::new(self.left.deep_clone()),
             right: Box::new(self.right.deep_clone()),
@@ -501,14 +506,14 @@ impl BinaryExpression<'_> {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct LogicalExpression<'a> {
+pub struct LogicalExpression<'a, Level: SyntaxLevel> {
     pub operator: LogicalOperator,
-    pub left: Box<Expression<'a>>,
-    pub right: Box<Expression<'a>>,
+    pub left: Box<Expression<'a, Level>>,
+    pub right: Box<Expression<'a, Level>>,
 }
-impl LogicalExpression<'_> {
-    fn deep_clone<'x>(&self) -> LogicalExpression<'x> {
-        LogicalExpression {
+impl<Level: SyntaxLevel> LogicalExpression<'_, Level> {
+    fn deep_clone<'x>(&self) -> LogicalExpression<'x, Level> {
+        LogicalExpression::<Level> {
             operator: self.operator,
             left: Box::new(self.left.deep_clone()),
             right: Box::new(self.right.deep_clone()),
@@ -558,13 +563,13 @@ pub enum UnaryOperator {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct MemberExpression<'a> {
-    pub object: Box<Expression<'a>>,
-    pub property: Box<Expression<'a>>,
+pub struct MemberExpression<'a, Level: SyntaxLevel> {
+    pub object: Box<Expression<'a, Level>>,
+    pub property: Box<Expression<'a, Level>>,
 }
-impl MemberExpression<'_> {
-    fn deep_clone<'x>(&self) -> MemberExpression<'x> {
-        MemberExpression {
+impl<Level: SyntaxLevel> MemberExpression<'_, Level> {
+    fn deep_clone<'x>(&self) -> MemberExpression<'x, Level> {
+        MemberExpression::<Level> {
             object: Box::new(self.object.deep_clone()),
             property: Box::new(self.property.deep_clone()),
         }

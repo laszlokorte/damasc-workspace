@@ -1,3 +1,4 @@
+use crate::syntax::level::EmptyLevel;
 use crate::syntax::expression::IfElseExpression;
 use crate::syntax::pattern::Pattern;
 use crate::syntax::expression::MatchExpression;
@@ -47,7 +48,7 @@ pub fn expression_all_consuming<'v>(input: &str) -> Option<Expression<'v>> {
 
 pub fn expression_many1<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<ExpressionSet<'v>, E> {
+) -> ParserResult<ExpressionSet<'v, EmptyLevel>, E> {
     context(
         "expression_many1",
         delimited(
@@ -91,7 +92,7 @@ pub fn expression_many0<'v, 's, E: ParserError<'s>>(
 
 fn expression_array_item<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<ArrayItem<'v>, E> {
+) -> ParserResult<ArrayItem<'v, EmptyLevel>, E> {
     context(
         "expression_array_item",
         alt((
@@ -172,7 +173,7 @@ fn expression_array_comprehension<'v, 's, E: ParserError<'s>>(
 
 fn expression_object_property<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<ObjectProperty<'v>, E> {
+) -> ParserResult<ObjectProperty<'v, EmptyLevel>, E> {
     context(
         "expression_object_property",
         alt((
@@ -237,7 +238,7 @@ fn expression_object<'v, 's, E: ParserError<'s>>(
 
 fn expression_comprehension_source<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<Vec<ComprehensionSource<'v>>, E> {
+) -> ParserResult<Vec<ComprehensionSource<'v, EmptyLevel>>, E> {
     context(
         "expression_comprehension_source",
         many1(map(
@@ -309,7 +310,7 @@ fn expression_lambda_abstraction<'v, 's, E: ParserError<'s>>(
 
 fn expression_match_arm<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<MatchCase<'v>, E> {
+) -> ParserResult<MatchCase<'v, EmptyLevel>, E> {
     map(separated_pair(
         tuple((alt((delimited(ws(tag("(")), pattern, ws(tag(")"))), pattern)),
         opt(preceded(ws(tag("if")), expression)))),
@@ -444,7 +445,7 @@ pub(crate) fn expression_identifier<'v, 's, E: ParserError<'s>>(
 
 fn string_template_part<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<StringTemplatePart<'v>, E> {
+) -> ParserResult<StringTemplatePart<'v, EmptyLevel>, E> {
     context(
         "expression_string_template_part",
         map(
