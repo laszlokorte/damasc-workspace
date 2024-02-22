@@ -1,6 +1,7 @@
+use damasc_lang::literal::Literal;
+use damasc_lang::syntax::expression::ExpressionBody;
 use damasc_lang::{
     identifier::Identifier,
-    literal::Literal,
     parser::{
         expression::{expression, expression_many0, expression_many1},
         io::{ParserError, ParserInput, ParserResult},
@@ -55,7 +56,9 @@ pub fn multi_predicate<'x, 's, E: ParserError<'s>>(
             capture: MultiCapture {
                 patterns: pattern_set,
             },
-            guard: guard.unwrap_or(Expression::Literal(Literal::Boolean(true))),
+            guard: guard.unwrap_or(Expression::new(ExpressionBody::Literal(Literal::Boolean(
+                true,
+            )))),
         },
     )(input)
 }
@@ -99,7 +102,11 @@ pub fn projection<'x, 's, E: ParserError<'s>>(
                 };
                 let auto_projection = ExpressionSet {
                     expressions: (0..auto_named_pats.patterns.len())
-                        .map(|i| Expression::Identifier(Identifier::new_owned(format!("${i}"))))
+                        .map(|i| {
+                            Expression::new(ExpressionBody::Identifier(Identifier::new_owned(
+                                format!("${i}"),
+                            )))
+                        })
                         .collect(),
                 };
                 MultiProjection {
@@ -107,7 +114,9 @@ pub fn projection<'x, 's, E: ParserError<'s>>(
                         capture: MultiCapture {
                             patterns: auto_named_pats,
                         },
-                        guard: guard.unwrap_or(Expression::Literal(Literal::Boolean(true))),
+                        guard: guard.unwrap_or(Expression::new(ExpressionBody::Literal(
+                            Literal::Boolean(true),
+                        ))),
                     },
                     projections: proj.unwrap_or(auto_projection),
                 }

@@ -101,20 +101,24 @@ impl<'i: 's, 's, 'p> Iterator for BagMultiPredicateIterator<'i, 's, 's, 'p> {
                 &self.bag_id,
                 apply_identified(self.predicate, &self.env, items.iter()),
             ) {
-                (Some(bag_id), Ok(Some(e))) => return Some(Ok(IdentifiedEnvironment {
-                    used_ids: items
-                        .into_iter()
-                        .map(|v| BagAndValueId {
-                            value_id: v.id,
-                            bag_id: bag_id.clone(),
-                        })
-                        .collect(),
-                    environment: e,
-                })),
-                (None, Ok(Some(e))) => return Some(Ok(IdentifiedEnvironment {
-                    used_ids: HashSet::new(),
-                    environment: e,
-                })),
+                (Some(bag_id), Ok(Some(e))) => {
+                    return Some(Ok(IdentifiedEnvironment {
+                        used_ids: items
+                            .into_iter()
+                            .map(|v| BagAndValueId {
+                                value_id: v.id,
+                                bag_id: bag_id.clone(),
+                            })
+                            .collect(),
+                        environment: e,
+                    }))
+                }
+                (None, Ok(Some(e))) => {
+                    return Some(Ok(IdentifiedEnvironment {
+                        used_ids: HashSet::new(),
+                        environment: e,
+                    }))
+                }
                 (_, Ok(None)) => items = self.iter.next()?,
                 (_, Err(e)) => return Some(Err(e)),
             }

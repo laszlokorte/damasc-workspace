@@ -1,6 +1,6 @@
-use crate::syntax::expression::Expression;
 use crate::identifier::Identifier;
 use crate::literal::Literal;
+use crate::syntax::expression::Expression;
 use crate::syntax::expression::PropertyKey;
 use crate::value_type::ValueType;
 

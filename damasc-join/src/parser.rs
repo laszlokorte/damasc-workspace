@@ -1,3 +1,4 @@
+use damasc_lang::syntax::expression::ExpressionBody;
 use std::collections::HashMap;
 
 use damasc_lang::{
@@ -105,7 +106,9 @@ fn join<'v, 's, E: ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Join
                     }
                 })?,
             local_assignments: assigns.unwrap_or_default(),
-            guard: guard.unwrap_or(Expression::Literal(Literal::Boolean(true))),
+            guard: guard.unwrap_or_else(|| {
+                Expression::new(ExpressionBody::Literal(Literal::Boolean(true)))
+            }),
         },
     ))
 }

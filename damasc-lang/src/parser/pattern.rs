@@ -158,7 +158,12 @@ fn pattern_capture<'v, 's, E: ParserError<'s>>(
             separated_pair(
                 ws(identifier),
                 ws(tag("@")),
-                alt((pattern_atom, pattern_array, pattern_object, pattern_pinned_expression)),
+                alt((
+                    pattern_atom,
+                    pattern_array,
+                    pattern_object,
+                    pattern_pinned_expression,
+                )),
             ),
             |(id, pat)| Pattern::Capture(id, Box::new(pat)),
         ),
@@ -174,9 +179,19 @@ fn pattern_atom<'v, 's, E: ParserError<'s>>(
 fn pattern_pinned_expression<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<Pattern<'v>, E> {
-    context("pattern_pinned_expression", map(preceded(ws(tag("^")), alt((delimited(ws(tag("(")), expression, ws(tag(")"))), expression_identifier))), |expr| {
-        Pattern::PinnedExpression(Box::new(expr))
-    }))(input)
+    context(
+        "pattern_pinned_expression",
+        map(
+            preceded(
+                ws(tag("^")),
+                alt((
+                    delimited(ws(tag("(")), expression, ws(tag(")"))),
+                    expression_identifier,
+                )),
+            ),
+            |expr| Pattern::PinnedExpression(Box::new(expr)),
+        ),
+    )(input)
 }
 
 pub fn pattern<'v, 's, E: ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Pattern<'v>, E> {

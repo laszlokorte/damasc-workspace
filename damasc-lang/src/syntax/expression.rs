@@ -6,7 +6,18 @@ use crate::literal::Literal;
 use super::pattern::Pattern;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Expression<'s> {
+pub struct Expression<'s> {
+    pub body: ExpressionBody<'s>,
+}
+
+impl<'s> Expression<'s> {
+    pub fn new(body: ExpressionBody<'s>) -> Expression<'s> {
+        Self { body }
+    }
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ExpressionBody<'s> {
     Array(ArrayExpression<'s>),
     Binary(BinaryExpression<'s>),
     Identifier(Identifier<'s>),
@@ -24,34 +35,39 @@ pub enum Expression<'s> {
     Condition(IfElseExpression<'s>),
     Match(MatchExpression<'s>),
 }
+
 impl<'s> Expression<'s> {
     pub(crate) fn deep_clone<'x>(&self) -> Expression<'x> {
-        match self {
-            Self::Array(a) => Expression::Array(a.iter().map(|e| e.deep_clone()).collect()),
-            Expression::Binary(b) => Expression::Binary(b.deep_clone()),
-            Expression::Identifier(i) => Expression::Identifier(i.deep_clone()),
-            Expression::Literal(l) => Expression::Literal(l.deep_clone()),
-            Expression::Logical(l) => Expression::Logical(l.deep_clone()),
-            Expression::Member(x) => Expression::Member(x.deep_clone()),
-            Expression::Object(x) => Expression::Object(x.iter().map(|e| e.deep_clone()).collect()),
-            Expression::Unary(x) => Expression::Unary(x.deep_clone()),
-            Expression::Call(x) => Expression::Call(x.deep_clone()),
-            Expression::Template(x) => Expression::Template(x.deep_clone()),
-            Expression::Abstraction(x) => Expression::Abstraction(x.deep_clone()),
-            Expression::Application(x) => Expression::Application(x.deep_clone()),
-            Expression::ArrayComp(x) => Expression::ArrayComp(x.deep_clone()),
-            Expression::ObjectComp(x) => Expression::ObjectComp(x.deep_clone()),
-            Expression::Match(x) => Expression::Match(x.deep_clone()),
-            Expression::Condition(x) => Expression::Condition(x.deep_clone()),
-        }
+        Expression::new(match &self.body {
+            ExpressionBody::Array(a) => {
+                ExpressionBody::Array(a.iter().map(|e| e.deep_clone()).collect())
+            }
+            ExpressionBody::Binary(b) => ExpressionBody::Binary(b.deep_clone()),
+            ExpressionBody::Identifier(i) => ExpressionBody::Identifier(i.deep_clone()),
+            ExpressionBody::Literal(l) => ExpressionBody::Literal(l.deep_clone()),
+            ExpressionBody::Logical(l) => ExpressionBody::Logical(l.deep_clone()),
+            ExpressionBody::Member(x) => ExpressionBody::Member(x.deep_clone()),
+            ExpressionBody::Object(x) => {
+                ExpressionBody::Object(x.iter().map(|e| e.deep_clone()).collect())
+            }
+            ExpressionBody::Unary(x) => ExpressionBody::Unary(x.deep_clone()),
+            ExpressionBody::Call(x) => ExpressionBody::Call(x.deep_clone()),
+            ExpressionBody::Template(x) => ExpressionBody::Template(x.deep_clone()),
+            ExpressionBody::Abstraction(x) => ExpressionBody::Abstraction(x.deep_clone()),
+            ExpressionBody::Application(x) => ExpressionBody::Application(x.deep_clone()),
+            ExpressionBody::ArrayComp(x) => ExpressionBody::ArrayComp(x.deep_clone()),
+            ExpressionBody::ObjectComp(x) => ExpressionBody::ObjectComp(x.deep_clone()),
+            ExpressionBody::Match(x) => ExpressionBody::Match(x.deep_clone()),
+            ExpressionBody::Condition(x) => ExpressionBody::Condition(x.deep_clone()),
+        })
     }
 }
 
 impl std::fmt::Display for Expression<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Expression::Literal(l) => write!(f, "{l}"),
-            Expression::Array(arr) => {
+        match &self.body {
+            ExpressionBody::Literal(l) => write!(f, "{l}"),
+            ExpressionBody::Array(arr) => {
                 write!(f, "[")?;
                 for item in arr {
                     match item {
@@ -61,7 +77,7 @@ impl std::fmt::Display for Expression<'_> {
                 }
                 write!(f, "[")
             }
-            Expression::Binary(BinaryExpression {
+            ExpressionBody::Binary(BinaryExpression {
                 operator,
                 left,
                 right,
@@ -88,8 +104,8 @@ impl std::fmt::Display for Expression<'_> {
                     }
                 )
             }
-            Expression::Identifier(id) => write!(f, "{id}"),
-            Expression::Logical(LogicalExpression {
+            ExpressionBody::Identifier(id) => write!(f, "{id}"),
+            ExpressionBody::Logical(LogicalExpression {
                 left,
                 right,
                 operator,
@@ -103,10 +119,10 @@ impl std::fmt::Display for Expression<'_> {
                     }
                 )
             }
-            Expression::Member(MemberExpression { object, property }) => {
+            ExpressionBody::Member(MemberExpression { object, property }) => {
                 write!(f, "{object}[{property}]")
             }
-            Expression::Object(props) => {
+            ExpressionBody::Object(props) => {
                 write!(f, "{{")?;
                 for prop in props {
                     match prop {
@@ -122,7 +138,7 @@ impl std::fmt::Display for Expression<'_> {
                 }
                 write!(f, "}}")
             }
-            Expression::Unary(UnaryExpression { operator, argument }) => {
+            ExpressionBody::Unary(UnaryExpression { operator, argument }) => {
                 write!(
                     f,
                     "({} {argument})",
@@ -133,30 +149,34 @@ impl std::fmt::Display for Expression<'_> {
                     }
                 )
             }
-            Expression::Call(CallExpression { function, argument }) => {
+            ExpressionBody::Call(CallExpression { function, argument }) => {
                 write!(f, "{function}({argument})")
             }
-            Expression::Template(StringTemplate { parts, suffix }) => {
+            ExpressionBody::Template(StringTemplate { parts, suffix }) => {
                 write!(f, "$`")?;
                 for p in parts {
                     write!(f, "{}${{{}}}", p.fixed_start, p.dynamic_end)?;
                 }
                 write!(f, "{suffix}`")
             }
-            Expression::Abstraction(LambdaAbstraction { arguments, body }) => {
+            ExpressionBody::Abstraction(LambdaAbstraction { arguments, body }) => {
                 write!(f, "fn ({arguments}) => {body}")
             }
-            Expression::Application(LambdaApplication { lambda, parameter }) => {
+            ExpressionBody::Application(LambdaApplication { lambda, parameter }) => {
                 write!(f, "{lambda}({parameter})")
             }
-            Expression::Match(MatchExpression { subject, cases }) => {
+            ExpressionBody::Match(MatchExpression { subject, cases }) => {
                 write!(f, "match ({subject}) {{")?;
                 for case in cases {
                     write!(f, "({0})  => {1}", case.pattern, case.body)?;
                 }
                 write!(f, "}}")
             }
-            Expression::Condition(IfElseExpression { condition, true_branch, false_branch }) => {
+            ExpressionBody::Condition(IfElseExpression {
+                condition,
+                true_branch,
+                false_branch,
+            }) => {
                 write!(f, "if ({condition}) {{ {true_branch} }}")?;
                 if let Some(fb) = false_branch {
                     write!(f, "else {{ {fb} }}")
@@ -164,7 +184,7 @@ impl std::fmt::Display for Expression<'_> {
                     Ok(())
                 }
             }
-            Expression::ArrayComp(ArrayComprehension {
+            ExpressionBody::ArrayComp(ArrayComprehension {
                 sources,
                 projection,
             }) => {
@@ -195,7 +215,7 @@ impl std::fmt::Display for Expression<'_> {
 
                 write!(f, "[")
             }
-            Expression::ObjectComp(ObjectComprehension {
+            ExpressionBody::ObjectComp(ObjectComprehension {
                 sources,
                 projection,
             }) => {
@@ -405,8 +425,6 @@ impl MatchExpression<'_> {
     }
 }
 
-
-
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct IfElseExpression<'a> {
     pub condition: Box<Expression<'a>>,
@@ -419,7 +437,10 @@ impl IfElseExpression<'_> {
         IfElseExpression {
             condition: Box::new(self.condition.deep_clone()),
             true_branch: Box::new(self.true_branch.deep_clone()),
-            false_branch: self.false_branch.clone().map(|fb| Box::new(fb.deep_clone())),
+            false_branch: self
+                .false_branch
+                .clone()
+                .map(|fb| Box::new(fb.deep_clone())),
         }
     }
 }

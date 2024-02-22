@@ -80,7 +80,9 @@ impl<'i, 's> State<'i, 's> {
                         }
                         Err(AssignmentError::EvalError) => return Err(ReplError::EvalError),
                         Err(AssignmentError::MatchError) => return Err(ReplError::MatchError),
-                        Err(AssignmentError::TopologyError) => return Err(ReplError::TopologyError),
+                        Err(AssignmentError::TopologyError) => {
+                            return Err(ReplError::TopologyError)
+                        }
                     }
                 } else {
                     self.environment.clone()

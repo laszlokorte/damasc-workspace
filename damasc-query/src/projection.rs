@@ -3,6 +3,7 @@ use damasc_lang::literal::Literal;
 use damasc_lang::runtime::env::Environment;
 use damasc_lang::runtime::evaluation::Evaluation;
 use damasc_lang::syntax::expression::Expression;
+use damasc_lang::syntax::expression::ExpressionBody;
 use damasc_lang::syntax::expression::ExpressionSet;
 use damasc_lang::syntax::pattern::Pattern;
 use damasc_lang::syntax::pattern::PatternSet;
@@ -76,10 +77,12 @@ impl Default for MultiProjection<'_> {
                         patterns: vec![Pattern::Identifier(Identifier::new("$$"))],
                     },
                 },
-                guard: Expression::Literal(Literal::Boolean(true)),
+                guard: Expression::new(ExpressionBody::Literal(Literal::Boolean(true))),
             },
             projections: ExpressionSet {
-                expressions: vec![Expression::Identifier(Identifier::new("$$"))],
+                expressions: vec![Expression::new(ExpressionBody::Identifier(
+                    Identifier::new("$$"),
+                ))],
             },
         }
     }

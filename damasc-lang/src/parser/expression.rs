@@ -1,13 +1,13 @@
-use crate::syntax::expression::IfElseExpression;
-use crate::syntax::pattern::Pattern;
-use crate::syntax::expression::MatchExpression;
-use crate::syntax::expression::MatchCase;
 use crate::parser::pattern::pattern;
 use crate::syntax::expression::ArrayComprehension;
 use crate::syntax::expression::ComprehensionSource;
+use crate::syntax::expression::IfElseExpression;
 use crate::syntax::expression::LambdaAbstraction;
 use crate::syntax::expression::LambdaApplication;
+use crate::syntax::expression::MatchCase;
+use crate::syntax::expression::MatchExpression;
 use crate::syntax::expression::ObjectComprehension;
+use crate::syntax::pattern::Pattern;
 use nom::multi::many1;
 use std::borrow::Cow;
 
@@ -25,9 +25,9 @@ use crate::{
     identifier::Identifier,
     literal::Literal,
     syntax::expression::{
-        ArrayItem, BinaryExpression, BinaryOperator, CallExpression, Expression, ExpressionSet,
-        LogicalExpression, LogicalOperator, MemberExpression, ObjectProperty, Property,
-        PropertyKey, StringTemplate, StringTemplatePart, UnaryExpression, UnaryOperator,
+        ArrayItem, BinaryExpression, BinaryOperator, CallExpression, Expression, ExpressionBody,
+        ExpressionSet, LogicalExpression, LogicalOperator, MemberExpression, ObjectProperty,
+        Property, PropertyKey, StringTemplate, StringTemplatePart, UnaryExpression, UnaryOperator,
     },
 };
 
@@ -112,10 +112,10 @@ fn expression_call<'v, 's, E: ParserError<'s>>(
                 delimited(ws(tag("(")), expression, ws(tag(")"))),
             ),
             |(function, arg)| {
-                Expression::Call(CallExpression {
+                Expression::new(ExpressionBody::Call(CallExpression {
                     function,
                     argument: Box::new(arg),
-                })
+                }))
             },
         ),
     )(input)
@@ -126,19 +126,22 @@ fn expression_array<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression_array",
-        delimited(
-            ws(tag("[")),
-            map(
-                opt(terminated(
-                    map(
-                        separated_list1(ws(tag(",")), expression_array_item),
-                        Expression::Array,
-                    ),
-                    opt(ws(tag(","))),
-                )),
-                |v| v.unwrap_or_else(|| Expression::Array(vec![])),
+        map(
+            delimited(
+                ws(tag("[")),
+                map(
+                    opt(terminated(
+                        map(
+                            separated_list1(ws(tag(",")), expression_array_item),
+                            ExpressionBody::Array,
+                        ),
+                        opt(ws(tag(","))),
+                    )),
+                    |v| v.unwrap_or_else(|| ExpressionBody::Array(vec![])),
+                ),
+                ws(tag("]")),
             ),
-            ws(tag("]")),
+            Expression::new,
         ),
     )(input)
 }
@@ -161,10 +164,10 @@ fn expression_array_comprehension<'v, 's, E: ParserError<'s>>(
                 ws(tag("]")),
             ),
             |(projection, sources)| {
-                Expression::ArrayComp(ArrayComprehension {
+                Expression::new(ExpressionBody::ArrayComp(ArrayComprehension {
                     projection,
                     sources,
-                })
+                }))
             },
         ),
     )(input)
@@ -218,19 +221,22 @@ fn expression_object<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression_object",
-        delimited(
-            ws(tag("{")),
-            map(
-                opt(terminated(
-                    map(
-                        separated_list1(ws(tag(",")), expression_object_property),
-                        Expression::Object,
-                    ),
-                    opt(ws(tag(","))),
-                )),
-                |v| v.unwrap_or_else(|| Expression::Object(vec![])),
+        map(
+            delimited(
+                ws(tag("{")),
+                map(
+                    opt(terminated(
+                        map(
+                            separated_list1(ws(tag(",")), expression_object_property),
+                            ExpressionBody::Object,
+                        ),
+                        opt(ws(tag(","))),
+                    )),
+                    |v| v.unwrap_or_else(|| ExpressionBody::Object(vec![])),
+                ),
+                ws(tag("}")),
             ),
-            ws(tag("}")),
+            Expression::new,
         ),
     )(input)
 }
@@ -274,10 +280,10 @@ fn expression_object_comprehension<'v, 's, E: ParserError<'s>>(
                 ws(tag("}")),
             ),
             |(projection, sources)| {
-                Expression::ObjectComp(ObjectComprehension {
+                Expression::new(ExpressionBody::ObjectComp(ObjectComprehension {
                     projection,
                     sources,
-                })
+                }))
             },
         ),
     )(input)
@@ -297,31 +303,33 @@ fn expression_lambda_abstraction<'v, 's, E: ParserError<'s>>(
                 preceded(ws(tag("=>")), expression),
             )),
             |(arg, body)| {
-                Expression::Abstraction(LambdaAbstraction {
+                Expression::new(ExpressionBody::Abstraction(LambdaAbstraction {
                     arguments: arg,
                     body: Box::new(body),
-                })
+                }))
             },
         ),
     )(input)
 }
 
-
 fn expression_match_arm<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<MatchCase<'v>, E> {
-    map(separated_pair(
-        tuple((alt((delimited(ws(tag("(")), pattern, ws(tag(")"))), pattern)),
-        opt(preceded(ws(tag("if")), expression)))),
-        ws(tag("=>")),
-        expression
-    ), |((pattern, guard), body)| {
-        MatchCase {
-            pattern: pattern, 
+    map(
+        separated_pair(
+            tuple((
+                alt((delimited(ws(tag("(")), pattern, ws(tag(")"))), pattern)),
+                opt(preceded(ws(tag("if")), expression)),
+            )),
+            ws(tag("=>")),
+            expression,
+        ),
+        |((pattern, guard), body)| MatchCase {
+            pattern,
             guard: guard.map(Box::new),
-            body: Box::new(body)
-        }
-    })(input)
+            body: Box::new(body),
+        },
+    )(input)
 }
 
 fn expression_match<'v, 's, E: ParserError<'s>>(
@@ -333,20 +341,25 @@ fn expression_match<'v, 's, E: ParserError<'s>>(
             tuple((
                 preceded(
                     ws(tag("match")),
-                    alt((delimited(ws(tag("(")), expression, ws(tag(")"))), expression)),
+                    alt((
+                        delimited(ws(tag("(")), expression, ws(tag(")"))),
+                        expression,
+                    )),
                 ),
-                delimited(ws(tag("{")), 
+                delimited(
+                    ws(tag("{")),
                     opt(terminated(
                         separated_list1(ws(tag(",")), expression_match_arm),
                         opt(ws(tag(","))),
-                    ))
-                , ws(tag("}"))),
+                    )),
+                    ws(tag("}")),
+                ),
             )),
             |(subject, cases)| {
-                Expression::Match(MatchExpression {
+                Expression::new(ExpressionBody::Match(MatchExpression {
                     subject: Box::new(subject),
-                    cases: cases.unwrap_or_else(|| Vec::new()),
-                })
+                    cases: cases.unwrap_or_default(),
+                }))
             },
         ),
     )(input)
@@ -361,21 +374,23 @@ fn expression_condition<'v, 's, E: ParserError<'s>>(
             tuple((
                 preceded(
                     ws(tag("if")),
-                    alt((delimited(ws(tag("(")), expression, ws(tag(")"))), expression)),
+                    alt((
+                        delimited(ws(tag("(")), expression, ws(tag(")"))),
+                        expression,
+                    )),
                 ),
-                delimited(ws(tag("{")), 
-                    expression
-                , ws(tag("}"))),
-                opt(preceded(ws(tag("else")), delimited(ws(tag("{")), 
-                    expression
-                , ws(tag("}")))))
+                delimited(ws(tag("{")), expression, ws(tag("}"))),
+                opt(preceded(
+                    ws(tag("else")),
+                    delimited(ws(tag("{")), expression, ws(tag("}"))),
+                )),
             )),
             |(condition, true_branch, false_branch)| {
-                Expression::Condition(IfElseExpression {
+                Expression::new(ExpressionBody::Condition(IfElseExpression {
                     condition: Box::new(condition),
                     true_branch: Box::new(true_branch),
                     false_branch: false_branch.map(Box::new),
-                })
+                }))
             },
         ),
     )(input)
@@ -389,22 +404,26 @@ fn expression_lambda_match_abstraction<'v, 's, E: ParserError<'s>>(
         map(
             preceded(
                 ws(tag("fn match")),
-                delimited(ws(tag("{")), 
+                delimited(
+                    ws(tag("{")),
                     opt(terminated(
                         separated_list1(ws(tag(",")), expression_match_arm),
                         opt(ws(tag(","))),
-                    ))
-                , ws(tag("}"))),
+                    )),
+                    ws(tag("}")),
+                ),
             ),
             |cases| {
                 let local_identifier = Identifier::new("___local");
-                Expression::Abstraction(LambdaAbstraction {
+                Expression::new(ExpressionBody::Abstraction(LambdaAbstraction {
                     arguments: Pattern::Identifier(local_identifier.clone()),
-                    body: Box::new(Expression::Match(MatchExpression {
-                        subject: Box::new(Expression::Identifier(local_identifier)),
-                        cases: cases.unwrap_or_else(|| Vec::new()),
-                    })),
-                })
+                    body: Box::new(Expression::new(ExpressionBody::Match(MatchExpression {
+                        subject: Box::new(Expression::new(ExpressionBody::Identifier(
+                            local_identifier,
+                        ))),
+                        cases: cases.unwrap_or_default(),
+                    }))),
+                }))
             },
         ),
     )(input)
@@ -430,7 +449,10 @@ fn expression_literal<'v, 's, E: ParserError<'s>>(
 fn expression_atom<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<Expression<'v>, E> {
-    context("expression_atom", map(literal, Expression::Literal))(input)
+    context(
+        "expression_atom",
+        map(map(literal, ExpressionBody::Literal), Expression::new),
+    )(input)
 }
 
 pub(crate) fn expression_identifier<'v, 's, E: ParserError<'s>>(
@@ -438,7 +460,7 @@ pub(crate) fn expression_identifier<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression_identifier",
-        map(identifier, Expression::Identifier),
+        map(map(identifier, ExpressionBody::Identifier), Expression::new),
     )(input)
 }
 
@@ -476,10 +498,10 @@ fn expression_string_template<'v, 's, E: ParserError<'s>>(
                 tag("`"),
             ),
             |(parts, s)| {
-                Expression::Template(StringTemplate {
+                Expression::new(ExpressionBody::Template(StringTemplate {
                     parts,
                     suffix: Cow::Owned(s.to_string()),
-                })
+                }))
             },
         ),
     )(input)
@@ -512,11 +534,11 @@ fn expression_logic_additive<'v, 's, E: ParserError<'s>>(
         ),
         move || init.clone(),
         |left, (operator, right)| {
-            Expression::Logical(LogicalExpression {
+            Expression::new(ExpressionBody::Logical(LogicalExpression {
                 operator,
                 left: Box::new(left),
                 right: Box::new(right),
-            })
+            }))
         },
     )(input)
 }
@@ -548,11 +570,11 @@ fn expression_logic_multiplicative<'v, 's, E: ParserError<'s>>(
         ),
         move || init.clone(),
         |left, (operator, right)| {
-            Expression::Logical(LogicalExpression {
+            Expression::new(ExpressionBody::Logical(LogicalExpression {
                 operator,
                 left: Box::new(left),
                 right: Box::new(right),
-            })
+            }))
         },
     )(input)
 }
@@ -580,11 +602,11 @@ fn expression_type_predicate<'v, 's, E: ParserError<'s>>(
 
     Ok((
         input,
-        Expression::Binary(BinaryExpression {
+        Expression::new(ExpressionBody::Binary(BinaryExpression {
             operator: op,
             left: Box::new(init),
             right: Box::new(t),
-        }),
+        })),
     ))
 }
 
@@ -612,11 +634,11 @@ fn expression_type_additive<'v, 's, E: ParserError<'s>>(
         ),
         move || init.clone(),
         |left, (operator, right)| {
-            Expression::Binary(BinaryExpression {
+            Expression::new(ExpressionBody::Binary(BinaryExpression {
                 operator,
                 left: Box::new(left),
                 right: Box::new(right),
-            })
+            }))
         },
     )(input)
 }
@@ -656,11 +678,11 @@ fn expression_numeric_predicative<'v, 's, E: ParserError<'s>>(
         ),
         move || init.clone(),
         |left, (operator, right)| {
-            Expression::Binary(BinaryExpression {
+            Expression::new(ExpressionBody::Binary(BinaryExpression {
                 operator,
                 left: Box::new(left),
                 right: Box::new(right),
-            })
+            }))
         },
     )(input)
 }
@@ -695,11 +717,11 @@ fn expression_numeric_additive<'v, 's, E: ParserError<'s>>(
         ),
         move || init.clone(),
         |left, (operator, right)| {
-            Expression::Binary(BinaryExpression {
+            Expression::new(ExpressionBody::Binary(BinaryExpression {
                 operator,
                 left: Box::new(left),
                 right: Box::new(right),
-            })
+            }))
         },
     )(input)
 }
@@ -735,11 +757,11 @@ fn expression_numeric_multiplicative<'v, 's, E: ParserError<'s>>(
         ),
         move || init.clone(),
         |left, (operator, right)| {
-            Expression::Binary(BinaryExpression {
+            Expression::new(ExpressionBody::Binary(BinaryExpression {
                 operator,
                 left: Box::new(left),
                 right: Box::new(right),
-            })
+            }))
         },
     )(input)
 }
@@ -765,15 +787,14 @@ fn expression_numeric_exponential<'v, 's, E: ParserError<'s>>(
         ),
         move || init.clone(),
         |left, (operator, right)| {
-            Expression::Binary(BinaryExpression {
+            Expression::new(ExpressionBody::Binary(BinaryExpression {
                 operator,
                 left: Box::new(left),
                 right: Box::new(right),
-            })
+            }))
         },
     )(input)
 }
-
 
 enum LambdaOrIndex<'a> {
     Lamba(Expression<'a>),
@@ -787,24 +808,31 @@ fn expression_indexed<'v, 's, E: ParserError<'s>>(
 
     fold_many0(
         alt((
-            map(delimited(
-                ws(tag("[")),
-                context("expression_indexed_rhs", expression),
-                ws(tag("]")),
-            ), LambdaOrIndex::Index),
-
-            map(preceded(ws(tag(".")), expression_with_paren), LambdaOrIndex::Lamba)
+            map(
+                delimited(
+                    ws(tag("[")),
+                    context("expression_indexed_rhs", expression),
+                    ws(tag("]")),
+                ),
+                LambdaOrIndex::Index,
+            ),
+            map(
+                preceded(ws(tag(".")), expression_with_paren),
+                LambdaOrIndex::Lamba,
+            ),
         )),
         move || init.clone(),
-        |acc, ident| match ident {
-            LambdaOrIndex::Lamba(param) => Expression::Application(LambdaApplication {
-                lambda: Box::new(acc),
-                parameter: Box::new(param),
-            }),
-            LambdaOrIndex::Index(expr) => Expression::Member(MemberExpression {
-                object: Box::new(acc),
-                property: Box::new(expr),
-            }),
+        |acc, ident| {
+            Expression::new(match ident {
+                LambdaOrIndex::Lamba(param) => ExpressionBody::Application(LambdaApplication {
+                    lambda: Box::new(acc),
+                    parameter: Box::new(param),
+                }),
+                LambdaOrIndex::Index(expr) => ExpressionBody::Member(MemberExpression {
+                    object: Box::new(acc),
+                    property: Box::new(expr),
+                }),
+            })
         },
     )(input)
 }
@@ -831,15 +859,19 @@ fn expression_member<'v, 's, E: ParserError<'s>>(
             ),
         )),
         move || init.clone(),
-        |acc, ident| match ident {
-            LambdaOrProp::Lamba(param) => Expression::Application(LambdaApplication {
-                lambda: Box::new(acc),
-                parameter: Box::new(param),
-            }),
-            LambdaOrProp::Prop(ident) => Expression::Member(MemberExpression {
-                object: Box::new(acc),
-                property: Box::new(Expression::Literal(Literal::String(ident.name))),
-            }),
+        |acc, ident| {
+            Expression::new(match ident {
+                LambdaOrProp::Lamba(param) => ExpressionBody::Application(LambdaApplication {
+                    lambda: Box::new(acc),
+                    parameter: Box::new(param),
+                }),
+                LambdaOrProp::Prop(ident) => ExpressionBody::Member(MemberExpression {
+                    object: Box::new(acc),
+                    property: Box::new(Expression::new(ExpressionBody::Literal(Literal::String(
+                        ident.name,
+                    )))),
+                }),
+            })
         },
     )(input)
 }
@@ -894,10 +926,10 @@ fn expression_unary_logic<'v, 's, E: ParserError<'s>>(
             context("expression_unary_logic_operand", expression_primary),
         ),
         |(operator, argument)| {
-            Expression::Unary(UnaryExpression {
+            Expression::new(ExpressionBody::Unary(UnaryExpression {
                 operator,
                 argument: Box::new(argument),
-            })
+            }))
         },
     )(input)
 }
@@ -923,10 +955,10 @@ fn expression_unary_numeric<'v, 's, E: ParserError<'s>>(
             context("expression_unary_numeric_operand", expression_indexed),
         ),
         |(operator, argument)| {
-            Expression::Unary(UnaryExpression {
+            Expression::new(ExpressionBody::Unary(UnaryExpression {
                 operator,
                 argument: Box::new(argument),
-            })
+            }))
         },
     )(input)
 }
@@ -936,6 +968,12 @@ pub fn expression<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression",
-        alt((expression_lambda_match_abstraction, expression_lambda_abstraction, expression_match, expression_condition, expression_logic_additive)),
+        alt((
+            expression_lambda_match_abstraction,
+            expression_lambda_abstraction,
+            expression_match,
+            expression_condition,
+            expression_logic_additive,
+        )),
     )(input)
 }

@@ -114,19 +114,21 @@ impl<'s, 'v> std::fmt::Display for Value<'s, 'v> {
             Value::Integer(i) => write!(f, "{i}"),
             Value::Boolean(b) => write!(f, "{b}"),
             Value::Array(a) => {
-                let _ = write!(f, "[")?;
+                write!(f, "[")?;
                 for v in a {
-                    let _ = write!(f, "{v}, ",)?;
+                    write!(f, "{v}, ",)?;
                 }
                 write!(f, "]")
             }
             Value::Object(o) => {
                 let _ = write!(f, "{{");
                 for (k, v) in o {
-                    if k.chars().next().map_or(false, |c| c.is_alphabetic()) && k.chars().all(|x| x.is_alphanumeric()) { 
+                    if k.chars().next().map_or(false, |c| c.is_alphabetic())
+                        && k.chars().all(|x| x.is_alphanumeric())
+                    {
                         write!(f, "{}: {v},", k)?;
                     } else {
-                        write!(f, "\"{}\": {v},", k.replace("\"","\\\""))?;
+                        write!(f, "\"{}\": {v},", k.replace('"', "\\\""))?;
                     }
                 }
                 write!(f, "}}")
@@ -135,7 +137,7 @@ impl<'s, 'v> std::fmt::Display for Value<'s, 'v> {
             Value::Lambda(env, pat, expr) => {
                 write!(f, "fn ({pat}) => {expr}")?;
 
-                if env.bindings.len() > 0 {
+                if !env.bindings.is_empty() {
                     write!(f, " with ")?;
 
                     for (i, (k, v)) in env.bindings.iter().enumerate() {
@@ -148,7 +150,7 @@ impl<'s, 'v> std::fmt::Display for Value<'s, 'v> {
                 }
 
                 write!(f, "")
-            },
+            }
         };
         write!(f, "")
     }

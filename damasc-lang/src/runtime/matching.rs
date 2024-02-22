@@ -85,8 +85,8 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
             }
             Pattern::Literal(l) => self.match_literal(l, value),
             Pattern::PinnedExpression(expr) => {
-                let eval = Evaluation::new(&self.outer_env);
-                
+                let eval = Evaluation::new(self.outer_env);
+
                 let Ok(val) = eval.eval_expr(expr) else {
                     return Err(PatternFail::EvalError);
                 };
@@ -109,7 +109,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                 // } else {
                 //     Err(PatternFail::ExpressionMissmatch)
                 // }
-            },
+            }
         }
     }
 

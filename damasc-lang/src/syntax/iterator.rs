@@ -1,3 +1,4 @@
+use crate::syntax::expression::ExpressionBody;
 use crate::syntax::expression::IfElseExpression;
 use crate::syntax::expression::MatchExpression;
 use nom::lib::std::collections::HashSet;
@@ -40,13 +41,15 @@ impl Pattern<'_> {
 
     pub(crate) fn get_expressions(&self) -> impl Iterator<Item = &Expression> {
         PatternIterator::new(self).flat_map(|p| match &p {
-            Pattern::Object(props, _) => Either::Left(Box::new(props.iter().filter_map(|p| match p {
-                ObjectPropertyPattern::Single(_id) => None,
-                ObjectPropertyPattern::Match(PropertyPattern { key, .. }) => match key {
-                    PropertyKey::Identifier(_id) => None,
-                    PropertyKey::Expression(expr) => Some(expr),
-                },
-            })) as Box<dyn Iterator<Item = &Expression>>),
+            Pattern::Object(props, _) => {
+                Either::Left(Box::new(props.iter().filter_map(|p| match p {
+                    ObjectPropertyPattern::Single(_id) => None,
+                    ObjectPropertyPattern::Match(PropertyPattern { key, .. }) => match key {
+                        PropertyKey::Identifier(_id) => None,
+                        PropertyKey::Expression(expr) => Some(expr),
+                    },
+                })) as Box<dyn Iterator<Item = &Expression>>)
+            }
             Pattern::Discard => Either::Right(None.into_iter()),
             Pattern::Capture(_, _) => Either::Right(None.into_iter()),
             Pattern::Identifier(_) => Either::Right(None.into_iter()),
@@ -54,7 +57,9 @@ impl Pattern<'_> {
             Pattern::TypedIdentifier(_, _) => Either::Right(None.into_iter()),
             Pattern::Literal(_) => Either::Right(None.into_iter()),
             Pattern::Array(_, _) => Either::Right(None.into_iter()),
-            Pattern::PinnedExpression(e) => Either::Left(Box::new(Some(e.as_ref()).into_iter()) as Box<dyn Iterator<Item = &Expression>>),
+            Pattern::PinnedExpression(e) => Either::Left(
+                Box::new(Some(e.as_ref()).into_iter()) as Box<dyn Iterator<Item = &Expression>>
+            ),
         })
     }
 }
@@ -138,8 +143,8 @@ impl<'s, 'e: 's> ExpressionIterator<'e, 's> {
     }
 
     fn push_children(&mut self, expression: &'e Expression<'s>) {
-        match expression {
-            Expression::Array(arr) => {
+        match &expression.body {
+            ExpressionBody::Array(arr) => {
                 for item in arr {
                     match item {
                         ArrayItem::Single(s) => {
@@ -151,21 +156,21 @@ impl<'s, 'e: 's> ExpressionIterator<'e, 's> {
                     }
                 }
             }
-            Expression::Binary(BinaryExpression { left, right, .. }) => {
+            ExpressionBody::Binary(BinaryExpression { left, right, .. }) => {
                 self.expression_stack.push_front(left);
                 self.expression_stack.push_front(right);
             }
-            Expression::Identifier(_) => {}
-            Expression::Literal(_) => {}
-            Expression::Logical(LogicalExpression { left, right, .. }) => {
+            ExpressionBody::Identifier(_) => {}
+            ExpressionBody::Literal(_) => {}
+            ExpressionBody::Logical(LogicalExpression { left, right, .. }) => {
                 self.expression_stack.push_front(left);
                 self.expression_stack.push_front(right);
             }
-            Expression::Member(MemberExpression { object, property }) => {
+            ExpressionBody::Member(MemberExpression { object, property }) => {
                 self.expression_stack.push_front(object);
                 self.expression_stack.push_front(property);
             }
-            Expression::Object(props) => {
+            ExpressionBody::Object(props) => {
                 for p in props {
                     match p {
                         ObjectProperty::Single(_) => {}
@@ -185,18 +190,18 @@ impl<'s, 'e: 's> ExpressionIterator<'e, 's> {
                     }
                 }
             }
-            Expression::Unary(UnaryExpression { argument, .. }) => {
+            ExpressionBody::Unary(UnaryExpression { argument, .. }) => {
                 self.expression_stack.push_front(argument);
             }
-            Expression::Call(CallExpression { argument, .. }) => {
+            ExpressionBody::Call(CallExpression { argument, .. }) => {
                 self.expression_stack.push_front(argument);
             }
-            Expression::Template(StringTemplate { parts, .. }) => {
+            ExpressionBody::Template(StringTemplate { parts, .. }) => {
                 for p in parts {
                     self.expression_stack.push_front(&p.dynamic_end);
                 }
             }
-            Expression::Abstraction(LambdaAbstraction { arguments, body }) => {
+            ExpressionBody::Abstraction(LambdaAbstraction { arguments, body }) => {
                 for expr in arguments.get_expressions() {
                     self.expression_stack.push_front(expr)
                 }
@@ -204,11 +209,11 @@ impl<'s, 'e: 's> ExpressionIterator<'e, 's> {
                     self.expression_stack.push_front(body)
                 }
             }
-            Expression::Application(LambdaApplication { lambda, parameter }) => {
+            ExpressionBody::Application(LambdaApplication { lambda, parameter }) => {
                 self.expression_stack.push_front(lambda);
                 self.expression_stack.push_front(parameter);
             }
-            Expression::ArrayComp(ArrayComprehension {
+            ExpressionBody::ArrayComp(ArrayComprehension {
                 sources,
                 projection,
             }) => {
@@ -237,7 +242,7 @@ impl<'s, 'e: 's> ExpressionIterator<'e, 's> {
                     }
                 }
             }
-            Expression::ObjectComp(ObjectComprehension {
+            ExpressionBody::ObjectComp(ObjectComprehension {
                 sources,
                 projection,
             }) => {
@@ -274,7 +279,7 @@ impl<'s, 'e: 's> ExpressionIterator<'e, 's> {
                     }
                 }
             }
-            Expression::Match(MatchExpression { cases, subject }) => {
+            ExpressionBody::Match(MatchExpression { cases, subject }) => {
                 self.expression_stack.push_front(subject);
 
                 for case in cases {
@@ -283,14 +288,18 @@ impl<'s, 'e: 's> ExpressionIterator<'e, 's> {
                     }
                     if self.deep {
                         if let Some(guard) = &case.guard {
-                            self.expression_stack.push_front(&guard);
+                            self.expression_stack.push_front(guard);
                         }
 
                         self.expression_stack.push_front(&case.body);
                     }
                 }
             }
-            Expression::Condition(IfElseExpression { condition, true_branch, false_branch }) => {
+            ExpressionBody::Condition(IfElseExpression {
+                condition,
+                true_branch,
+                false_branch,
+            }) => {
                 self.expression_stack.push_front(condition);
                 self.expression_stack.push_front(true_branch);
                 if let Some(fb) = false_branch {
@@ -315,14 +324,14 @@ impl<'s, 'e: 's> Iterator for ExpressionIterator<'e, 's> {
 
 impl Expression<'_> {
     pub(crate) fn get_identifiers(&self) -> impl Iterator<Item = &Identifier> {
-        ExpressionIterator::new(self, false).flat_map(|e| match e {
-            Expression::Object(props) => Left(Box::new(props.iter().filter_map(|p| match p {
+        ExpressionIterator::new(self, false).flat_map(|e| match &e.body {
+            ExpressionBody::Object(props) => Left(Box::new(props.iter().filter_map(|p| match p {
                 ObjectProperty::Single(id) => Some(id),
                 _ => None,
             }))
                 as Box<dyn Iterator<Item = &Identifier>>),
-            Expression::Identifier(id) => Right(Some(id).into_iter()),
-            Expression::Abstraction(LambdaAbstraction { arguments, body }) => {
+            ExpressionBody::Identifier(id) => Right(Some(id).into_iter()),
+            ExpressionBody::Abstraction(LambdaAbstraction { arguments, body }) => {
                 let locally_bound = arguments.get_identifiers().collect::<HashSet<_>>();
                 let inner_free = body
                     .get_identifiers()
@@ -330,7 +339,7 @@ impl Expression<'_> {
 
                 Left(Box::new(inner_free) as Box<dyn Iterator<Item = &Identifier>>)
             }
-            Expression::ArrayComp(ArrayComprehension {
+            ExpressionBody::ArrayComp(ArrayComprehension {
                 sources,
                 projection,
             }) => {
@@ -384,7 +393,7 @@ impl Expression<'_> {
                 Left(Box::new(inner_identifiers.chain(projection_identifiers))
                     as Box<dyn Iterator<Item = &Identifier>>)
             }
-            Expression::ObjectComp(ObjectComprehension {
+            ExpressionBody::ObjectComp(ObjectComprehension {
                 sources,
                 projection,
             }) => {
@@ -452,7 +461,7 @@ impl Expression<'_> {
                 Left(Box::new(inner_identifiers.chain(projection_identifiers))
                     as Box<dyn Iterator<Item = &Identifier>>)
             }
-            Expression::Match(MatchExpression { cases, .. }) => {
+            ExpressionBody::Match(MatchExpression { cases, .. }) => {
                 let inner_free = cases.iter().flat_map(|case| {
                     let locally_bound = case.pattern.get_identifiers().collect::<HashSet<_>>();
 

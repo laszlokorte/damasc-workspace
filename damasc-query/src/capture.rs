@@ -49,12 +49,11 @@ impl<'s> MultiCapture<'s> {
         values: impl Iterator<Item = &'x Value<'s, 'v>>,
     ) -> Result<Option<Environment<'i, 's, 'v>>, CaptureError> {
         let mut zipped = iter::zip(self.patterns.patterns.iter(), values);
-        let result = zipped.try_fold(
-            env.clone(), |e, (pat, val)| {
-                let mut m = Matcher::new_with_local(&e, e.clone()); 
-                m.match_pattern(pat, val)?;
-                Ok(m.into_env())
-            });
+        let result = zipped.try_fold(env.clone(), |e, (pat, val)| {
+            let mut m = Matcher::new_with_local(&e, e.clone());
+            m.match_pattern(pat, val)?;
+            Ok(m.into_env())
+        });
 
         match result {
             Ok(final_env) => Ok(Some(final_env)),

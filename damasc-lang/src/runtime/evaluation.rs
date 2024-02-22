@@ -19,9 +19,9 @@ use crate::{
     identifier::Identifier,
     literal::Literal,
     syntax::expression::{
-        ArrayItem, BinaryExpression, BinaryOperator, CallExpression, Expression, LogicalExpression,
-        LogicalOperator, MemberExpression, ObjectExpression, ObjectProperty, Property, PropertyKey,
-        StringTemplate, UnaryExpression, UnaryOperator,
+        ArrayItem, BinaryExpression, BinaryOperator, CallExpression, Expression, ExpressionBody,
+        LogicalExpression, LogicalOperator, MemberExpression, ObjectExpression, ObjectProperty,
+        Property, PropertyKey, StringTemplate, UnaryExpression, UnaryOperator,
     },
 };
 
@@ -60,9 +60,9 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         &self,
         expression: &'y Expression<'x>,
     ) -> Result<Value<'s, 'v>, EvalError> {
-        match expression {
-            Expression::Array(vec) => self.eval_array(vec),
-            Expression::Binary(BinaryExpression {
+        match &expression.body {
+            ExpressionBody::Array(vec) => self.eval_array(vec),
+            ExpressionBody::Binary(BinaryExpression {
                 operator,
                 left,
                 right,
@@ -70,30 +70,30 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 self.eval_expr(right)
                     .and_then(|r| self.eval_binary(operator, &l, &r))
             }),
-            Expression::Identifier(id) => self.eval_identifier(id),
-            Expression::Literal(l) => self.eval_lit(l),
-            Expression::Logical(LogicalExpression {
+            ExpressionBody::Identifier(id) => self.eval_identifier(id),
+            ExpressionBody::Literal(l) => self.eval_lit(l),
+            ExpressionBody::Logical(LogicalExpression {
                 operator,
                 left,
                 right,
             }) => self.eval_logic(operator, left, right),
-            Expression::Member(MemberExpression {
+            ExpressionBody::Member(MemberExpression {
                 object, property, ..
             }) => self.eval_expr(object).and_then(move |obj| {
                 self.eval_expr(property)
                     .and_then(move |prop| self.eval_member(&obj, &prop))
             }),
-            Expression::Object(props) => self.eval_object(props),
-            Expression::Unary(UnaryExpression {
+            ExpressionBody::Object(props) => self.eval_object(props),
+            ExpressionBody::Unary(UnaryExpression {
                 operator, argument, ..
             }) => self
                 .eval_expr(argument)
                 .and_then(|v| self.eval_unary(operator, &v)),
-            Expression::Call(CallExpression { function, argument }) => {
+            ExpressionBody::Call(CallExpression { function, argument }) => {
                 self.eval_call(function, &self.eval_expr(argument)?)
             }
-            Expression::Template(template) => self.eval_template(template),
-            Expression::Abstraction(LambdaAbstraction { arguments, body }) => {
+            ExpressionBody::Template(template) => self.eval_template(template),
+            ExpressionBody::Abstraction(LambdaAbstraction { arguments, body }) => {
                 let Some(new_env) = self
                     .env
                     .extract_except(body.get_identifiers(), arguments.get_identifiers())
@@ -103,11 +103,11 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
 
                 Ok(Value::Lambda(new_env, arguments.clone(), *body.clone()))
             }
-            Expression::Application(app) => self.eval_application(app),
-            Expression::ArrayComp(comp) => self.eval_array_comprehension(comp),
-            Expression::ObjectComp(comp) => self.eval_object_comprehension(comp),
-            Expression::Match(matching) => self.eval_match(matching),
-            Expression::Condition(if_else) => self.eval_condition(if_else),
+            ExpressionBody::Application(app) => self.eval_application(app),
+            ExpressionBody::ArrayComp(comp) => self.eval_array_comprehension(comp),
+            ExpressionBody::ObjectComp(comp) => self.eval_object_comprehension(comp),
+            ExpressionBody::Match(matching) => self.eval_match(matching),
+            ExpressionBody::Condition(if_else) => self.eval_condition(if_else),
         }
     }
 
@@ -491,32 +491,41 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 _ => return Err(EvalError::TypeError),
             }),
             "env" => Value::Object(match argument {
-                Value::Lambda(env, _, _) => env.bindings.iter().map(|(k,v)| (Cow::Owned(k.to_string()),Cow::Owned(v.to_owned()))).collect(),
+                Value::Lambda(env, _, _) => env
+                    .bindings
+                    .iter()
+                    .map(|(k, v)| (Cow::Owned(k.to_string()), Cow::Owned(v.to_owned())))
+                    .collect(),
                 _ => return Err(EvalError::TypeError),
             }),
             "rebind" => match argument {
                 Value::Array(arr) => {
-                    let Some(x) = arr.get(0) else {
-                        return Err(EvalError::TypeError)
+                    let Some(x) = arr.first() else {
+                        return Err(EvalError::TypeError);
                     };
 
                     let Value::Lambda(env, pattern, expression) = x.clone().into_owned() else {
-                        return Err(EvalError::TypeError)
+                        return Err(EvalError::TypeError);
                     };
 
                     let Some(y) = arr.get(1) else {
-                        return Err(EvalError::TypeError)
+                        return Err(EvalError::TypeError);
                     };
 
                     let Value::Object(obj) = y.clone().into_owned() else {
-                        return Err(EvalError::TypeError)
+                        return Err(EvalError::TypeError);
                     };
 
                     let mut new_env = env.clone();
-                    new_env.replace(obj.into_iter().map(|(k,v)| (Identifier::new_owned(k.into_owned()),v.clone().into_owned())));
+                    new_env.replace(obj.into_iter().map(|(k, v)| {
+                        (
+                            Identifier::new_owned(k.into_owned()),
+                            v.clone().into_owned(),
+                        )
+                    }));
 
                     Value::Lambda(new_env, pattern.clone(), expression.clone())
-                },
+                }
                 _ => return Err(EvalError::TypeError),
             },
             "type" => Value::Type(argument.get_type()),
@@ -682,17 +691,16 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             let local_eval = Evaluation::new(&local_env);
 
             if let Some(guard) = &case.guard {
-                let guard_val = local_eval.eval_expr(&guard)?;
+                let guard_val = local_eval.eval_expr(guard)?;
 
                 let Value::Boolean(guard_bool) = guard_val else {
                     return Err(EvalError::TypeError);
                 };
 
                 if !guard_bool {
-                    continue
+                    continue;
                 }
             }
-
 
             return local_eval.eval_expr(&case.body);
         }
@@ -715,7 +723,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         } else if let Some(ref fb) = &if_else.false_branch {
             self.eval_expr(fb)
         } else {
-            return Ok(Value::Null)
+            return Ok(Value::Null);
         }
     }
 }
