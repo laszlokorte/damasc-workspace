@@ -33,8 +33,6 @@ fn test_join() {
 
     let all: Vec<_> = controller.query(&join).collect();
 
-    dbg!(all.first());
-
     assert_eq!(all.len(), 264);
 }
 
