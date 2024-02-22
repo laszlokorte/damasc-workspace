@@ -12,6 +12,7 @@ use damasc_lang::{
 #[derive(Debug)]
 pub enum CaptureError {
     PatternError,
+    EvalError
 }
 
 #[derive(Clone, Debug)]
@@ -30,7 +31,7 @@ impl<'s> Capture<'s> {
         match matcher.match_pattern(&self.pattern, value) {
             Ok(()) => Ok(Some(matcher.into_env())),
             Err(e) => match e {
-                PatternFail::EvalError => Err(CaptureError::PatternError),
+                PatternFail::EvalError(_e) => Err(CaptureError::EvalError),
                 _ => Ok(None),
             },
         }
@@ -58,7 +59,7 @@ impl<'s> MultiCapture<'s> {
         match result {
             Ok(final_env) => Ok(Some(final_env)),
             Err(e) => match e {
-                PatternFail::EvalError => Err(CaptureError::PatternError),
+                PatternFail::EvalError(_e) => Err(CaptureError::EvalError),
                 _ => Ok(None),
             },
         }

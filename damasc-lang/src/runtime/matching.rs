@@ -1,3 +1,4 @@
+use crate::runtime::evaluation::EvalError;
 use crate::syntax::pattern::PatternBody;
 use std::{
     borrow::Cow,
@@ -21,8 +22,8 @@ use super::{
     evaluation::Evaluation,
 };
 
-#[derive(Debug)]
-pub enum PatternFail {
+#[derive(Debug, Clone)]
+pub enum PatternFail<'s, 'v> {
     IdentifierConflict,
     ArrayMissmatch,
     ArrayLengthMismatch,
@@ -30,7 +31,7 @@ pub enum PatternFail {
     ObjectMissmatch,
     ObjectLengthMismatch,
     ObjectKeyMismatch,
-    EvalError,
+    EvalError(Box<EvalError<'s, 'v>>),
     LiteralMismatch,
     ExpressionMissmatch,
 }
@@ -52,7 +53,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         &'x mut self,
         pattern: &'x Pattern<'s>,
         value: &Value<'s, 'v>,
-    ) -> Result<(), PatternFail> {
+    ) -> Result<(), PatternFail<'s, 'v>> {
         match &pattern.body {
             PatternBody::Discard => Ok(()),
             PatternBody::Capture(name, pat) => self
@@ -88,8 +89,9 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
             PatternBody::PinnedExpression(expr) => {
                 let eval = Evaluation::new(self.outer_env);
 
-                let Ok(val) = eval.eval_expr(expr) else {
-                    return Err(PatternFail::EvalError);
+                let val = match eval.eval_expr(expr) {
+                    Err(e) => return Err(PatternFail::EvalError(Box::new(e))),
+                    Ok(val) => val
                 };
 
                 if &val == value {
@@ -118,7 +120,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         &'x mut self,
         name: &'x Identifier<'x>,
         value: &Value<'s, 'v>,
-    ) -> Result<(), PatternFail> {
+    ) -> Result<(), PatternFail<'s, 'v>> {
         let id = Identifier {
             name: Cow::Owned(name.name.to_string()),
         };
@@ -143,7 +145,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         props: &'x [ObjectPropertyPattern<'s>],
         rest: &Rest<'s>,
         value: &ValueObjectMap<'s, 'v>,
-    ) -> Result<(), PatternFail> {
+    ) -> Result<(), PatternFail<'s, 'v>> {
         if let Rest::Exact = rest {
             if value.len() != props.len() {
                 return Err(PatternFail::ObjectLengthMismatch);
@@ -166,10 +168,12 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                     value,
                 }) => {
                     let evaluation = Evaluation::new(self.outer_env);
-                    let Ok(Value::String(k)) = evaluation.eval_expr(exp) else {
-                        return Err(PatternFail::EvalError);
-                    };
-                    (k.clone(), value.clone())
+                    match evaluation.eval_expr(exp) {
+                        Ok(Value::String(k)) => (k.clone(), value.clone()),
+                        Ok(_) => return Err(PatternFail::TypeMismatch),
+                        Err(e) => return Err(PatternFail::EvalError(Box::new(e))),
+                    }
+                    
                 }
             };
 
@@ -200,7 +204,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         items: &[ArrayPatternItem<'s>],
         rest: &Rest<'s>,
         value: &[Cow<'v, Value<'s, 'v>>],
-    ) -> Result<(), PatternFail> {
+    ) -> Result<(), PatternFail<'s, 'v>> {
         if let Rest::Exact = rest {
             if value.len() != items.len() {
                 return Err(PatternFail::ArrayLengthMismatch);
@@ -229,7 +233,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         self.local_env.bindings.clear();
     }
 
-    fn match_literal(&self, literal: &Literal, value: &Value) -> Result<(), PatternFail> {
+    fn match_literal(&self, literal: &Literal, value: &Value) -> Result<(), PatternFail<'s, 'v>> {
         let matches = match (literal, value) {
             (Literal::Null, Value::Null) => true,
             (Literal::String(a), Value::String(b)) => a == b,

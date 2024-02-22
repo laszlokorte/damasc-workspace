@@ -1,3 +1,4 @@
+use crate::runtime::matching::PatternFail;
 use crate::syntax::expression::IfElseExpression;
 use crate::syntax::expression::MatchExpression;
 use crate::value::ValueArray;
@@ -26,17 +27,20 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub enum EvalError {
-    KindError,
-    TypeError,
+pub enum EvalError<'s, 'v> {
+    KindError(Value<'s, 'v>),
+    TypeError(ValueType, Value<'s, 'v>),
+    CollectionTypeError(Value<'s, 'v>),
+    CastError(ValueType, Value<'s, 'v>),
     UnknownIdentifier,
     InvalidNumber,
     MathDivision,
-    KeyNotDefined,
+    KeyNotDefined(Value<'s, 'v>, Value<'s, 'v>),
     OutOfBound,
     Overflow,
     UnknownFunction,
-    PatternError,
+    PatternError(Box<PatternFail<'s, 'v>>),
+    PatternExhaustionError,
 }
 
 pub struct Evaluation<'e, 'i, 's, 'v> {
@@ -59,7 +63,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
     pub fn eval_expr<'x: 's, 'y>(
         &self,
         expression: &'y Expression<'x>,
-    ) -> Result<Value<'s, 'v>, EvalError> {
+    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
         match &expression.body {
             ExpressionBody::Array(vec) => self.eval_array(vec),
             ExpressionBody::Binary(BinaryExpression {
@@ -111,7 +115,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         }
     }
 
-    fn eval_lit<'x>(&self, literal: &'x Literal<'x>) -> Result<Value<'s, 'v>, EvalError> {
+    fn eval_lit<'x>(&self, literal: &'x Literal<'x>) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
         match literal {
             Literal::Null => Ok(Value::Null),
             Literal::String(s) => Ok(Value::<'s, 'v>::String(Cow::Owned(s.to_string()))),
@@ -129,52 +133,52 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         op: &BinaryOperator,
         left: &Value<'s, 'v>,
         right: &Value<'s, 'v>,
-    ) -> Result<Value<'s, 'v>, EvalError> {
+    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
         match op {
             BinaryOperator::StrictEqual => Ok(Value::Boolean(left == right)),
             BinaryOperator::StrictNotEqual => Ok(Value::Boolean(left != right)),
             BinaryOperator::LessThan => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, left.clone()));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
                 };
                 Ok(Value::Boolean(l < r))
             }
             BinaryOperator::GreaterThan => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, left.clone()));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
                 };
                 Ok(Value::Boolean(l > r))
             }
             BinaryOperator::LessThanEqual => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, left.clone()));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
                 };
                 Ok(Value::Boolean(l <= r))
             }
             BinaryOperator::GreaterThanEqual => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, left.clone()));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
                 };
                 Ok(Value::Boolean(l >= r))
             }
             BinaryOperator::Plus => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, left.clone()));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
                 };
                 l.checked_add(*r)
                     .map(Value::Integer)
@@ -183,10 +187,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
             BinaryOperator::Minus => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, left.clone()));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
                 };
                 l.checked_sub(*r)
                     .map(Value::Integer)
@@ -195,10 +199,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
             BinaryOperator::Times => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, left.clone()));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
                 };
                 l.checked_mul(*r)
                     .map(Value::Integer)
@@ -207,10 +211,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
             BinaryOperator::Over => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, left.clone()));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
                 };
                 if *r == 0 {
                     return Err(EvalError::MathDivision);
@@ -222,10 +226,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
             BinaryOperator::Mod => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, left.clone()));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
                 };
                 l.checked_rem(*r)
                     .map(Value::Integer)
@@ -234,19 +238,19 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
             BinaryOperator::In => {
                 let Value::String(s) = left else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::String, left.clone()));
                 };
                 let Value::Object(o) = right else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Object, right.clone()));
                 };
                 Ok(Value::Boolean(o.contains_key(s)))
             }
             BinaryOperator::PowerOf => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, left.clone()));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
                 };
                 l.checked_pow(*r as u32)
                     .map(Value::Integer)
@@ -255,7 +259,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
             BinaryOperator::Is => {
                 let Value::Type(specified_type) = right else {
-                    return Err(EvalError::KindError);
+                    return Err(EvalError::KindError(right.clone()));
                 };
                 let actual_type = left.get_type();
 
@@ -263,11 +267,11 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
             BinaryOperator::Cast => {
                 let Value::Type(specified_type) = right else {
-                    return Err(EvalError::KindError);
+                    return Err(EvalError::KindError(right.clone()));
                 };
 
                 let Some(v) = left.convert(*specified_type) else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::CastError(*specified_type, left.clone()));
                 };
 
                 Ok(v)
@@ -275,23 +279,23 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         }
     }
 
-    fn eval_unary(&self, op: &UnaryOperator, arg: &Value) -> Result<Value<'s, 'v>, EvalError> {
+    fn eval_unary(&self, op: &UnaryOperator, arg: &Value<'s, 'v>) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
         match op {
             UnaryOperator::Minus => {
                 let Value::Integer(v) = arg else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, arg.clone()));
                 };
                 Ok(Value::Integer(-v))
             }
             UnaryOperator::Plus => {
                 let Value::Integer(v) = arg else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, arg.clone()));
                 };
                 Ok(Value::Integer(*v))
             }
             UnaryOperator::Not => {
                 let Value::Boolean(b) = arg else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Boolean, arg.clone()));
                 };
                 Ok(Value::Boolean(!b))
             }
@@ -301,7 +305,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
     fn eval_object<'x: 's, 'y>(
         &self,
         props: &'y ObjectExpression<'x>,
-    ) -> Result<Value<'s, 'v>, EvalError> {
+    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
         let target = BTreeMap::new();
 
         self.eval_into_object(target, props).map(Value::Object)
@@ -311,7 +315,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         &self,
         mut into: ValueObjectMap<'s, 'v>,
         props: &'y ObjectExpression<'x>,
-    ) -> Result<ValueObjectMap<'s, 'v>, EvalError> {
+    ) -> Result<ValueObjectMap<'s, 'v>, EvalError<'s, 'v>> {
         for prop in props {
             match prop {
                 ObjectProperty::Single(id @ Identifier { name }) => {
@@ -331,7 +335,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                         PropertyKey::Expression(e) => {
                             let val = self.eval_expr(e)?;
                             let Value::String(s) = val else {
-                                return Err(EvalError::TypeError);
+                                return Err(EvalError::TypeError(ValueType::String, val.clone()));
                             };
                             s
                         }
@@ -342,7 +346,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 ObjectProperty::Spread(expr) => {
                     let to_spread = self.eval_expr(expr)?;
                     let Value::Object(map) = to_spread else {
-                        return Err(EvalError::TypeError);
+                        return Err(EvalError::TypeError(ValueType::Object, to_spread.clone()));
                     };
                     for (k, v) in map {
                         into.insert(k, v);
@@ -354,7 +358,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         Ok(into)
     }
 
-    fn eval_array<'x: 's, 'y>(&self, vec: &'y [ArrayItem<'x>]) -> Result<Value<'s, 'v>, EvalError> {
+    fn eval_array<'x: 's, 'y>(&self, vec: &'y [ArrayItem<'x>]) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
         let result = vec![];
 
         self.eval_into_array(result, vec).map(Value::Array)
@@ -364,7 +368,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         &self,
         mut target: Vec<Cow<'v, Value<'s, 'v>>>,
         vec: &'y [ArrayItem<'x>],
-    ) -> Result<ValueArray<'s, 'v>, EvalError> {
+    ) -> Result<ValueArray<'s, 'v>, EvalError<'s, 'v>> {
         for item in vec {
             match item {
                 ArrayItem::Single(exp) => {
@@ -375,7 +379,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 ArrayItem::Spread(exp) => {
                     let v = self.eval_expr(exp)?;
                     let Value::Array(mut multiples) = v else {
-                        return Err(EvalError::TypeError);
+                        return Err(EvalError::TypeError(ValueType::Array, v.clone()));
                     };
 
                     target.append(&mut multiples);
@@ -391,17 +395,17 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         operator: &LogicalOperator,
         left: &'y Expression<'x>,
         right: &'y Expression<'x>,
-    ) -> Result<Value<'s, 'v>, EvalError> {
+    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
         let left_value = self.eval_expr(left)?;
         let Value::Boolean(left_bool) = left_value else {
-            return Err(EvalError::TypeError);
+            return Err(EvalError::TypeError(ValueType::Boolean, left_value.clone()));
         };
         if operator.short_circuit_on(left_bool) {
             return Ok(Value::Boolean(left_bool));
         }
         let right_value = self.eval_expr(right)?;
         let Value::Boolean(right_bool) = right_value else {
-            return Err(EvalError::TypeError);
+            return Err(EvalError::TypeError(ValueType::Boolean, right_value.clone()));
         };
         return Ok(Value::Boolean(right_bool));
     }
@@ -410,22 +414,22 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         &self,
         obj: &Value<'s, 'x>,
         prop: &Value<'s, 'x>,
-    ) -> Result<Value<'s, 'x>, EvalError> {
+    ) -> Result<Value<'s, 'x>, EvalError<'s, 'x>> {
         match obj {
             Value::Object(o) => {
                 let Value::String(p) = prop else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::String, prop.clone()));
                 };
 
                 let Some(val) = o.get(p).map(|v| v.clone().into_owned()) else {
-                    return Err(EvalError::KeyNotDefined);
+                    return Err(EvalError::KeyNotDefined(obj.clone(), prop.clone()));
                 };
 
                 Ok(val)
             }
             Value::Array(a) => {
                 let Value::Integer(i) = prop else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, prop.clone()));
                 };
                 let index = if *i < 0 {
                     a.len() - i.unsigned_abs() as usize
@@ -441,7 +445,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
             Value::String(s) => {
                 let Value::Integer(i) = prop else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Integer, prop.clone()));
                 };
                 let index = if *i < 0 {
                     s.len() - i.unsigned_abs() as usize
@@ -455,11 +459,12 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
 
                 Ok(Value::String(Cow::Owned(val)))
             }
-            _ => Err(EvalError::TypeError),
+            // TODO: be more specific
+            _ => Err(EvalError::CollectionTypeError(obj.clone())),
         }
     }
 
-    fn eval_identifier(&self, id: &Identifier) -> Result<Value<'s, 'v>, EvalError> {
+    fn eval_identifier(&self, id: &Identifier) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
         let Some(val) = self.env.bindings.get(id) else {
             return Err(EvalError::UnknownIdentifier);
         };
@@ -471,24 +476,24 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         &self,
         function: &Identifier,
         argument: &Value<'s, 'v>,
-    ) -> Result<Value<'s, 'v>, EvalError> {
+    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
         Ok(match function.name.as_ref() {
             "length" => Value::Integer(match argument {
                 Value::String(s) => s.len() as i64,
                 Value::Array(a) => a.len() as i64,
                 Value::Object(o) => o.len() as i64,
-                _ => return Err(EvalError::TypeError),
+                _ => return Err(EvalError::CollectionTypeError(argument.clone())),
             }),
             "keys" => Value::Array(match argument {
                 Value::Object(o) => o
                     .keys()
                     .map(|k| Cow::Owned(Value::String(Cow::Owned(k.to_string()))))
                     .collect(),
-                _ => return Err(EvalError::TypeError),
+                _ => return Err(EvalError::TypeError(ValueType::Object, argument.clone())),
             }),
             "values" => Value::Array(match argument {
                 Value::Object(o) => o.values().cloned().collect(),
-                _ => return Err(EvalError::TypeError),
+                _ => return Err(EvalError::TypeError(ValueType::Object, argument.clone())),
             }),
             "env" => Value::Object(match argument {
                 Value::Lambda(env, _, _) => env
@@ -496,24 +501,24 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                     .iter()
                     .map(|(k, v)| (Cow::Owned(k.to_string()), Cow::Owned(v.to_owned())))
                     .collect(),
-                _ => return Err(EvalError::TypeError),
+                _ => return Err(EvalError::TypeError(ValueType::Lambda, argument.clone())),
             }),
             "rebind" => match argument {
                 Value::Array(arr) => {
                     let Some(x) = arr.first() else {
-                        return Err(EvalError::TypeError);
+                        return Err(EvalError::OutOfBound);
                     };
 
                     let Value::Lambda(env, pattern, expression) = x.clone().into_owned() else {
-                        return Err(EvalError::TypeError);
+                        return Err(EvalError::TypeError(ValueType::Lambda, x.clone().into_owned()));
                     };
 
                     let Some(y) = arr.get(1) else {
-                        return Err(EvalError::TypeError);
+                        return Err(EvalError::OutOfBound);
                     };
 
                     let Value::Object(obj) = y.clone().into_owned() else {
-                        return Err(EvalError::TypeError);
+                        return Err(EvalError::TypeError(ValueType::Object, y.clone().into_owned()));
                     };
 
                     let mut new_env = env.clone();
@@ -526,7 +531,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
 
                     Value::Lambda(new_env, pattern.clone(), expression.clone())
                 }
-                _ => return Err(EvalError::TypeError),
+                _ => return Err(EvalError::TypeError(ValueType::Array, argument.clone())),
             },
             "type" => Value::Type(argument.get_type()),
             _ => return Err(EvalError::UnknownFunction),
@@ -536,19 +541,19 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
     fn eval_template<'x: 's, 'y>(
         &self,
         template: &'y StringTemplate<'x>,
-    ) -> Result<Value<'s, 'v>, EvalError> {
+    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
         let joined = template
             .parts
             .iter()
             .flat_map(move |part| {
                 let prefix = Ok(Cow::Owned(part.fixed_start.as_ref().into()));
+                let end_val = self.eval_expr(&part.dynamic_end);
 
-                match self
-                    .eval_expr(&part.dynamic_end)
+                match end_val.clone()
                     .map(|v| v.convert(ValueType::String))
                 {
                     Ok(Some(Value::String(end))) => [prefix, Ok(end)],
-                    Ok(_) => [prefix, Err(EvalError::TypeError)],
+                    Ok(_) => [prefix, end_val.and_then(|v| Err(EvalError::TypeError(ValueType::String, v.clone())))],
                     Err(e) => [prefix, Err(e)],
                 }
             })
@@ -561,17 +566,17 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
     fn eval_application<'x: 's>(
         &self,
         app: &LambdaApplication<'x>,
-    ) -> Result<Value<'s, 'v>, EvalError> {
+    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
         let lambda = self.eval_expr(&app.lambda)?;
         let param = self.eval_expr(&app.parameter)?;
 
         let Value::Lambda(env, pattern, lambda_body) = lambda else {
-            return Err(EvalError::TypeError);
+            return Err(EvalError::TypeError(ValueType::Lambda, lambda.clone()));
         };
 
         let mut matcher = Matcher::new(&env);
-        if let Err(_e) = matcher.match_pattern(&pattern, &param) {
-            return Err(EvalError::PatternError);
+        if let Err(e) = matcher.match_pattern(&pattern, &param) {
+            return Err(EvalError::PatternError(Box::new(e)));
         };
 
         let local_env = matcher.into_env();
@@ -583,8 +588,8 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
     fn eval_array_comprehension<'x: 's>(
         &self,
         comp: &ArrayComprehension<'x>,
-    ) -> Result<Value<'s, 'v>, EvalError> {
-        let mut envs: Box<dyn Iterator<Item = Result<Environment, EvalError>>> =
+    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
+        let mut envs: Box<dyn Iterator<Item = Result<Environment, EvalError<'s, 'v>>>> =
             comp.sources.iter().fold(
                 Box::new(Some(Ok(self.env.clone())).into_iter()),
                 |current_envs, source| {
@@ -608,19 +613,19 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
     fn eval_comprehension_source<'x: 's>(
         &self,
         source: &ComprehensionSource<'x>,
-    ) -> Result<impl Iterator<Item = Environment<'i, 's, 'v>>, EvalError> {
+    ) -> Result<impl Iterator<Item = Environment<'i, 's, 'v>>, EvalError<'s, 'v>> {
         let expression_value: Value<'_, '_> = self.eval_expr(&source.collection)?;
         let Value::Array(vals) = expression_value else {
-            return Err(EvalError::TypeError);
+            return Err(EvalError::TypeError(ValueType::Array, expression_value.clone()));
         };
 
         let mut results = vec![];
 
         for val in vals {
             let mut matcher = Matcher::new(self.env);
-            if let Err(_e) = matcher.match_pattern(&source.pattern, &val) {
+            if let Err(e) = matcher.match_pattern(&source.pattern, &val) {
                 if source.strong_pattern {
-                    return Err(EvalError::PatternError);
+                    return Err(EvalError::PatternError(Box::new(e)));
                 } else {
                     continue;
                 }
@@ -633,7 +638,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 let pred_result = local_eval.eval_expr(p)?;
 
                 let Value::Boolean(pred_result_bool) = pred_result else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Boolean, pred_result.clone()));
                 };
 
                 if !pred_result_bool {
@@ -650,8 +655,8 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
     fn eval_object_comprehension<'x: 's>(
         &self,
         comp: &ObjectComprehension<'x>,
-    ) -> Result<Value<'s, 'v>, EvalError> {
-        let mut envs: Box<dyn Iterator<Item = Result<Environment, EvalError>>> =
+    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
+        let mut envs: Box<dyn Iterator<Item = Result<Environment, EvalError<'s, 'v>>>> =
             comp.sources.iter().fold(
                 Box::new(Some(Ok(self.env.clone())).into_iter()),
                 |current_envs, source| {
@@ -675,7 +680,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
     fn eval_match<'x: 's>(
         &self,
         match_expr: &MatchExpression<'x>,
-    ) -> Result<Value<'s, 'v>, EvalError> {
+    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
         let subject_value = self.eval_expr(&match_expr.subject)?;
 
         for case in &match_expr.cases {
@@ -694,7 +699,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 let guard_val = local_eval.eval_expr(guard)?;
 
                 let Value::Boolean(guard_bool) = guard_val else {
-                    return Err(EvalError::TypeError);
+                    return Err(EvalError::TypeError(ValueType::Boolean, guard_val.clone()));
                 };
 
                 if !guard_bool {
@@ -705,17 +710,17 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             return local_eval.eval_expr(&case.body);
         }
 
-        Err(EvalError::PatternError)
+        Err(EvalError::PatternExhaustionError)
     }
 
     fn eval_condition<'x: 's>(
         &self,
         if_else: &IfElseExpression<'x>,
-    ) -> Result<Value<'s, 'v>, EvalError> {
+    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
         let condition_value = self.eval_expr(&if_else.condition)?;
 
         let Value::Boolean(condition_bool) = condition_value else {
-            return Err(EvalError::TypeError);
+            return Err(EvalError::TypeError(ValueType::Boolean, condition_value.clone()));
         };
 
         if condition_bool {
