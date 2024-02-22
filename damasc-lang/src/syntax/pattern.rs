@@ -36,7 +36,6 @@ impl Ord for Pattern<'_> {
     }
 }
 
-
 impl<'s> Pattern<'s> {
     pub fn new(body: PatternBody<'s>) -> Pattern<'s> {
         Self {

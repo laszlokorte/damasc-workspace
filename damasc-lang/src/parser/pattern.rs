@@ -1,5 +1,5 @@
-use crate::parser::located::located_pattern;
 use crate::parser::expression::expression_identifier;
+use crate::parser::located::located_pattern;
 use crate::syntax::pattern::PatternBody;
 use nom::{
     branch::alt,
@@ -106,24 +106,22 @@ fn pattern_object<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Pattern<'v>, E> {
     context(
         "pattern_object",
-        located_pattern(
-            delimited(
-                ws(tag("{")),
-                alt((
-                    map(pattern_rest, |r| PatternBody::Object(vec![], r)),
-                    map(
-                        tuple((
-                            separated_list0(ws(ws(tag(","))), pattern_object_prop),
-                            opt(preceded(ws(tag(",")), opt(pattern_rest))),
-                        )),
-                        |(props, rest)| {
-                            PatternBody::Object(props, rest.flatten().unwrap_or(Rest::Exact))
-                        },
-                    ),
-                )),
-                ws(tag("}")),
-            )
-        ),
+        located_pattern(delimited(
+            ws(tag("{")),
+            alt((
+                map(pattern_rest, |r| PatternBody::Object(vec![], r)),
+                map(
+                    tuple((
+                        separated_list0(ws(ws(tag(","))), pattern_object_prop),
+                        opt(preceded(ws(tag(",")), opt(pattern_rest))),
+                    )),
+                    |(props, rest)| {
+                        PatternBody::Object(props, rest.flatten().unwrap_or(Rest::Exact))
+                    },
+                ),
+            )),
+            ws(tag("}")),
+        )),
     )(input)
 }
 
@@ -144,24 +142,22 @@ fn pattern_array<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Pattern<'v>, E> {
     context(
         "pattern_array",
-        located_pattern(
-            delimited(
-                ws(tag("[")),
-                alt((
-                    map(pattern_rest, |r| PatternBody::Array(vec![], r)),
-                    map(
-                        tuple((
-                            separated_list0(ws(tag(",")), map(pattern, ArrayPatternItem::Pattern)),
-                            opt(preceded(ws(tag(",")), opt(pattern_rest))),
-                        )),
-                        |(items, rest)| {
-                            PatternBody::Array(items, rest.flatten().unwrap_or(Rest::Exact))
-                        },
-                    ),
-                )),
-                ws(tag("]")),
-            )
-        ),
+        located_pattern(delimited(
+            ws(tag("[")),
+            alt((
+                map(pattern_rest, |r| PatternBody::Array(vec![], r)),
+                map(
+                    tuple((
+                        separated_list0(ws(tag(",")), map(pattern, ArrayPatternItem::Pattern)),
+                        opt(preceded(ws(tag(",")), opt(pattern_rest))),
+                    )),
+                    |(items, rest)| {
+                        PatternBody::Array(items, rest.flatten().unwrap_or(Rest::Exact))
+                    },
+                ),
+            )),
+            ws(tag("]")),
+        )),
     )(input)
 }
 

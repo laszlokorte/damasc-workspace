@@ -37,7 +37,6 @@ impl Ord for Expression<'_> {
     }
 }
 
-
 impl<'s> Expression<'s> {
     pub fn new(body: ExpressionBody<'s>) -> Expression<'s> {
         Self {
@@ -53,10 +52,13 @@ impl<'s> Expression<'s> {
         }
     }
 
-    pub fn new_with_optional_location(body: ExpressionBody<'s>, location: Option<Location>) -> Expression<'s> {
+    pub fn new_with_optional_location(
+        body: ExpressionBody<'s>,
+        location: Option<Location>,
+    ) -> Expression<'s> {
         Self {
             body,
-            location: location,
+            location,
         }
     }
 }

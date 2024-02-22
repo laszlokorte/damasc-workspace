@@ -1,18 +1,15 @@
-use crate::syntax::pattern::PatternBody;
-use crate::syntax::pattern::Pattern;
+use crate::parser::io::ParserError;
+use crate::parser::io::ParserInput;
+use crate::syntax::expression::Expression;
 use crate::syntax::expression::ExpressionBody;
+use crate::syntax::location::Location;
+use crate::syntax::pattern::Pattern;
+use crate::syntax::pattern::PatternBody;
 use nom::combinator::map;
 use nom::sequence::tuple;
-use crate::syntax::expression::Expression;
-use crate::parser::io::ParserInput;
-use crate::parser::io::ParserError;
-use crate::syntax::location::Location;
-
 
 use nom::IResult;
 use nom_locate::position;
-
-
 
 pub fn located_expression<'s, 'v, F, E: ParserError<'s>>(
     expression_body: F,
@@ -30,7 +27,6 @@ where
         },
     )
 }
-
 
 pub fn located_pattern<'s, 'v, F, E: ParserError<'s>>(
     pattern_body: F,

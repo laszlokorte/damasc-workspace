@@ -1,6 +1,3 @@
-use nom_locate::LocatedSpan;
-use nom_locate::position;
-use crate::syntax::location::Location;
 use crate::parser::located::located_expression;
 use crate::parser::pattern::pattern;
 use crate::syntax::expression::ArrayComprehension;
@@ -11,9 +8,12 @@ use crate::syntax::expression::LambdaApplication;
 use crate::syntax::expression::MatchCase;
 use crate::syntax::expression::MatchExpression;
 use crate::syntax::expression::ObjectComprehension;
+use crate::syntax::location::Location;
 use crate::syntax::pattern::Pattern;
 use crate::syntax::pattern::PatternBody;
 use nom::multi::many1;
+use nom_locate::position;
+use nom_locate::LocatedSpan;
 use std::borrow::Cow;
 
 use nom::{
@@ -131,21 +131,20 @@ fn expression_array<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression_array",
-        located_expression(
-            delimited(
-                ws(tag("[")),
-                map(
-                    opt(terminated(
-                        map(
-                            separated_list1(ws(tag(",")), expression_array_item),
-                            ExpressionBody::Array,
-                        ),
-                        opt(ws(tag(","))),
-                    )),
-                    |v| v.unwrap_or_else(|| ExpressionBody::Array(vec![])),
-                ),
-                ws(tag("]")),
-            )),
+        located_expression(delimited(
+            ws(tag("[")),
+            map(
+                opt(terminated(
+                    map(
+                        separated_list1(ws(tag(",")), expression_array_item),
+                        ExpressionBody::Array,
+                    ),
+                    opt(ws(tag(","))),
+                )),
+                |v| v.unwrap_or_else(|| ExpressionBody::Array(vec![])),
+            ),
+            ws(tag("]")),
+        )),
     )(input)
 }
 
@@ -224,21 +223,20 @@ fn expression_object<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression_object",
-        located_expression(
-            delimited(
-                ws(tag("{")),
-                map(
-                    opt(terminated(
-                        map(
-                            separated_list1(ws(tag(",")), expression_object_property),
-                            ExpressionBody::Object,
-                        ),
-                        opt(ws(tag(","))),
-                    )),
-                    |v| v.unwrap_or_else(|| ExpressionBody::Object(vec![])),
-                ),
-                ws(tag("}")),
-            )),
+        located_expression(delimited(
+            ws(tag("{")),
+            map(
+                opt(terminated(
+                    map(
+                        separated_list1(ws(tag(",")), expression_object_property),
+                        ExpressionBody::Object,
+                    ),
+                    opt(ws(tag(","))),
+                )),
+                |v| v.unwrap_or_else(|| ExpressionBody::Object(vec![])),
+            ),
+            ws(tag("}")),
+        )),
     )(input)
 }
 
@@ -535,13 +533,18 @@ fn expression_logic_additive<'v, 's, E: ParserError<'s>>(
         ),
         move || init.clone(),
         |left, (operator, right)| {
-            let outer_location = left.location.and_then(|l| right.location.map(|r| Location::new(l.start, r.end)));
+            let outer_location = left
+                .location
+                .and_then(|l| right.location.map(|r| Location::new(l.start, r.end)));
 
-            Expression::new_with_optional_location(ExpressionBody::Logical(LogicalExpression {
-                operator,
-                left: Box::new(left),
-                right: Box::new(right),
-            }), outer_location)
+            Expression::new_with_optional_location(
+                ExpressionBody::Logical(LogicalExpression {
+                    operator,
+                    left: Box::new(left),
+                    right: Box::new(right),
+                }),
+                outer_location,
+            )
         },
     )(input)
 }
@@ -573,13 +576,18 @@ fn expression_logic_multiplicative<'v, 's, E: ParserError<'s>>(
         ),
         move || init.clone(),
         |left, (operator, right)| {
-            let outer_location = left.location.and_then(|l| right.location.map(|r| Location::new(l.start, r.end)));
+            let outer_location = left
+                .location
+                .and_then(|l| right.location.map(|r| Location::new(l.start, r.end)));
 
-            Expression::new_with_optional_location(ExpressionBody::Logical(LogicalExpression {
-                operator,
-                left: Box::new(left),
-                right: Box::new(right),
-            }), outer_location)
+            Expression::new_with_optional_location(
+                ExpressionBody::Logical(LogicalExpression {
+                    operator,
+                    left: Box::new(left),
+                    right: Box::new(right),
+                }),
+                outer_location,
+            )
         },
     )(input)
 }
@@ -605,15 +613,20 @@ fn expression_type_predicate<'v, 's, E: ParserError<'s>>(
         return Ok((input, init));
     };
 
-    let outer_location = init.location.and_then(|l| t.location.map(|r| Location::new(l.start, r.end)));
+    let outer_location = init
+        .location
+        .and_then(|l| t.location.map(|r| Location::new(l.start, r.end)));
 
     Ok((
         input,
-        Expression::new_with_optional_location(ExpressionBody::Binary(BinaryExpression {
-            operator: op,
-            left: Box::new(init),
-            right: Box::new(t),
-        }), outer_location),
+        Expression::new_with_optional_location(
+            ExpressionBody::Binary(BinaryExpression {
+                operator: op,
+                left: Box::new(init),
+                right: Box::new(t),
+            }),
+            outer_location,
+        ),
     ))
 }
 
@@ -641,13 +654,18 @@ fn expression_type_additive<'v, 's, E: ParserError<'s>>(
         ),
         move || init.clone(),
         |left, (operator, right)| {
-            let outer_location = left.location.and_then(|l| right.location.map(|r| Location::new(l.start, r.end)));
+            let outer_location = left
+                .location
+                .and_then(|l| right.location.map(|r| Location::new(l.start, r.end)));
 
-            Expression::new_with_optional_location(ExpressionBody::Binary(BinaryExpression {
-                operator,
-                left: Box::new(left),
-                right: Box::new(right),
-            }), outer_location)
+            Expression::new_with_optional_location(
+                ExpressionBody::Binary(BinaryExpression {
+                    operator,
+                    left: Box::new(left),
+                    right: Box::new(right),
+                }),
+                outer_location,
+            )
         },
     )(input)
 }
@@ -687,13 +705,18 @@ fn expression_numeric_predicative<'v, 's, E: ParserError<'s>>(
         ),
         move || init.clone(),
         |left, (operator, right)| {
-            let outer_location = left.location.and_then(|l| right.location.map(|r| Location::new(l.start, r.end)));
+            let outer_location = left
+                .location
+                .and_then(|l| right.location.map(|r| Location::new(l.start, r.end)));
 
-            Expression::new_with_optional_location(ExpressionBody::Binary(BinaryExpression {
-                operator,
-                left: Box::new(left),
-                right: Box::new(right),
-            }), outer_location)
+            Expression::new_with_optional_location(
+                ExpressionBody::Binary(BinaryExpression {
+                    operator,
+                    left: Box::new(left),
+                    right: Box::new(right),
+                }),
+                outer_location,
+            )
         },
     )(input)
 }
@@ -728,13 +751,18 @@ fn expression_numeric_additive<'v, 's, E: ParserError<'s>>(
         ),
         move || init.clone(),
         |left, (operator, right)| {
-            let outer_location = left.location.and_then(|l| right.location.map(|r| Location::new(l.start, r.end)));
+            let outer_location = left
+                .location
+                .and_then(|l| right.location.map(|r| Location::new(l.start, r.end)));
 
-            Expression::new_with_optional_location(ExpressionBody::Binary(BinaryExpression {
-                operator,
-                left: Box::new(left),
-                right: Box::new(right),
-            }), outer_location)
+            Expression::new_with_optional_location(
+                ExpressionBody::Binary(BinaryExpression {
+                    operator,
+                    left: Box::new(left),
+                    right: Box::new(right),
+                }),
+                outer_location,
+            )
         },
     )(input)
 }
@@ -770,13 +798,18 @@ fn expression_numeric_multiplicative<'v, 's, E: ParserError<'s>>(
         ),
         move || init.clone(),
         |left, (operator, right)| {
-            let outer_location = left.location.and_then(|l| right.location.map(|r| Location::new(l.start, r.end)));
+            let outer_location = left
+                .location
+                .and_then(|l| right.location.map(|r| Location::new(l.start, r.end)));
 
-            Expression::new_with_optional_location(ExpressionBody::Binary(BinaryExpression {
-                operator,
-                left: Box::new(left),
-                right: Box::new(right),
-            }), outer_location)
+            Expression::new_with_optional_location(
+                ExpressionBody::Binary(BinaryExpression {
+                    operator,
+                    left: Box::new(left),
+                    right: Box::new(right),
+                }),
+                outer_location,
+            )
         },
     )(input)
 }
@@ -802,13 +835,18 @@ fn expression_numeric_exponential<'v, 's, E: ParserError<'s>>(
         ),
         move || init.clone(),
         |left, (operator, right)| {
-            let outer_location = left.location.and_then(|l| right.location.map(|r| Location::new(l.start, r.end)));
+            let outer_location = left
+                .location
+                .and_then(|l| right.location.map(|r| Location::new(l.start, r.end)));
 
-            Expression::new_with_optional_location(ExpressionBody::Binary(BinaryExpression {
-                operator,
-                left: Box::new(left),
-                right: Box::new(right),
-            }), outer_location)
+            Expression::new_with_optional_location(
+                ExpressionBody::Binary(BinaryExpression {
+                    operator,
+                    left: Box::new(left),
+                    right: Box::new(right),
+                }),
+                outer_location,
+            )
         },
     )(input)
 }
@@ -840,21 +878,28 @@ fn expression_indexed<'v, 's, E: ParserError<'s>>(
         )),
         move || init.clone(),
         |acc, ident| {
-            let right = match ident { LambdaOrIndex::Lamba(ref e) => e, LambdaOrIndex::Index(ref e) => e };
+            let right = match ident {
+                LambdaOrIndex::Lamba(ref e) => e,
+                LambdaOrIndex::Index(ref e) => e,
+            };
 
-            let outer_location = acc.location.and_then(|l| right.location.map(|r| Location::new(l.start, r.end)));
+            let outer_location = acc
+                .location
+                .and_then(|l| right.location.map(|r| Location::new(l.start, r.end)));
 
-
-            Expression::new_with_optional_location(match ident {
-                LambdaOrIndex::Lamba(param) => ExpressionBody::Application(LambdaApplication {
-                    lambda: Box::new(acc),
-                    parameter: Box::new(param),
-                }),
-                LambdaOrIndex::Index(expr) => ExpressionBody::Member(MemberExpression {
-                    object: Box::new(acc),
-                    property: Box::new(expr),
-                }),
-            }, outer_location)
+            Expression::new_with_optional_location(
+                match ident {
+                    LambdaOrIndex::Lamba(param) => ExpressionBody::Application(LambdaApplication {
+                        lambda: Box::new(acc),
+                        parameter: Box::new(param),
+                    }),
+                    LambdaOrIndex::Index(expr) => ExpressionBody::Member(MemberExpression {
+                        object: Box::new(acc),
+                        property: Box::new(expr),
+                    }),
+                },
+                outer_location,
+            )
         },
     )(input)
 }
@@ -872,7 +917,13 @@ fn expression_member<'v, 's, E: ParserError<'s>>(
     fold_many0(
         alt((
             map(
-                preceded(ws(tag(".")), context("expression_member_rhs", tuple((position, identifier, position)))),
+                preceded(
+                    ws(tag(".")),
+                    context(
+                        "expression_member_rhs",
+                        tuple((position, identifier, position)),
+                    ),
+                ),
                 LambdaOrProp::Prop,
             ),
             map(
@@ -882,23 +933,33 @@ fn expression_member<'v, 's, E: ParserError<'s>>(
         )),
         move || init.clone(),
         |acc, ident| {
+            let right_end = match ident {
+                LambdaOrProp::Lamba(ref e) => e.location.map(|l| l.end),
+                LambdaOrProp::Prop((_, _, rs)) => Some(rs.location_offset()),
+            };
 
-            let right_end = match ident { LambdaOrProp::Lamba(ref e) => e.location.map(|l|l.end), LambdaOrProp::Prop((_, _, rs)) => Some(rs.location_offset()) };
+            let outer_location = acc
+                .location
+                .and_then(|l| right_end.map(|r| Location::new(l.start, r)));
 
-            let outer_location = acc.location.and_then(|l| right_end.map(|r| Location::new(l.start, r)));
-            
-            Expression::new_with_optional_location(match ident {
-                LambdaOrProp::Lamba(param) => ExpressionBody::Application(LambdaApplication {
-                    lambda: Box::new(acc),
-                    parameter: Box::new(param),
-                }),
-                LambdaOrProp::Prop((ls, ident, rs)) => ExpressionBody::Member(MemberExpression {
-                    object: Box::new(acc),
-                    property: Box::new(Expression::new_with_location(ExpressionBody::Literal(Literal::String(
-                        ident.name,
-                    )), Location::new(ls.location_offset(), rs.location_offset()))),
-                }),
-            }, outer_location)
+            Expression::new_with_optional_location(
+                match ident {
+                    LambdaOrProp::Lamba(param) => ExpressionBody::Application(LambdaApplication {
+                        lambda: Box::new(acc),
+                        parameter: Box::new(param),
+                    }),
+                    LambdaOrProp::Prop((ls, ident, rs)) => {
+                        ExpressionBody::Member(MemberExpression {
+                            object: Box::new(acc),
+                            property: Box::new(Expression::new_with_location(
+                                ExpressionBody::Literal(Literal::String(ident.name)),
+                                Location::new(ls.location_offset(), rs.location_offset()),
+                            )),
+                        })
+                    }
+                },
+                outer_location,
+            )
         },
     )(input)
 }
