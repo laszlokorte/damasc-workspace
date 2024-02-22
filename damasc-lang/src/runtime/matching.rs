@@ -25,28 +25,23 @@ use super::{
     evaluation::Evaluation,
 };
 
+enum PatternFailPropagation<'s, 'v> {
+    Shallow(PatternFailReason<'s, 'v>),
+    Nested(PatternFail<'s, 'v>),
+}
+
 #[derive(Debug, Clone)]
 pub struct PatternFail<'s, 'v> {
     pub reason: PatternFailReason<'s, 'v>,
     pub location: Option<Location>,
 }
 
-impl<'s, 'v> PatternFail<'s, 'v> {
-    fn new(reason: PatternFailReason<'s, 'v>) -> Self {
-        Self {
-            reason,
-            location: None,
-        }
-    }
-
-    fn new_with_location(reason: PatternFailReason<'s, 'v>, location: Option<Location>) -> Self {
-        Self { reason, location }
-    }
-}
-
 impl<'s, 'v> Pattern<'s> {
     fn cause_error(&self, reason: PatternFailReason<'s, 'v>) -> PatternFail<'s, 'v> {
-        PatternFail::new_with_location(reason, self.location)
+        PatternFail {
+            reason,
+            location: self.location,
+        }
     }
 }
 
@@ -105,10 +100,13 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
     ) -> Result<(), PatternFail<'s, 'v>> {
         match &pattern.body {
             PatternBody::Discard => Ok(()),
-            PatternBody::Capture(name, pat) => self
-                .match_pattern(pat, value)
-                .and_then(|_| self.match_identifier(name, value)),
-            PatternBody::Identifier(name) => self.match_identifier(name, value),
+            PatternBody::Capture(name, pat) => self.match_pattern(pat, value).and_then(|_| {
+                self.match_identifier(name, value)
+                    .map_err(|e| pattern.cause_error(e))
+            }),
+            PatternBody::Identifier(name) => self
+                .match_identifier(name, value)
+                .map_err(|e| pattern.cause_error(e)),
             PatternBody::TypedDiscard(t) => {
                 if t == &value.get_type() {
                     Ok(())
@@ -127,6 +125,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                     }));
                 }
                 self.match_identifier(name, value)
+                    .map_err(|e| pattern.cause_error(e))
             }
             PatternBody::Object(object_pattern, rest) => {
                 let Value::Object(o) = value else {
@@ -135,7 +134,12 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                         actual: value.clone(),
                     }));
                 };
-                self.match_object(object_pattern, rest, o)
+                self.match_object(object_pattern, rest, o).map_err(
+                    |propagation| match propagation {
+                        PatternFailPropagation::Shallow(e) => pattern.cause_error(e),
+                        PatternFailPropagation::Nested(e) => e,
+                    },
+                )
             }
             PatternBody::Array(items, rest) => {
                 let Value::Array(a) = value else {
@@ -145,8 +149,14 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                     }));
                 };
                 self.match_array(items, rest, a)
+                    .map_err(|propagation| match propagation {
+                        PatternFailPropagation::Shallow(e) => pattern.cause_error(e),
+                        PatternFailPropagation::Nested(e) => e,
+                    })
             }
-            PatternBody::Literal(l) => self.match_literal(l, value),
+            PatternBody::Literal(l) => self
+                .match_literal(l, value)
+                .map_err(|e| pattern.cause_error(e)),
             PatternBody::PinnedExpression(expr) => {
                 let eval = Evaluation::new(self.outer_env);
 
@@ -173,17 +183,17 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         &'x mut self,
         name: &'x Identifier<'x>,
         value: &Value<'s, 'v>,
-    ) -> Result<(), PatternFail<'s, 'v>> {
+    ) -> Result<(), PatternFailReason<'s, 'v>> {
         match self.local_env.bindings.entry(name.deep_clone()) {
             Entry::Occupied(entry) => {
                 if value == entry.get() {
                     Ok(())
                 } else {
-                    Err(PatternFail::new(PatternFailReason::IdentifierConflict {
+                    Err(PatternFailReason::IdentifierConflict {
                         identifier: name.deep_clone(),
                         expected: entry.get().clone(),
                         actual: value.clone(),
-                    }))
+                    })
                 }
             }
             Entry::Vacant(entry) => {
@@ -198,13 +208,15 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         props: &'x [ObjectPropertyPattern<'s>],
         rest: &Rest<'s>,
         value: &ValueObjectMap<'s, 'v>,
-    ) -> Result<(), PatternFail<'s, 'v>> {
+    ) -> Result<(), PatternFailPropagation<'s, 'v>> {
         if let Rest::Exact = rest {
             if value.len() != props.len() {
-                return Err(PatternFail::new(PatternFailReason::ObjectLengthMismatch {
-                    expected: props.len(),
-                    actual: value.len(),
-                }));
+                return Err(PatternFailPropagation::Shallow(
+                    PatternFailReason::ObjectLengthMismatch {
+                        expected: props.len(),
+                        actual: value.len(),
+                    },
+                ));
             }
         }
 
@@ -227,33 +239,42 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                     match evaluation.eval_expr(exp) {
                         Ok(Value::String(k)) => (k.clone(), value.clone()),
                         Ok(v) => {
-                            return Err(PatternFail::new(PatternFailReason::TypeMismatch {
-                                expected: ValueType::String,
-                                actual: v,
-                            }))
+                            return Err(PatternFailPropagation::Shallow(
+                                PatternFailReason::TypeMismatch {
+                                    expected: ValueType::String,
+                                    actual: v,
+                                },
+                            ))
                         }
                         Err(e) => {
-                            return Err(PatternFail::new(PatternFailReason::EvalError(Box::new(e))))
+                            return Err(PatternFailPropagation::Shallow(
+                                PatternFailReason::EvalError(Box::new(e)),
+                            ))
                         }
                     }
                 }
             };
 
             if !keys.remove(&k) {
-                return Err(PatternFail::new(PatternFailReason::ObjectKeyMismatch {
-                    expected: k,
-                    actual: value.clone(),
-                }));
+                return Err(PatternFailPropagation::Shallow(
+                    PatternFailReason::ObjectKeyMismatch {
+                        expected: k,
+                        actual: value.clone(),
+                    },
+                ));
             }
 
             let Some(actual_value) = value.get(&k) else {
-                return Err(PatternFail::new(PatternFailReason::ObjectKeyMismatch {
-                    expected: k,
-                    actual: value.clone(),
-                }));
+                return Err(PatternFailPropagation::Shallow(
+                    PatternFailReason::ObjectKeyMismatch {
+                        expected: k,
+                        actual: value.clone(),
+                    },
+                ));
             };
 
-            self.match_pattern(&v, actual_value.as_ref())?
+            self.match_pattern(&v, actual_value.as_ref())
+                .map_err(PatternFailPropagation::Nested)?
         }
 
         if let Rest::Collect(rest_pattern) = rest {
@@ -262,6 +283,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                 .map(|&k| (k.clone(), value.get(k).unwrap().clone()))
                 .collect();
             self.match_pattern(rest_pattern, &Value::Object(remaining))
+                .map_err(PatternFailPropagation::Nested)
         } else {
             Ok(())
         }
@@ -272,18 +294,20 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         items: &[ArrayPatternItem<'s>],
         rest: &Rest<'s>,
         value: &[Cow<'v, Value<'s, 'v>>],
-    ) -> Result<(), PatternFail<'s, 'v>> {
+    ) -> Result<(), PatternFailPropagation<'s, 'v>> {
         if let Rest::Exact = rest {
             if value.len() != items.len() {
-                return Err(PatternFail::new(PatternFailReason::ArrayLengthMismatch {
-                    expected: items.len(),
-                    actual: value.len(),
-                }));
+                return Err(PatternFailPropagation::Shallow(
+                    PatternFailReason::ArrayLengthMismatch {
+                        expected: items.len(),
+                        actual: value.len(),
+                    },
+                ));
             }
         }
 
         if value.len() < items.len() {
-            return Err(PatternFail::new(
+            return Err(PatternFailPropagation::Shallow(
                 PatternFailReason::ArrayMinimumLengthMismatch {
                     expected: items.len(),
                     actual: value.len(),
@@ -292,7 +316,8 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         }
 
         for (ArrayPatternItem::Pattern(p), val) in std::iter::zip(items, value.iter()) {
-            self.match_pattern(p, val.as_ref())?
+            self.match_pattern(p, val.as_ref())
+                .map_err(PatternFailPropagation::Nested)?
         }
 
         if let Rest::Collect(rest_pattern) = rest {
@@ -300,6 +325,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                 rest_pattern,
                 &Value::Array(value.iter().skip(items.len()).cloned().collect()),
             )
+            .map_err(PatternFailPropagation::Nested)
         } else {
             Ok(())
         }
@@ -309,7 +335,11 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         self.local_env.bindings.clear();
     }
 
-    fn match_literal(&self, literal: &Literal, value: &Value) -> Result<(), PatternFail<'s, 'v>> {
+    fn match_literal(
+        &self,
+        literal: &Literal,
+        value: &Value,
+    ) -> Result<(), PatternFailReason<'s, 'v>> {
         let matches = match (literal, value) {
             (Literal::Null, Value::Null) => true,
             (Literal::String(a), Value::String(b)) => a == b,
@@ -324,7 +354,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         if matches {
             Ok(())
         } else {
-            Err(PatternFail::new(PatternFailReason::LiteralMismatch))
+            Err(PatternFailReason::LiteralMismatch)
         }
     }
 

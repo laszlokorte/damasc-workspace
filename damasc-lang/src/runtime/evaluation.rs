@@ -28,27 +28,32 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
+enum EvalErrorPropagation<'s, 'v> {
+    Shallow(EvalErrorReason<'s, 'v>),
+    Nested(EvalError<'s, 'v>),
+}
+
+impl<'s, 'v> EvalErrorPropagation<'s, 'v> {
+    fn justify(self, expression: &Expression<'s>) -> EvalError<'s, 'v> {
+        match self {
+            Self::Shallow(e) => expression.cause_error(e),
+            Self::Nested(e) => e,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct EvalError<'s, 'v> {
     pub reason: EvalErrorReason<'s, 'v>,
     pub location: Option<Location>,
 }
 
-impl<'s, 'v> EvalError<'s, 'v> {
-    fn new(reason: EvalErrorReason<'s, 'v>) -> Self {
-        Self {
-            reason,
-            location: None,
-        }
-    }
-
-    fn new_with_location(reason: EvalErrorReason<'s, 'v>, location: Option<Location>) -> Self {
-        Self { reason, location }
-    }
-}
-
 impl<'s, 'v> Expression<'s> {
     fn cause_error(&self, reason: EvalErrorReason<'s, 'v>) -> EvalError<'s, 'v> {
-        EvalError::new_with_location(reason, self.location)
+        EvalError {
+            reason,
+            location: self.location,
+        }
     }
 }
 
@@ -91,38 +96,51 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         expression: &'y Expression<'x>,
     ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
         match &expression.body {
-            ExpressionBody::Array(vec) => self.eval_array(vec),
+            ExpressionBody::Array(vec) => self.eval_array(vec).map_err(|e| e.justify(expression)),
             ExpressionBody::Binary(BinaryExpression {
                 operator,
                 left,
                 right,
             }) => self.eval_expr(left).and_then(|l| {
-                self.eval_expr(right)
-                    .and_then(|r| self.eval_binary(operator, &l, &r))
+                self.eval_expr(right).and_then(|r| {
+                    self.eval_binary(operator, &l, &r)
+                        .map_err(|e| e.justify(expression))
+                })
             }),
-            ExpressionBody::Identifier(id) => self.eval_identifier(id),
-            ExpressionBody::Literal(l) => self.eval_lit(l),
+            ExpressionBody::Identifier(id) => {
+                self.eval_identifier(id).map_err(|e| e.justify(expression))
+            }
+            ExpressionBody::Literal(l) => self.eval_lit(l).map_err(|e| e.justify(expression)),
             ExpressionBody::Logical(LogicalExpression {
                 operator,
                 left,
                 right,
-            }) => self.eval_logic(operator, left, right),
+            }) => self
+                .eval_logic(operator, left, right)
+                .map_err(|e| e.justify(expression)),
             ExpressionBody::Member(MemberExpression {
                 object, property, ..
             }) => self.eval_expr(object).and_then(move |obj| {
-                self.eval_expr(property)
-                    .and_then(move |prop| self.eval_member(&obj, &prop))
+                self.eval_expr(property).and_then(move |prop| {
+                    self.eval_member(&obj, &prop)
+                        .map_err(|e| e.justify(expression))
+                })
             }),
-            ExpressionBody::Object(props) => self.eval_object(props),
+            ExpressionBody::Object(props) => {
+                self.eval_object(props).map_err(|e| e.justify(expression))
+            }
             ExpressionBody::Unary(UnaryExpression {
                 operator, argument, ..
-            }) => self
-                .eval_expr(argument)
-                .and_then(|v| self.eval_unary(operator, &v)),
-            ExpressionBody::Call(CallExpression { function, argument }) => {
-                self.eval_call(function, &self.eval_expr(argument)?)
-            }
-            ExpressionBody::Template(template) => self.eval_template(template),
+            }) => self.eval_expr(argument).and_then(|v| {
+                self.eval_unary(operator, &v)
+                    .map_err(|e| e.justify(expression))
+            }),
+            ExpressionBody::Call(CallExpression { function, argument }) => self
+                .eval_call(function, &self.eval_expr(argument)?)
+                .map_err(|e| e.justify(expression)),
+            ExpressionBody::Template(template) => self
+                .eval_template(template)
+                .map_err(|e| e.justify(expression)),
             ExpressionBody::Abstraction(LambdaAbstraction { arguments, body }) => {
                 let new_env = match self
                     .env
@@ -138,24 +156,37 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
 
                 Ok(Value::Lambda(new_env, arguments.clone(), *body.clone()))
             }
-            ExpressionBody::Application(app) => self.eval_application(app),
-            ExpressionBody::ArrayComp(comp) => self.eval_array_comprehension(comp),
-            ExpressionBody::ObjectComp(comp) => self.eval_object_comprehension(comp),
-            ExpressionBody::Match(matching) => self.eval_match(matching),
-            ExpressionBody::Condition(if_else) => self.eval_condition(if_else),
+            ExpressionBody::Application(app) => self
+                .eval_application(app)
+                .map_err(|e| e.justify(expression)),
+            ExpressionBody::ArrayComp(comp) => self
+                .eval_array_comprehension(comp)
+                .map_err(|e| e.justify(expression)),
+            ExpressionBody::ObjectComp(comp) => self
+                .eval_object_comprehension(comp)
+                .map_err(|e| e.justify(expression)),
+            ExpressionBody::Match(matching) => {
+                self.eval_match(matching).map_err(|e| e.justify(expression))
+            }
+            ExpressionBody::Condition(if_else) => self
+                .eval_condition(if_else)
+                .map_err(|e| e.justify(expression)),
         }
     }
 
-    fn eval_lit<'x>(&self, literal: &'x Literal<'x>) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
+    fn eval_lit<'x>(
+        &self,
+        literal: &'x Literal<'x>,
+    ) -> Result<Value<'s, 'v>, EvalErrorPropagation<'s, 'v>> {
         match literal {
             Literal::Null => Ok(Value::Null),
             Literal::String(s) => Ok(Value::<'s, 'v>::String(Cow::Owned(s.to_string()))),
             Literal::Number(s) => str::parse::<i64>(s)
                 .map(Value::Integer)
                 .map(Ok)
-                .unwrap_or(Err(EvalError::new(EvalErrorReason::InvalidNumber(
-                    s.to_string(),
-                )))),
+                .unwrap_or(Err(EvalErrorPropagation::Shallow(
+                    EvalErrorReason::InvalidNumber(s.to_string()),
+                ))),
             Literal::Boolean(b) => Ok(Value::Boolean(*b)),
             Literal::Type(t) => Ok(Value::Type(*t)),
         }
@@ -166,19 +197,19 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         op: &BinaryOperator,
         left: &Value<'s, 'v>,
         right: &Value<'s, 'v>,
-    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
+    ) -> Result<Value<'s, 'v>, EvalErrorPropagation<'s, 'v>> {
         match op {
             BinaryOperator::StrictEqual => Ok(Value::Boolean(left == right)),
             BinaryOperator::StrictNotEqual => Ok(Value::Boolean(left != right)),
             BinaryOperator::LessThan => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         left.clone(),
                     )));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         right.clone(),
                     )));
@@ -187,13 +218,13 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
             BinaryOperator::GreaterThan => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         left.clone(),
                     )));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         right.clone(),
                     )));
@@ -202,13 +233,13 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
             BinaryOperator::LessThanEqual => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         left.clone(),
                     )));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         right.clone(),
                     )));
@@ -217,13 +248,13 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
             BinaryOperator::GreaterThanEqual => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         left.clone(),
                     )));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         right.clone(),
                     )));
@@ -232,106 +263,103 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
             BinaryOperator::Plus => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         left.clone(),
                     )));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         right.clone(),
                     )));
                 };
-                l.checked_add(*r)
-                    .map(Value::Integer)
-                    .map(Ok)
-                    .unwrap_or(Err(EvalError::new(EvalErrorReason::IntegerOverflow)))
+                l.checked_add(*r).map(Value::Integer).map(Ok).unwrap_or(Err(
+                    EvalErrorPropagation::Shallow(EvalErrorReason::IntegerOverflow),
+                ))
             }
             BinaryOperator::Minus => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         left.clone(),
                     )));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         right.clone(),
                     )));
                 };
-                l.checked_sub(*r)
-                    .map(Value::Integer)
-                    .map(Ok)
-                    .unwrap_or(Err(EvalError::new(EvalErrorReason::IntegerOverflow)))
+                l.checked_sub(*r).map(Value::Integer).map(Ok).unwrap_or(Err(
+                    EvalErrorPropagation::Shallow(EvalErrorReason::IntegerOverflow),
+                ))
             }
             BinaryOperator::Times => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         left.clone(),
                     )));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         right.clone(),
                     )));
                 };
-                l.checked_mul(*r)
-                    .map(Value::Integer)
-                    .map(Ok)
-                    .unwrap_or(Err(EvalError::new(EvalErrorReason::IntegerOverflow)))
+                l.checked_mul(*r).map(Value::Integer).map(Ok).unwrap_or(Err(
+                    EvalErrorPropagation::Shallow(EvalErrorReason::IntegerOverflow),
+                ))
             }
             BinaryOperator::Over => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         left.clone(),
                     )));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         right.clone(),
                     )));
                 };
                 if *r == 0 {
-                    return Err(EvalError::new(EvalErrorReason::MathDivisionByZero));
+                    return Err(EvalErrorPropagation::Shallow(
+                        EvalErrorReason::MathDivisionByZero,
+                    ));
                 }
-                l.checked_div(*r)
-                    .map(Value::Integer)
-                    .map(Ok)
-                    .unwrap_or(Err(EvalError::new(EvalErrorReason::IntegerOverflow)))
+                l.checked_div(*r).map(Value::Integer).map(Ok).unwrap_or(Err(
+                    EvalErrorPropagation::Shallow(EvalErrorReason::IntegerOverflow),
+                ))
             }
             BinaryOperator::Mod => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         left.clone(),
                     )));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         right.clone(),
                     )));
                 };
-                l.checked_rem(*r)
-                    .map(Value::Integer)
-                    .map(Ok)
-                    .unwrap_or(Err(EvalError::new(EvalErrorReason::IntegerOverflow)))
+                l.checked_rem(*r).map(Value::Integer).map(Ok).unwrap_or(Err(
+                    EvalErrorPropagation::Shallow(EvalErrorReason::IntegerOverflow),
+                ))
             }
             BinaryOperator::In => {
                 let Value::String(s) = left else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::String,
                         left.clone(),
                     )));
                 };
                 let Value::Object(o) = right else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Object,
                         right.clone(),
                     )));
@@ -340,13 +368,13 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
             BinaryOperator::PowerOf => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         left.clone(),
                     )));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         right.clone(),
                     )));
@@ -354,11 +382,15 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 l.checked_pow(*r as u32)
                     .map(Value::Integer)
                     .map(Ok)
-                    .unwrap_or(Err(EvalError::new(EvalErrorReason::IntegerOverflow)))
+                    .unwrap_or(Err(EvalErrorPropagation::Shallow(
+                        EvalErrorReason::IntegerOverflow,
+                    )))
             }
             BinaryOperator::Is => {
                 let Value::Type(specified_type) = right else {
-                    return Err(EvalError::new(EvalErrorReason::KindError(right.clone())));
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::KindError(
+                        right.clone(),
+                    )));
                 };
                 let actual_type = left.get_type();
 
@@ -366,11 +398,13 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
             BinaryOperator::Cast => {
                 let Value::Type(specified_type) = right else {
-                    return Err(EvalError::new(EvalErrorReason::KindError(right.clone())));
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::KindError(
+                        right.clone(),
+                    )));
                 };
 
                 let Some(v) = left.convert(*specified_type) else {
-                    return Err(EvalError::new(EvalErrorReason::CastError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::CastError(
                         *specified_type,
                         left.clone(),
                     )));
@@ -385,11 +419,11 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         &self,
         op: &UnaryOperator,
         arg: &Value<'s, 'v>,
-    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
+    ) -> Result<Value<'s, 'v>, EvalErrorPropagation<'s, 'v>> {
         match op {
             UnaryOperator::Minus => {
                 let Value::Integer(v) = arg else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         arg.clone(),
                     )));
@@ -398,7 +432,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
             UnaryOperator::Plus => {
                 let Value::Integer(v) = arg else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         arg.clone(),
                     )));
@@ -407,7 +441,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
             UnaryOperator::Not => {
                 let Value::Boolean(b) = arg else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Boolean,
                         arg.clone(),
                     )));
@@ -420,7 +454,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
     fn eval_object<'x: 's, 'y>(
         &self,
         props: &'y ObjectExpression<'x>,
-    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
+    ) -> Result<Value<'s, 'v>, EvalErrorPropagation<'s, 'v>> {
         let target = BTreeMap::new();
 
         self.eval_into_object(target, props).map(Value::Object)
@@ -430,7 +464,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         &self,
         mut into: ValueObjectMap<'s, 'v>,
         props: &'y ObjectExpression<'x>,
-    ) -> Result<ValueObjectMap<'s, 'v>, EvalError<'s, 'v>> {
+    ) -> Result<ValueObjectMap<'s, 'v>, EvalErrorPropagation<'s, 'v>> {
         for prop in props {
             match prop {
                 ObjectProperty::Single(id @ Identifier { name }) => {
@@ -448,23 +482,24 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                             Cow::Owned(name.to_string())
                         }
                         PropertyKey::Expression(e) => {
-                            let val = self.eval_expr(e)?;
+                            let val = self.eval_expr(e).map_err(EvalErrorPropagation::Nested)?;
                             let Value::String(s) = val else {
-                                return Err(EvalError::new(EvalErrorReason::TypeError(
-                                    ValueType::String,
-                                    val.clone(),
-                                )));
+                                return Err(EvalErrorPropagation::Shallow(
+                                    EvalErrorReason::TypeError(ValueType::String, val.clone()),
+                                ));
                             };
                             s
                         }
                     };
-                    let valval = self.eval_expr(value_expr)?;
+                    let valval = self
+                        .eval_expr(value_expr)
+                        .map_err(EvalErrorPropagation::Nested)?;
                     into.insert(keyval, Cow::Owned(valval.to_owned()));
                 }
                 ObjectProperty::Spread(expr) => {
-                    let to_spread = self.eval_expr(expr)?;
+                    let to_spread = self.eval_expr(expr).map_err(EvalErrorPropagation::Nested)?;
                     let Value::Object(map) = to_spread else {
-                        return Err(EvalError::new(EvalErrorReason::TypeError(
+                        return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                             ValueType::Object,
                             to_spread.clone(),
                         )));
@@ -482,7 +517,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
     fn eval_array<'x: 's, 'y>(
         &self,
         vec: &'y [ArrayItem<'x>],
-    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
+    ) -> Result<Value<'s, 'v>, EvalErrorPropagation<'s, 'v>> {
         let result = vec![];
 
         self.eval_into_array(result, vec).map(Value::Array)
@@ -492,18 +527,18 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         &self,
         mut target: Vec<Cow<'v, Value<'s, 'v>>>,
         vec: &'y [ArrayItem<'x>],
-    ) -> Result<ValueArray<'s, 'v>, EvalError<'s, 'v>> {
+    ) -> Result<ValueArray<'s, 'v>, EvalErrorPropagation<'s, 'v>> {
         for item in vec {
             match item {
                 ArrayItem::Single(exp) => {
-                    let v = self.eval_expr(exp)?;
+                    let v = self.eval_expr(exp).map_err(EvalErrorPropagation::Nested)?;
 
                     target.push(Cow::Owned(v));
                 }
                 ArrayItem::Spread(exp) => {
-                    let v = self.eval_expr(exp)?;
+                    let v = self.eval_expr(exp).map_err(EvalErrorPropagation::Nested)?;
                     let Value::Array(mut multiples) = v else {
-                        return Err(EvalError::new(EvalErrorReason::TypeError(
+                        return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                             ValueType::Array,
                             v.clone(),
                         )));
@@ -522,10 +557,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         operator: &LogicalOperator,
         left: &'y Expression<'x>,
         right: &'y Expression<'x>,
-    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
-        let left_value = self.eval_expr(left)?;
+    ) -> Result<Value<'s, 'v>, EvalErrorPropagation<'s, 'v>> {
+        let left_value = self.eval_expr(left).map_err(EvalErrorPropagation::Nested)?;
         let Value::Boolean(left_bool) = left_value else {
-            return Err(EvalError::new(EvalErrorReason::TypeError(
+            return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                 ValueType::Boolean,
                 left_value.clone(),
             )));
@@ -533,9 +568,11 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         if operator.short_circuit_on(left_bool) {
             return Ok(Value::Boolean(left_bool));
         }
-        let right_value = self.eval_expr(right)?;
+        let right_value = self
+            .eval_expr(right)
+            .map_err(EvalErrorPropagation::Nested)?;
         let Value::Boolean(right_bool) = right_value else {
-            return Err(EvalError::new(EvalErrorReason::TypeError(
+            return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                 ValueType::Boolean,
                 right_value.clone(),
             )));
@@ -547,28 +584,27 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         &self,
         obj: &Value<'s, 'x>,
         prop: &Value<'s, 'x>,
-    ) -> Result<Value<'s, 'x>, EvalError<'s, 'x>> {
+    ) -> Result<Value<'s, 'x>, EvalErrorPropagation<'s, 'x>> {
         match obj {
             Value::Object(o) => {
                 let Value::String(p) = prop else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::String,
                         prop.clone(),
                     )));
                 };
 
                 let Some(val) = o.get(p).map(|v| v.clone().into_owned()) else {
-                    return Err(EvalError::new(EvalErrorReason::KeyNotDefined(
-                        obj.clone(),
-                        prop.clone(),
-                    )));
+                    return Err(EvalErrorPropagation::Shallow(
+                        EvalErrorReason::KeyNotDefined(obj.clone(), prop.clone()),
+                    ));
                 };
 
                 Ok(val)
             }
             Value::Array(a) => {
                 let Value::Integer(i) = prop else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         prop.clone(),
                     )));
@@ -580,14 +616,17 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 };
 
                 let Some(val) = a.get(index).map(|v| v.clone().into_owned()) else {
-                    return Err(EvalError::new(EvalErrorReason::OutOfBound(a.len(), index)));
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::OutOfBound(
+                        a.len(),
+                        index,
+                    )));
                 };
 
                 Ok(val)
             }
             Value::String(s) => {
                 let Value::Integer(i) = prop else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Integer,
                         prop.clone(),
                     )));
@@ -599,23 +638,29 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 };
 
                 let Some(val) = s.chars().nth(index).map(|v| v.clone().to_string()) else {
-                    return Err(EvalError::new(EvalErrorReason::OutOfBound(s.len(), index)));
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::OutOfBound(
+                        s.len(),
+                        index,
+                    )));
                 };
 
                 Ok(Value::String(Cow::Owned(val)))
             }
             // TODO: be more specific
-            _ => Err(EvalError::new(EvalErrorReason::CollectionTypeError(
-                obj.clone(),
-            ))),
+            _ => Err(EvalErrorPropagation::Shallow(
+                EvalErrorReason::CollectionTypeError(obj.clone()),
+            )),
         }
     }
 
-    fn eval_identifier(&self, id: &Identifier<'s>) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
+    fn eval_identifier(
+        &self,
+        id: &Identifier<'s>,
+    ) -> Result<Value<'s, 'v>, EvalErrorPropagation<'s, 'v>> {
         let Some(val) = self.env.bindings.get(id) else {
-            return Err(EvalError::new(EvalErrorReason::UnknownIdentifier(
-                id.clone(),
-            )));
+            return Err(EvalErrorPropagation::Shallow(
+                EvalErrorReason::UnknownIdentifier(id.clone()),
+            ));
         };
 
         Ok(val.clone())
@@ -625,16 +670,16 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         &self,
         function: &Identifier<'s>,
         argument: &Value<'s, 'v>,
-    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
+    ) -> Result<Value<'s, 'v>, EvalErrorPropagation<'s, 'v>> {
         Ok(match function.name.as_ref() {
             "length" => Value::Integer(match argument {
                 Value::String(s) => s.len() as i64,
                 Value::Array(a) => a.len() as i64,
                 Value::Object(o) => o.len() as i64,
                 _ => {
-                    return Err(EvalError::new(EvalErrorReason::CollectionTypeError(
-                        argument.clone(),
-                    )))
+                    return Err(EvalErrorPropagation::Shallow(
+                        EvalErrorReason::CollectionTypeError(argument.clone()),
+                    ))
                 }
             }),
             "keys" => Value::Array(match argument {
@@ -643,7 +688,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                     .map(|k| Cow::Owned(Value::String(Cow::Owned(k.to_string()))))
                     .collect(),
                 _ => {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Object,
                         argument.clone(),
                     )))
@@ -652,7 +697,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             "values" => Value::Array(match argument {
                 Value::Object(o) => o.values().cloned().collect(),
                 _ => {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Object,
                         argument.clone(),
                     )))
@@ -665,58 +710,64 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                     .map(|(k, v)| (Cow::Owned(k.to_string()), Cow::Owned(v.to_owned())))
                     .collect(),
                 _ => {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Lambda,
                         argument.clone(),
                     )))
                 }
             }),
-            "rebind" => match argument {
-                Value::Array(arr) => {
-                    let Some(x) = arr.first() else {
-                        return Err(EvalError::new(EvalErrorReason::OutOfBound(1, arr.len())));
-                    };
+            "rebind" => {
+                match argument {
+                    Value::Array(arr) => {
+                        let Some(x) = arr.first() else {
+                            return Err(EvalErrorPropagation::Shallow(
+                                EvalErrorReason::OutOfBound(1, arr.len()),
+                            ));
+                        };
 
-                    let Value::Lambda(env, pattern, expression) = x.clone().into_owned() else {
-                        return Err(EvalError::new(EvalErrorReason::TypeError(
-                            ValueType::Lambda,
-                            x.clone().into_owned(),
-                        )));
-                    };
+                        let Value::Lambda(env, pattern, expression) = x.clone().into_owned() else {
+                            return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
+                                ValueType::Lambda,
+                                x.clone().into_owned(),
+                            )));
+                        };
 
-                    let Some(y) = arr.get(1) else {
-                        return Err(EvalError::new(EvalErrorReason::OutOfBound(2, arr.len())));
-                    };
+                        let Some(y) = arr.get(1) else {
+                            return Err(EvalErrorPropagation::Shallow(
+                                EvalErrorReason::OutOfBound(2, arr.len()),
+                            ));
+                        };
 
-                    let Value::Object(obj) = y.clone().into_owned() else {
-                        return Err(EvalError::new(EvalErrorReason::TypeError(
-                            ValueType::Object,
-                            y.clone().into_owned(),
-                        )));
-                    };
+                        let Value::Object(obj) = y.clone().into_owned() else {
+                            return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
+                                ValueType::Object,
+                                y.clone().into_owned(),
+                            )));
+                        };
 
-                    let mut new_env = env.clone();
-                    new_env.replace(obj.into_iter().map(|(k, v)| {
-                        (
-                            Identifier::new_owned(k.into_owned()),
-                            v.clone().into_owned(),
-                        )
-                    }));
+                        let mut new_env = env.clone();
+                        new_env.replace(obj.into_iter().map(|(k, v)| {
+                            (
+                                Identifier::new_owned(k.into_owned()),
+                                v.clone().into_owned(),
+                            )
+                        }));
 
-                    Value::Lambda(new_env, pattern.clone(), expression.clone())
+                        Value::Lambda(new_env, pattern.clone(), expression.clone())
+                    }
+                    _ => {
+                        return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
+                            ValueType::Array,
+                            argument.clone(),
+                        )))
+                    }
                 }
-                _ => {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
-                        ValueType::Array,
-                        argument.clone(),
-                    )))
-                }
-            },
+            }
             "type" => Value::Type(argument.get_type()),
             _ => {
-                return Err(EvalError::new(EvalErrorReason::UnknownFunction(
-                    function.clone(),
-                )))
+                return Err(EvalErrorPropagation::Shallow(
+                    EvalErrorReason::UnknownFunction(function.clone()),
+                ))
             }
         })
     }
@@ -724,20 +775,22 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
     fn eval_template<'x: 's, 'y>(
         &self,
         template: &'y StringTemplate<'x>,
-    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
+    ) -> Result<Value<'s, 'v>, EvalErrorPropagation<'s, 'v>> {
         let joined = template
             .parts
             .iter()
             .flat_map(move |part| {
                 let prefix = Ok(Cow::Owned(part.fixed_start.as_ref().into()));
-                let end_val = self.eval_expr(&part.dynamic_end);
+                let end_val = self
+                    .eval_expr(&part.dynamic_end)
+                    .map_err(EvalErrorPropagation::Nested);
 
                 match end_val.clone().map(|v| v.convert(ValueType::String)) {
                     Ok(Some(Value::String(end))) => [prefix, Ok(end)],
                     Ok(_) => [
                         prefix,
                         end_val.and_then(|v| {
-                            Err(EvalError::new(EvalErrorReason::TypeError(
+                            Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                                 ValueType::String,
                                 v.clone(),
                             )))
@@ -755,12 +808,16 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
     fn eval_application<'x: 's>(
         &self,
         app: &LambdaApplication<'x>,
-    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
-        let lambda = self.eval_expr(&app.lambda)?;
-        let param = self.eval_expr(&app.parameter)?;
+    ) -> Result<Value<'s, 'v>, EvalErrorPropagation<'s, 'v>> {
+        let lambda = self
+            .eval_expr(&app.lambda)
+            .map_err(EvalErrorPropagation::Nested)?;
+        let param = self
+            .eval_expr(&app.parameter)
+            .map_err(EvalErrorPropagation::Nested)?;
 
         let Value::Lambda(env, pattern, lambda_body) = lambda else {
-            return Err(EvalError::new(EvalErrorReason::TypeError(
+            return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                 ValueType::Lambda,
                 lambda.clone(),
             )));
@@ -768,20 +825,24 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
 
         let mut matcher = Matcher::new(&env);
         if let Err(e) = matcher.match_pattern(&pattern, &param) {
-            return Err(EvalError::new(EvalErrorReason::PatternError(Box::new(e))));
+            return Err(EvalErrorPropagation::Shallow(
+                EvalErrorReason::PatternError(Box::new(e)),
+            ));
         };
 
         let local_env = matcher.into_env();
         let local_eval = Evaluation::new(&local_env);
 
-        local_eval.eval_expr(&lambda_body)
+        local_eval
+            .eval_expr(&lambda_body)
+            .map_err(EvalErrorPropagation::Nested)
     }
 
     fn eval_array_comprehension<'x: 's>(
         &self,
         comp: &ArrayComprehension<'x>,
-    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
-        let mut envs: Box<dyn Iterator<Item = Result<Environment, EvalError<'s, 'v>>>> =
+    ) -> Result<Value<'s, 'v>, EvalErrorPropagation<'s, 'v>> {
+        let mut envs: Box<dyn Iterator<Item = Result<Environment, EvalErrorPropagation<'s, 'v>>>> =
             comp.sources.iter().fold(
                 Box::new(Some(Ok(self.env.clone())).into_iter()),
                 |current_envs, source| {
@@ -805,10 +866,12 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
     fn eval_comprehension_source<'x: 's>(
         &self,
         source: &ComprehensionSource<'x>,
-    ) -> Result<impl Iterator<Item = Environment<'i, 's, 'v>>, EvalError<'s, 'v>> {
-        let expression_value: Value<'_, '_> = self.eval_expr(&source.collection)?;
+    ) -> Result<impl Iterator<Item = Environment<'i, 's, 'v>>, EvalErrorPropagation<'s, 'v>> {
+        let expression_value: Value<'_, '_> = self
+            .eval_expr(&source.collection)
+            .map_err(EvalErrorPropagation::Nested)?;
         let Value::Array(vals) = expression_value else {
-            return Err(EvalError::new(EvalErrorReason::TypeError(
+            return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                 ValueType::Array,
                 expression_value.clone(),
             )));
@@ -820,7 +883,9 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             let mut matcher = Matcher::new(self.env);
             if let Err(e) = matcher.match_pattern(&source.pattern, &val) {
                 if source.strong_pattern {
-                    return Err(EvalError::new(EvalErrorReason::PatternError(Box::new(e))));
+                    return Err(EvalErrorPropagation::Shallow(
+                        EvalErrorReason::PatternError(Box::new(e)),
+                    ));
                 } else {
                     continue;
                 }
@@ -830,10 +895,12 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             let local_eval = Evaluation::new(&local_env);
 
             if let Some(p) = &source.predicate {
-                let pred_result = local_eval.eval_expr(p)?;
+                let pred_result = local_eval
+                    .eval_expr(p)
+                    .map_err(EvalErrorPropagation::Nested)?;
 
                 let Value::Boolean(pred_result_bool) = pred_result else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Boolean,
                         pred_result.clone(),
                     )));
@@ -853,8 +920,8 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
     fn eval_object_comprehension<'x: 's>(
         &self,
         comp: &ObjectComprehension<'x>,
-    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
-        let mut envs: Box<dyn Iterator<Item = Result<Environment, EvalError<'s, 'v>>>> =
+    ) -> Result<Value<'s, 'v>, EvalErrorPropagation<'s, 'v>> {
+        let mut envs: Box<dyn Iterator<Item = Result<Environment, EvalErrorPropagation<'s, 'v>>>> =
             comp.sources.iter().fold(
                 Box::new(Some(Ok(self.env.clone())).into_iter()),
                 |current_envs, source| {
@@ -878,8 +945,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
     fn eval_match<'x: 's>(
         &self,
         match_expr: &MatchExpression<'x>,
-    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
-        let subject_value = self.eval_expr(&match_expr.subject)?;
+    ) -> Result<Value<'s, 'v>, EvalErrorPropagation<'s, 'v>> {
+        let subject_value = self
+            .eval_expr(&match_expr.subject)
+            .map_err(EvalErrorPropagation::Nested)?;
 
         for case in &match_expr.cases {
             let mut matcher = Matcher::new(self.env);
@@ -894,10 +963,12 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             let local_eval = Evaluation::new(&local_env);
 
             if let Some(guard) = &case.guard {
-                let guard_val = local_eval.eval_expr(guard)?;
+                let guard_val = local_eval
+                    .eval_expr(guard)
+                    .map_err(EvalErrorPropagation::Nested)?;
 
                 let Value::Boolean(guard_bool) = guard_val else {
-                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                    return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                         ValueType::Boolean,
                         guard_val.clone(),
                     )));
@@ -908,22 +979,26 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 }
             }
 
-            return local_eval.eval_expr(&case.body);
+            return local_eval
+                .eval_expr(&case.body)
+                .map_err(EvalErrorPropagation::Nested);
         }
 
-        Err(EvalError::new(EvalErrorReason::PatternExhaustionError(
-            subject_value.clone(),
-        )))
+        Err(EvalErrorPropagation::Shallow(
+            EvalErrorReason::PatternExhaustionError(subject_value.clone()),
+        ))
     }
 
     fn eval_condition<'x: 's>(
         &self,
         if_else: &IfElseExpression<'x>,
-    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
-        let condition_value = self.eval_expr(&if_else.condition)?;
+    ) -> Result<Value<'s, 'v>, EvalErrorPropagation<'s, 'v>> {
+        let condition_value = self
+            .eval_expr(&if_else.condition)
+            .map_err(EvalErrorPropagation::Nested)?;
 
         let Value::Boolean(condition_bool) = condition_value else {
-            return Err(EvalError::new(EvalErrorReason::TypeError(
+            return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                 ValueType::Boolean,
                 condition_value.clone(),
             )));
@@ -931,8 +1006,9 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
 
         if condition_bool {
             self.eval_expr(&if_else.true_branch)
+                .map_err(EvalErrorPropagation::Nested)
         } else if let Some(ref fb) = &if_else.false_branch {
-            self.eval_expr(fb)
+            self.eval_expr(fb).map_err(EvalErrorPropagation::Nested)
         } else {
             return Ok(Value::Null);
         }

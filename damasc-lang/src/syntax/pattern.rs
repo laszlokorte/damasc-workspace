@@ -4,12 +4,38 @@ use crate::syntax::expression::Expression;
 use crate::syntax::expression::PropertyKey;
 use crate::syntax::location::Location;
 use crate::value_type::ValueType;
+use core::hash::Hash;
+use core::hash::Hasher;
 
-#[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]
+#[derive(Clone, Debug, PartialOrd)]
 pub struct Pattern<'s> {
     pub body: PatternBody<'s>,
     pub location: Option<Location>,
 }
+
+impl PartialEq for Pattern<'_> {
+    fn eq(&self, other: &Pattern<'_>) -> bool {
+        self.body.eq(&other.body)
+    }
+}
+
+impl Eq for Pattern<'_> {}
+
+impl Hash for Pattern<'_> {
+    fn hash<H>(&self, hasher: &mut H)
+    where
+        H: Hasher,
+    {
+        self.body.hash(hasher)
+    }
+}
+
+impl Ord for Pattern<'_> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.body.cmp(&other.body)
+    }
+}
+
 
 impl<'s> Pattern<'s> {
     pub fn new(body: PatternBody<'s>) -> Pattern<'s> {

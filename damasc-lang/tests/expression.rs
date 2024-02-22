@@ -39,7 +39,7 @@ fn test_expression_evaluation() {
                 unreachable!("Evaluation error");
             };
 
-            assert_eq!(res_a, res_b);
+            assert_eq!(res_a, res_b, "on line {} and {}", line_a + 1, line_b + 1);
         }
     }
 }

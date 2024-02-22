@@ -1,4 +1,6 @@
 use crate::syntax::location::Location;
+use core::hash::Hash;
+use core::hash::Hasher;
 use std::borrow::Cow;
 
 use crate::identifier::Identifier;
@@ -6,11 +8,35 @@ use crate::literal::Literal;
 
 use super::pattern::Pattern;
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialOrd)]
 pub struct Expression<'s> {
     pub body: ExpressionBody<'s>,
     pub location: Option<Location>,
 }
+
+impl PartialEq for Expression<'_> {
+    fn eq(&self, other: &Expression<'_>) -> bool {
+        self.body.eq(&other.body)
+    }
+}
+
+impl Eq for Expression<'_> {}
+
+impl Hash for Expression<'_> {
+    fn hash<H>(&self, hasher: &mut H)
+    where
+        H: Hasher,
+    {
+        self.body.hash(hasher)
+    }
+}
+
+impl Ord for Expression<'_> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.body.cmp(&other.body)
+    }
+}
+
 
 impl<'s> Expression<'s> {
     pub fn new(body: ExpressionBody<'s>) -> Expression<'s> {

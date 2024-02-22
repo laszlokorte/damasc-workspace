@@ -1,3 +1,4 @@
+use crate::parser::located::located_expression;
 use crate::parser::pattern::pattern;
 use crate::syntax::expression::ArrayComprehension;
 use crate::syntax::expression::ComprehensionSource;
@@ -107,18 +108,18 @@ fn expression_call<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression_call",
-        map(
+        located_expression(map(
             pair(
                 identifier,
                 delimited(ws(tag("(")), expression, ws(tag(")"))),
             ),
             |(function, arg)| {
-                Expression::new(ExpressionBody::Call(CallExpression {
+                ExpressionBody::Call(CallExpression {
                     function,
                     argument: Box::new(arg),
-                }))
+                })
             },
-        ),
+        )),
     )(input)
 }
 
@@ -127,7 +128,7 @@ fn expression_array<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression_array",
-        map(
+        located_expression(
             delimited(
                 ws(tag("[")),
                 map(
@@ -141,9 +142,7 @@ fn expression_array<'v, 's, E: ParserError<'s>>(
                     |v| v.unwrap_or_else(|| ExpressionBody::Array(vec![])),
                 ),
                 ws(tag("]")),
-            ),
-            Expression::new,
-        ),
+            )),
     )(input)
 }
 
@@ -152,7 +151,7 @@ fn expression_array_comprehension<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression_array_comprehension",
-        map(
+        located_expression(map(
             delimited(
                 ws(tag("[")),
                 tuple((
@@ -165,12 +164,12 @@ fn expression_array_comprehension<'v, 's, E: ParserError<'s>>(
                 ws(tag("]")),
             ),
             |(projection, sources)| {
-                Expression::new(ExpressionBody::ArrayComp(ArrayComprehension {
+                ExpressionBody::ArrayComp(ArrayComprehension {
                     projection,
                     sources,
-                }))
+                })
             },
-        ),
+        )),
     )(input)
 }
 
@@ -222,7 +221,7 @@ fn expression_object<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression_object",
-        map(
+        located_expression(
             delimited(
                 ws(tag("{")),
                 map(
@@ -236,9 +235,7 @@ fn expression_object<'v, 's, E: ParserError<'s>>(
                     |v| v.unwrap_or_else(|| ExpressionBody::Object(vec![])),
                 ),
                 ws(tag("}")),
-            ),
-            Expression::new,
-        ),
+            )),
     )(input)
 }
 
@@ -268,7 +265,7 @@ fn expression_object_comprehension<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression_object_comprehension",
-        map(
+        located_expression(map(
             delimited(
                 ws(tag("{")),
                 tuple((
@@ -281,12 +278,12 @@ fn expression_object_comprehension<'v, 's, E: ParserError<'s>>(
                 ws(tag("}")),
             ),
             |(projection, sources)| {
-                Expression::new(ExpressionBody::ObjectComp(ObjectComprehension {
+                ExpressionBody::ObjectComp(ObjectComprehension {
                     projection,
                     sources,
-                }))
+                })
             },
-        ),
+        )),
     )(input)
 }
 
@@ -295,7 +292,7 @@ fn expression_lambda_abstraction<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression_lambda_abstraction",
-        map(
+        located_expression(map(
             tuple((
                 preceded(
                     ws(tag("fn")),
@@ -304,12 +301,12 @@ fn expression_lambda_abstraction<'v, 's, E: ParserError<'s>>(
                 preceded(ws(tag("=>")), expression),
             )),
             |(arg, body)| {
-                Expression::new(ExpressionBody::Abstraction(LambdaAbstraction {
+                ExpressionBody::Abstraction(LambdaAbstraction {
                     arguments: arg,
                     body: Box::new(body),
-                }))
+                })
             },
-        ),
+        )),
     )(input)
 }
 
@@ -338,7 +335,7 @@ fn expression_match<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression_match",
-        map(
+        located_expression(map(
             tuple((
                 preceded(
                     ws(tag("match")),
@@ -357,12 +354,12 @@ fn expression_match<'v, 's, E: ParserError<'s>>(
                 ),
             )),
             |(subject, cases)| {
-                Expression::new(ExpressionBody::Match(MatchExpression {
+                ExpressionBody::Match(MatchExpression {
                     subject: Box::new(subject),
                     cases: cases.unwrap_or_default(),
-                }))
+                })
             },
-        ),
+        )),
     )(input)
 }
 
@@ -371,7 +368,7 @@ fn expression_condition<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression_condition",
-        map(
+        located_expression(map(
             tuple((
                 preceded(
                     ws(tag("if")),
@@ -387,13 +384,13 @@ fn expression_condition<'v, 's, E: ParserError<'s>>(
                 )),
             )),
             |(condition, true_branch, false_branch)| {
-                Expression::new(ExpressionBody::Condition(IfElseExpression {
+                ExpressionBody::Condition(IfElseExpression {
                     condition: Box::new(condition),
                     true_branch: Box::new(true_branch),
                     false_branch: false_branch.map(Box::new),
-                }))
+                })
             },
-        ),
+        )),
     )(input)
 }
 
@@ -402,7 +399,7 @@ fn expression_lambda_match_abstraction<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression_lambda_match_abstraction",
-        map(
+        located_expression(map(
             preceded(
                 ws(tag("fn match")),
                 delimited(
@@ -416,7 +413,7 @@ fn expression_lambda_match_abstraction<'v, 's, E: ParserError<'s>>(
             ),
             |cases| {
                 let local_identifier = Identifier::new("___local");
-                Expression::new(ExpressionBody::Abstraction(LambdaAbstraction {
+                ExpressionBody::Abstraction(LambdaAbstraction {
                     arguments: Pattern::new(PatternBody::Identifier(local_identifier.clone())),
                     body: Box::new(Expression::new(ExpressionBody::Match(MatchExpression {
                         subject: Box::new(Expression::new(ExpressionBody::Identifier(
@@ -424,9 +421,9 @@ fn expression_lambda_match_abstraction<'v, 's, E: ParserError<'s>>(
                         ))),
                         cases: cases.unwrap_or_default(),
                     }))),
-                }))
+                })
             },
-        ),
+        )),
     )(input)
 }
 
@@ -452,7 +449,7 @@ fn expression_atom<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression_atom",
-        map(map(literal, ExpressionBody::Literal), Expression::new),
+        located_expression(map(literal, ExpressionBody::Literal)),
     )(input)
 }
 
@@ -461,7 +458,7 @@ pub(crate) fn expression_identifier<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression_identifier",
-        map(map(identifier, ExpressionBody::Identifier), Expression::new),
+        located_expression(map(identifier, ExpressionBody::Identifier)),
     )(input)
 }
 
@@ -492,19 +489,19 @@ fn expression_string_template<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Expression<'v>, E> {
     context(
         "expression_string_template",
-        map(
+        located_expression(map(
             delimited(
                 tag("`"),
                 tuple((many0(string_template_part), recognize(many0(is_not("`"))))),
                 tag("`"),
             ),
             |(parts, s)| {
-                Expression::new(ExpressionBody::Template(StringTemplate {
+                ExpressionBody::Template(StringTemplate {
                     parts,
                     suffix: Cow::Owned(s.to_string()),
-                }))
+                })
             },
-        ),
+        )),
     )(input)
 }
 
@@ -921,18 +918,18 @@ fn expression_unary_logic_operator<'s, E: ParserError<'s>>(
 fn expression_unary_logic<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<Expression<'v>, E> {
-    map(
+    located_expression(map(
         pair(
             ws(expression_unary_logic_operator),
             context("expression_unary_logic_operand", expression_primary),
         ),
         |(operator, argument)| {
-            Expression::new(ExpressionBody::Unary(UnaryExpression {
+            ExpressionBody::Unary(UnaryExpression {
                 operator,
                 argument: Box::new(argument),
-            }))
+            })
         },
-    )(input)
+    ))(input)
 }
 
 fn expression_unary_numeric_operator<'s, E: ParserError<'s>>(
@@ -950,18 +947,18 @@ fn expression_unary_numeric_operator<'s, E: ParserError<'s>>(
 fn expression_unary_numeric<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<Expression<'v>, E> {
-    map(
+    located_expression(map(
         pair(
             ws(expression_unary_numeric_operator),
             context("expression_unary_numeric_operand", expression_indexed),
         ),
         |(operator, argument)| {
-            Expression::new(ExpressionBody::Unary(UnaryExpression {
+            ExpressionBody::Unary(UnaryExpression {
                 operator,
                 argument: Box::new(argument),
-            }))
+            })
         },
-    )(input)
+    ))(input)
 }
 
 pub fn expression<'v, 's, E: ParserError<'s>>(

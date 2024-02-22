@@ -1,3 +1,4 @@
+use crate::parser::located::located_pattern;
 use crate::parser::expression::expression_identifier;
 use crate::syntax::pattern::PatternBody;
 use nom::{
@@ -30,7 +31,7 @@ fn pattern_discard<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Pattern<'v>, E> {
     context(
         "pattern_discard",
-        value(Pattern::new(PatternBody::Discard), tag("_")),
+        located_pattern(value(PatternBody::Discard, tag("_"))),
     )(input)
 }
 
@@ -39,13 +40,10 @@ fn pattern_typed_discard<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Pattern<'v>, E> {
     context(
         "pattern_typed_discard",
-        map(
-            map(
-                preceded(ws(tag("_ is ")), literal_type_raw),
-                PatternBody::TypedDiscard,
-            ),
-            Pattern::new,
-        ),
+        located_pattern(map(
+            preceded(ws(tag("_ is ")), literal_type_raw),
+            PatternBody::TypedDiscard,
+        )),
     )(input)
 }
 
@@ -54,7 +52,7 @@ fn pattern_identifier<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Pattern<'v>, E> {
     context(
         "pattern_identifier",
-        map(map(identifier, PatternBody::Identifier), Pattern::new),
+        located_pattern(map(identifier, PatternBody::Identifier)),
     )(input)
 }
 
@@ -63,10 +61,10 @@ fn pattern_typed_identifier<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Pattern<'v>, E> {
     context(
         "pattern_typed_identifier",
-        map(
+        located_pattern(map(
             separated_pair(identifier, tag(" is "), literal_type_raw),
-            |(i, t)| Pattern::new(PatternBody::TypedIdentifier(i, t)),
-        ),
+            |(i, t)| PatternBody::TypedIdentifier(i, t),
+        )),
     )(input)
 }
 
@@ -108,7 +106,7 @@ fn pattern_object<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Pattern<'v>, E> {
     context(
         "pattern_object",
-        map(
+        located_pattern(
             delimited(
                 ws(tag("{")),
                 alt((
@@ -124,8 +122,7 @@ fn pattern_object<'v, 's, E: ParserError<'s>>(
                     ),
                 )),
                 ws(tag("}")),
-            ),
-            Pattern::new,
+            )
         ),
     )(input)
 }
@@ -147,7 +144,7 @@ fn pattern_array<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Pattern<'v>, E> {
     context(
         "pattern_array",
-        map(
+        located_pattern(
             delimited(
                 ws(tag("[")),
                 alt((
@@ -163,8 +160,7 @@ fn pattern_array<'v, 's, E: ParserError<'s>>(
                     ),
                 )),
                 ws(tag("]")),
-            ),
-            Pattern::new,
+            )
         ),
     )(input)
 }
@@ -174,7 +170,7 @@ fn pattern_capture<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Pattern<'v>, E> {
     context(
         "pattern_capture",
-        map(
+        located_pattern(map(
             separated_pair(
                 ws(identifier),
                 ws(tag("@")),
@@ -185,8 +181,8 @@ fn pattern_capture<'v, 's, E: ParserError<'s>>(
                     pattern_pinned_expression,
                 )),
             ),
-            |(id, pat)| Pattern::new(PatternBody::Capture(id, Box::new(pat))),
-        ),
+            |(id, pat)| PatternBody::Capture(id, Box::new(pat)),
+        )),
     )(input)
 }
 
@@ -195,7 +191,7 @@ fn pattern_atom<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Pattern<'v>, E> {
     context(
         "pattern_atom",
-        map(map(literal, PatternBody::Literal), Pattern::new),
+        located_pattern(map(literal, PatternBody::Literal)),
     )(input)
 }
 
@@ -204,7 +200,7 @@ fn pattern_pinned_expression<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<Pattern<'v>, E> {
     context(
         "pattern_pinned_expression",
-        map(
+        located_pattern(map(
             preceded(
                 ws(tag("^")),
                 alt((
@@ -212,8 +208,8 @@ fn pattern_pinned_expression<'v, 's, E: ParserError<'s>>(
                     expression_identifier,
                 )),
             ),
-            |expr| Pattern::new(PatternBody::PinnedExpression(Box::new(expr))),
-        ),
+            |expr| PatternBody::PinnedExpression(Box::new(expr)),
+        )),
     )(input)
 }
 
