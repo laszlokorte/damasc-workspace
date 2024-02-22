@@ -1,6 +1,7 @@
 use crate::runtime::matching::PatternFail;
 use crate::syntax::expression::IfElseExpression;
 use crate::syntax::expression::MatchExpression;
+use crate::syntax::location::Location;
 use crate::value::ValueArray;
 use crate::value::ValueObjectMap;
 use crate::value_type::ValueType;
@@ -27,7 +28,32 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub enum EvalError<'s, 'v> {
+pub struct EvalError<'s, 'v> {
+    pub reason: EvalErrorReason<'s, 'v>,
+    pub location: Option<Location>,
+}
+
+impl<'s, 'v> EvalError<'s, 'v> {
+    fn new(reason: EvalErrorReason<'s, 'v>) -> Self {
+        Self {
+            reason,
+            location: None,
+        }
+    }
+
+    fn new_with_location(reason: EvalErrorReason<'s, 'v>, location: Option<Location>) -> Self {
+        Self { reason, location }
+    }
+}
+
+impl<'s, 'v> Expression<'s> {
+    fn cause_error(&self, reason: EvalErrorReason<'s, 'v>) -> EvalError<'s, 'v> {
+        EvalError::new_with_location(reason, self.location)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum EvalErrorReason<'s, 'v> {
     KindError(Value<'s, 'v>),
     TypeError(ValueType, Value<'s, 'v>),
     CollectionTypeError(Value<'s, 'v>),
@@ -104,7 +130,9 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 {
                     Ok(new_env) => new_env,
                     Err(missing_id) => {
-                        return Err(EvalError::UnknownIdentifier(missing_id.deep_clone()))
+                        return Err(expression.cause_error(EvalErrorReason::UnknownIdentifier(
+                            missing_id.deep_clone(),
+                        )))
                     }
                 };
 
@@ -125,7 +153,9 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             Literal::Number(s) => str::parse::<i64>(s)
                 .map(Value::Integer)
                 .map(Ok)
-                .unwrap_or(Err(EvalError::InvalidNumber(s.to_string()))),
+                .unwrap_or(Err(EvalError::new(EvalErrorReason::InvalidNumber(
+                    s.to_string(),
+                )))),
             Literal::Boolean(b) => Ok(Value::Boolean(*b)),
             Literal::Type(t) => Ok(Value::Type(*t)),
         }
@@ -142,127 +172,193 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             BinaryOperator::StrictNotEqual => Ok(Value::Boolean(left != right)),
             BinaryOperator::LessThan => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::TypeError(ValueType::Integer, left.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        left.clone(),
+                    )));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        right.clone(),
+                    )));
                 };
                 Ok(Value::Boolean(l < r))
             }
             BinaryOperator::GreaterThan => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::TypeError(ValueType::Integer, left.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        left.clone(),
+                    )));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        right.clone(),
+                    )));
                 };
                 Ok(Value::Boolean(l > r))
             }
             BinaryOperator::LessThanEqual => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::TypeError(ValueType::Integer, left.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        left.clone(),
+                    )));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        right.clone(),
+                    )));
                 };
                 Ok(Value::Boolean(l <= r))
             }
             BinaryOperator::GreaterThanEqual => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::TypeError(ValueType::Integer, left.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        left.clone(),
+                    )));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        right.clone(),
+                    )));
                 };
                 Ok(Value::Boolean(l >= r))
             }
             BinaryOperator::Plus => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::TypeError(ValueType::Integer, left.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        left.clone(),
+                    )));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        right.clone(),
+                    )));
                 };
                 l.checked_add(*r)
                     .map(Value::Integer)
                     .map(Ok)
-                    .unwrap_or(Err(EvalError::IntegerOverflow))
+                    .unwrap_or(Err(EvalError::new(EvalErrorReason::IntegerOverflow)))
             }
             BinaryOperator::Minus => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::TypeError(ValueType::Integer, left.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        left.clone(),
+                    )));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        right.clone(),
+                    )));
                 };
                 l.checked_sub(*r)
                     .map(Value::Integer)
                     .map(Ok)
-                    .unwrap_or(Err(EvalError::IntegerOverflow))
+                    .unwrap_or(Err(EvalError::new(EvalErrorReason::IntegerOverflow)))
             }
             BinaryOperator::Times => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::TypeError(ValueType::Integer, left.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        left.clone(),
+                    )));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        right.clone(),
+                    )));
                 };
                 l.checked_mul(*r)
                     .map(Value::Integer)
                     .map(Ok)
-                    .unwrap_or(Err(EvalError::IntegerOverflow))
+                    .unwrap_or(Err(EvalError::new(EvalErrorReason::IntegerOverflow)))
             }
             BinaryOperator::Over => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::TypeError(ValueType::Integer, left.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        left.clone(),
+                    )));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        right.clone(),
+                    )));
                 };
                 if *r == 0 {
-                    return Err(EvalError::MathDivisionByZero);
+                    return Err(EvalError::new(EvalErrorReason::MathDivisionByZero));
                 }
                 l.checked_div(*r)
                     .map(Value::Integer)
                     .map(Ok)
-                    .unwrap_or(Err(EvalError::IntegerOverflow))
+                    .unwrap_or(Err(EvalError::new(EvalErrorReason::IntegerOverflow)))
             }
             BinaryOperator::Mod => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::TypeError(ValueType::Integer, left.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        left.clone(),
+                    )));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        right.clone(),
+                    )));
                 };
                 l.checked_rem(*r)
                     .map(Value::Integer)
                     .map(Ok)
-                    .unwrap_or(Err(EvalError::IntegerOverflow))
+                    .unwrap_or(Err(EvalError::new(EvalErrorReason::IntegerOverflow)))
             }
             BinaryOperator::In => {
                 let Value::String(s) = left else {
-                    return Err(EvalError::TypeError(ValueType::String, left.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::String,
+                        left.clone(),
+                    )));
                 };
                 let Value::Object(o) = right else {
-                    return Err(EvalError::TypeError(ValueType::Object, right.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Object,
+                        right.clone(),
+                    )));
                 };
                 Ok(Value::Boolean(o.contains_key(s)))
             }
             BinaryOperator::PowerOf => {
                 let Value::Integer(l) = left else {
-                    return Err(EvalError::TypeError(ValueType::Integer, left.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        left.clone(),
+                    )));
                 };
                 let Value::Integer(r) = right else {
-                    return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        right.clone(),
+                    )));
                 };
                 l.checked_pow(*r as u32)
                     .map(Value::Integer)
                     .map(Ok)
-                    .unwrap_or(Err(EvalError::IntegerOverflow))
+                    .unwrap_or(Err(EvalError::new(EvalErrorReason::IntegerOverflow)))
             }
             BinaryOperator::Is => {
                 let Value::Type(specified_type) = right else {
-                    return Err(EvalError::KindError(right.clone()));
+                    return Err(EvalError::new(EvalErrorReason::KindError(right.clone())));
                 };
                 let actual_type = left.get_type();
 
@@ -270,11 +366,14 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
             BinaryOperator::Cast => {
                 let Value::Type(specified_type) = right else {
-                    return Err(EvalError::KindError(right.clone()));
+                    return Err(EvalError::new(EvalErrorReason::KindError(right.clone())));
                 };
 
                 let Some(v) = left.convert(*specified_type) else {
-                    return Err(EvalError::CastError(*specified_type, left.clone()));
+                    return Err(EvalError::new(EvalErrorReason::CastError(
+                        *specified_type,
+                        left.clone(),
+                    )));
                 };
 
                 Ok(v)
@@ -290,19 +389,28 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         match op {
             UnaryOperator::Minus => {
                 let Value::Integer(v) = arg else {
-                    return Err(EvalError::TypeError(ValueType::Integer, arg.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        arg.clone(),
+                    )));
                 };
                 Ok(Value::Integer(-v))
             }
             UnaryOperator::Plus => {
                 let Value::Integer(v) = arg else {
-                    return Err(EvalError::TypeError(ValueType::Integer, arg.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        arg.clone(),
+                    )));
                 };
                 Ok(Value::Integer(*v))
             }
             UnaryOperator::Not => {
                 let Value::Boolean(b) = arg else {
-                    return Err(EvalError::TypeError(ValueType::Boolean, arg.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Boolean,
+                        arg.clone(),
+                    )));
                 };
                 Ok(Value::Boolean(!b))
             }
@@ -342,7 +450,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                         PropertyKey::Expression(e) => {
                             let val = self.eval_expr(e)?;
                             let Value::String(s) = val else {
-                                return Err(EvalError::TypeError(ValueType::String, val.clone()));
+                                return Err(EvalError::new(EvalErrorReason::TypeError(
+                                    ValueType::String,
+                                    val.clone(),
+                                )));
                             };
                             s
                         }
@@ -353,7 +464,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 ObjectProperty::Spread(expr) => {
                     let to_spread = self.eval_expr(expr)?;
                     let Value::Object(map) = to_spread else {
-                        return Err(EvalError::TypeError(ValueType::Object, to_spread.clone()));
+                        return Err(EvalError::new(EvalErrorReason::TypeError(
+                            ValueType::Object,
+                            to_spread.clone(),
+                        )));
                     };
                     for (k, v) in map {
                         into.insert(k, v);
@@ -389,7 +503,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 ArrayItem::Spread(exp) => {
                     let v = self.eval_expr(exp)?;
                     let Value::Array(mut multiples) = v else {
-                        return Err(EvalError::TypeError(ValueType::Array, v.clone()));
+                        return Err(EvalError::new(EvalErrorReason::TypeError(
+                            ValueType::Array,
+                            v.clone(),
+                        )));
                     };
 
                     target.append(&mut multiples);
@@ -408,17 +525,20 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
     ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
         let left_value = self.eval_expr(left)?;
         let Value::Boolean(left_bool) = left_value else {
-            return Err(EvalError::TypeError(ValueType::Boolean, left_value.clone()));
+            return Err(EvalError::new(EvalErrorReason::TypeError(
+                ValueType::Boolean,
+                left_value.clone(),
+            )));
         };
         if operator.short_circuit_on(left_bool) {
             return Ok(Value::Boolean(left_bool));
         }
         let right_value = self.eval_expr(right)?;
         let Value::Boolean(right_bool) = right_value else {
-            return Err(EvalError::TypeError(
+            return Err(EvalError::new(EvalErrorReason::TypeError(
                 ValueType::Boolean,
                 right_value.clone(),
-            ));
+            )));
         };
         return Ok(Value::Boolean(right_bool));
     }
@@ -431,18 +551,27 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         match obj {
             Value::Object(o) => {
                 let Value::String(p) = prop else {
-                    return Err(EvalError::TypeError(ValueType::String, prop.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::String,
+                        prop.clone(),
+                    )));
                 };
 
                 let Some(val) = o.get(p).map(|v| v.clone().into_owned()) else {
-                    return Err(EvalError::KeyNotDefined(obj.clone(), prop.clone()));
+                    return Err(EvalError::new(EvalErrorReason::KeyNotDefined(
+                        obj.clone(),
+                        prop.clone(),
+                    )));
                 };
 
                 Ok(val)
             }
             Value::Array(a) => {
                 let Value::Integer(i) = prop else {
-                    return Err(EvalError::TypeError(ValueType::Integer, prop.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        prop.clone(),
+                    )));
                 };
                 let index = if *i < 0 {
                     a.len() - i.unsigned_abs() as usize
@@ -451,14 +580,17 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 };
 
                 let Some(val) = a.get(index).map(|v| v.clone().into_owned()) else {
-                    return Err(EvalError::OutOfBound(a.len(), index));
+                    return Err(EvalError::new(EvalErrorReason::OutOfBound(a.len(), index)));
                 };
 
                 Ok(val)
             }
             Value::String(s) => {
                 let Value::Integer(i) = prop else {
-                    return Err(EvalError::TypeError(ValueType::Integer, prop.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Integer,
+                        prop.clone(),
+                    )));
                 };
                 let index = if *i < 0 {
                     s.len() - i.unsigned_abs() as usize
@@ -467,19 +599,23 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 };
 
                 let Some(val) = s.chars().nth(index).map(|v| v.clone().to_string()) else {
-                    return Err(EvalError::OutOfBound(s.len(), index));
+                    return Err(EvalError::new(EvalErrorReason::OutOfBound(s.len(), index)));
                 };
 
                 Ok(Value::String(Cow::Owned(val)))
             }
             // TODO: be more specific
-            _ => Err(EvalError::CollectionTypeError(obj.clone())),
+            _ => Err(EvalError::new(EvalErrorReason::CollectionTypeError(
+                obj.clone(),
+            ))),
         }
     }
 
     fn eval_identifier(&self, id: &Identifier<'s>) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
         let Some(val) = self.env.bindings.get(id) else {
-            return Err(EvalError::UnknownIdentifier(id.clone()));
+            return Err(EvalError::new(EvalErrorReason::UnknownIdentifier(
+                id.clone(),
+            )));
         };
 
         Ok(val.clone())
@@ -495,18 +631,32 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 Value::String(s) => s.len() as i64,
                 Value::Array(a) => a.len() as i64,
                 Value::Object(o) => o.len() as i64,
-                _ => return Err(EvalError::CollectionTypeError(argument.clone())),
+                _ => {
+                    return Err(EvalError::new(EvalErrorReason::CollectionTypeError(
+                        argument.clone(),
+                    )))
+                }
             }),
             "keys" => Value::Array(match argument {
                 Value::Object(o) => o
                     .keys()
                     .map(|k| Cow::Owned(Value::String(Cow::Owned(k.to_string()))))
                     .collect(),
-                _ => return Err(EvalError::TypeError(ValueType::Object, argument.clone())),
+                _ => {
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Object,
+                        argument.clone(),
+                    )))
+                }
             }),
             "values" => Value::Array(match argument {
                 Value::Object(o) => o.values().cloned().collect(),
-                _ => return Err(EvalError::TypeError(ValueType::Object, argument.clone())),
+                _ => {
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Object,
+                        argument.clone(),
+                    )))
+                }
             }),
             "env" => Value::Object(match argument {
                 Value::Lambda(env, _, _) => env
@@ -514,30 +664,35 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                     .iter()
                     .map(|(k, v)| (Cow::Owned(k.to_string()), Cow::Owned(v.to_owned())))
                     .collect(),
-                _ => return Err(EvalError::TypeError(ValueType::Lambda, argument.clone())),
+                _ => {
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Lambda,
+                        argument.clone(),
+                    )))
+                }
             }),
             "rebind" => match argument {
                 Value::Array(arr) => {
                     let Some(x) = arr.first() else {
-                        return Err(EvalError::OutOfBound(1, arr.len()));
+                        return Err(EvalError::new(EvalErrorReason::OutOfBound(1, arr.len())));
                     };
 
                     let Value::Lambda(env, pattern, expression) = x.clone().into_owned() else {
-                        return Err(EvalError::TypeError(
+                        return Err(EvalError::new(EvalErrorReason::TypeError(
                             ValueType::Lambda,
                             x.clone().into_owned(),
-                        ));
+                        )));
                     };
 
                     let Some(y) = arr.get(1) else {
-                        return Err(EvalError::OutOfBound(2, arr.len()));
+                        return Err(EvalError::new(EvalErrorReason::OutOfBound(2, arr.len())));
                     };
 
                     let Value::Object(obj) = y.clone().into_owned() else {
-                        return Err(EvalError::TypeError(
+                        return Err(EvalError::new(EvalErrorReason::TypeError(
                             ValueType::Object,
                             y.clone().into_owned(),
-                        ));
+                        )));
                     };
 
                     let mut new_env = env.clone();
@@ -550,10 +705,19 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
 
                     Value::Lambda(new_env, pattern.clone(), expression.clone())
                 }
-                _ => return Err(EvalError::TypeError(ValueType::Array, argument.clone())),
+                _ => {
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Array,
+                        argument.clone(),
+                    )))
+                }
             },
             "type" => Value::Type(argument.get_type()),
-            _ => return Err(EvalError::UnknownFunction(function.clone())),
+            _ => {
+                return Err(EvalError::new(EvalErrorReason::UnknownFunction(
+                    function.clone(),
+                )))
+            }
         })
     }
 
@@ -572,8 +736,12 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                     Ok(Some(Value::String(end))) => [prefix, Ok(end)],
                     Ok(_) => [
                         prefix,
-                        end_val
-                            .and_then(|v| Err(EvalError::TypeError(ValueType::String, v.clone()))),
+                        end_val.and_then(|v| {
+                            Err(EvalError::new(EvalErrorReason::TypeError(
+                                ValueType::String,
+                                v.clone(),
+                            )))
+                        }),
                     ],
                     Err(e) => [prefix, Err(e)],
                 }
@@ -592,12 +760,15 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         let param = self.eval_expr(&app.parameter)?;
 
         let Value::Lambda(env, pattern, lambda_body) = lambda else {
-            return Err(EvalError::TypeError(ValueType::Lambda, lambda.clone()));
+            return Err(EvalError::new(EvalErrorReason::TypeError(
+                ValueType::Lambda,
+                lambda.clone(),
+            )));
         };
 
         let mut matcher = Matcher::new(&env);
         if let Err(e) = matcher.match_pattern(&pattern, &param) {
-            return Err(EvalError::PatternError(Box::new(e)));
+            return Err(EvalError::new(EvalErrorReason::PatternError(Box::new(e))));
         };
 
         let local_env = matcher.into_env();
@@ -637,10 +808,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
     ) -> Result<impl Iterator<Item = Environment<'i, 's, 'v>>, EvalError<'s, 'v>> {
         let expression_value: Value<'_, '_> = self.eval_expr(&source.collection)?;
         let Value::Array(vals) = expression_value else {
-            return Err(EvalError::TypeError(
+            return Err(EvalError::new(EvalErrorReason::TypeError(
                 ValueType::Array,
                 expression_value.clone(),
-            ));
+            )));
         };
 
         let mut results = vec![];
@@ -649,7 +820,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             let mut matcher = Matcher::new(self.env);
             if let Err(e) = matcher.match_pattern(&source.pattern, &val) {
                 if source.strong_pattern {
-                    return Err(EvalError::PatternError(Box::new(e)));
+                    return Err(EvalError::new(EvalErrorReason::PatternError(Box::new(e))));
                 } else {
                     continue;
                 }
@@ -662,10 +833,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 let pred_result = local_eval.eval_expr(p)?;
 
                 let Value::Boolean(pred_result_bool) = pred_result else {
-                    return Err(EvalError::TypeError(
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
                         ValueType::Boolean,
                         pred_result.clone(),
-                    ));
+                    )));
                 };
 
                 if !pred_result_bool {
@@ -726,7 +897,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 let guard_val = local_eval.eval_expr(guard)?;
 
                 let Value::Boolean(guard_bool) = guard_val else {
-                    return Err(EvalError::TypeError(ValueType::Boolean, guard_val.clone()));
+                    return Err(EvalError::new(EvalErrorReason::TypeError(
+                        ValueType::Boolean,
+                        guard_val.clone(),
+                    )));
                 };
 
                 if !guard_bool {
@@ -737,7 +911,9 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             return local_eval.eval_expr(&case.body);
         }
 
-        Err(EvalError::PatternExhaustionError(subject_value.clone()))
+        Err(EvalError::new(EvalErrorReason::PatternExhaustionError(
+            subject_value.clone(),
+        )))
     }
 
     fn eval_condition<'x: 's>(
@@ -747,10 +923,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         let condition_value = self.eval_expr(&if_else.condition)?;
 
         let Value::Boolean(condition_bool) = condition_value else {
-            return Err(EvalError::TypeError(
+            return Err(EvalError::new(EvalErrorReason::TypeError(
                 ValueType::Boolean,
                 condition_value.clone(),
-            ));
+            )));
         };
 
         if condition_bool {

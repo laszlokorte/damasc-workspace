@@ -1,8 +1,8 @@
+use damasc_lang::identifier::Identifier;
 use damasc_lang::runtime::evaluation::EvalError;
 use damasc_lang::runtime::matching::PatternFail;
-use nom::lib::std::collections::HashSet;
-use damasc_lang::identifier::Identifier;
 use damasc_lang::{runtime::env::Environment, value::ValueBag};
+use nom::lib::std::collections::HashSet;
 
 #[derive(Debug)]
 pub enum ReplOutput<'i, 's> {
@@ -26,10 +26,10 @@ impl std::fmt::Display for ReplOutput<'_, '_> {
 }
 
 #[derive(Debug)]
-pub enum ReplError<'s,'v> {
+pub enum ReplError<'s, 'v> {
     ParseError,
-    EvalError(EvalError<'s,'v>),
-    MatchError(PatternFail<'s,'v>),
+    EvalError(EvalError<'s, 'v>),
+    MatchError(PatternFail<'s, 'v>),
     TopologyError(HashSet<Identifier<'s>>),
     TransformError,
 }

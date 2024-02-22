@@ -1,7 +1,8 @@
-use std::collections::HashSet;
 use crate::runtime::evaluation::EvalError;
+use crate::syntax::location::Location;
 use crate::syntax::pattern::PatternBody;
 use crate::value_type::ValueType;
+use std::collections::HashSet;
 use std::{
     borrow::Cow,
     collections::{btree_map::Entry, BTreeMap, BTreeSet},
@@ -25,7 +26,32 @@ use super::{
 };
 
 #[derive(Debug, Clone)]
-pub enum PatternFail<'s, 'v> {
+pub struct PatternFail<'s, 'v> {
+    pub reason: PatternFailReason<'s, 'v>,
+    pub location: Option<Location>,
+}
+
+impl<'s, 'v> PatternFail<'s, 'v> {
+    fn new(reason: PatternFailReason<'s, 'v>) -> Self {
+        Self {
+            reason,
+            location: None,
+        }
+    }
+
+    fn new_with_location(reason: PatternFailReason<'s, 'v>, location: Option<Location>) -> Self {
+        Self { reason, location }
+    }
+}
+
+impl<'s, 'v> Pattern<'s> {
+    fn cause_error(&self, reason: PatternFailReason<'s, 'v>) -> PatternFail<'s, 'v> {
+        PatternFail::new_with_location(reason, self.location)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum PatternFailReason<'s, 'v> {
     IdentifierConflict {
         identifier: Identifier<'s>,
         expected: Value<'s, 'v>,
@@ -87,36 +113,36 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                 if t == &value.get_type() {
                     Ok(())
                 } else {
-                    Err(PatternFail::TypeMismatch {
+                    Err(pattern.cause_error(PatternFailReason::TypeMismatch {
                         expected: *t,
                         actual: value.clone(),
-                    })
+                    }))
                 }
             }
             PatternBody::TypedIdentifier(name, t) => {
                 if t != &value.get_type() {
-                    return Err(PatternFail::TypeMismatch {
+                    return Err(pattern.cause_error(PatternFailReason::TypeMismatch {
                         expected: *t,
                         actual: value.clone(),
-                    });
+                    }));
                 }
                 self.match_identifier(name, value)
             }
-            PatternBody::Object(pattern, rest) => {
+            PatternBody::Object(object_pattern, rest) => {
                 let Value::Object(o) = value else {
-                    return Err(PatternFail::TypeMismatch {
+                    return Err(pattern.cause_error(PatternFailReason::TypeMismatch {
                         expected: ValueType::Object,
                         actual: value.clone(),
-                    });
+                    }));
                 };
-                self.match_object(pattern, rest, o)
+                self.match_object(object_pattern, rest, o)
             }
             PatternBody::Array(items, rest) => {
                 let Value::Array(a) = value else {
-                    return Err(PatternFail::TypeMismatch {
+                    return Err(pattern.cause_error(PatternFailReason::TypeMismatch {
                         expected: ValueType::Array,
                         actual: value.clone(),
-                    });
+                    }));
                 };
                 self.match_array(items, rest, a)
             }
@@ -125,17 +151,19 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                 let eval = Evaluation::new(self.outer_env);
 
                 let exptected_value = match eval.eval_expr(expr) {
-                    Err(e) => return Err(PatternFail::EvalError(Box::new(e))),
+                    Err(e) => {
+                        return Err(pattern.cause_error(PatternFailReason::EvalError(Box::new(e))))
+                    }
                     Ok(expected) => expected,
                 };
 
                 if &exptected_value == value {
                     Ok(())
                 } else {
-                    Err(PatternFail::ExpressionMissmatch {
+                    Err(pattern.cause_error(PatternFailReason::ExpressionMissmatch {
                         expected: exptected_value,
                         actual: value.clone(),
-                    })
+                    }))
                 }
             }
         }
@@ -151,11 +179,11 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                 if value == entry.get() {
                     Ok(())
                 } else {
-                    Err(PatternFail::IdentifierConflict {
+                    Err(PatternFail::new(PatternFailReason::IdentifierConflict {
                         identifier: name.deep_clone(),
                         expected: entry.get().clone(),
                         actual: value.clone(),
-                    })
+                    }))
                 }
             }
             Entry::Vacant(entry) => {
@@ -173,10 +201,10 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
     ) -> Result<(), PatternFail<'s, 'v>> {
         if let Rest::Exact = rest {
             if value.len() != props.len() {
-                return Err(PatternFail::ObjectLengthMismatch {
+                return Err(PatternFail::new(PatternFailReason::ObjectLengthMismatch {
                     expected: props.len(),
                     actual: value.len(),
-                });
+                }));
             }
         }
 
@@ -199,28 +227,30 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                     match evaluation.eval_expr(exp) {
                         Ok(Value::String(k)) => (k.clone(), value.clone()),
                         Ok(v) => {
-                            return Err(PatternFail::TypeMismatch {
+                            return Err(PatternFail::new(PatternFailReason::TypeMismatch {
                                 expected: ValueType::String,
                                 actual: v,
-                            })
+                            }))
                         }
-                        Err(e) => return Err(PatternFail::EvalError(Box::new(e))),
+                        Err(e) => {
+                            return Err(PatternFail::new(PatternFailReason::EvalError(Box::new(e))))
+                        }
                     }
                 }
             };
 
             if !keys.remove(&k) {
-                return Err(PatternFail::ObjectKeyMismatch {
+                return Err(PatternFail::new(PatternFailReason::ObjectKeyMismatch {
                     expected: k,
                     actual: value.clone(),
-                });
+                }));
             }
 
             let Some(actual_value) = value.get(&k) else {
-                return Err(PatternFail::ObjectKeyMismatch {
+                return Err(PatternFail::new(PatternFailReason::ObjectKeyMismatch {
                     expected: k,
                     actual: value.clone(),
-                });
+                }));
             };
 
             self.match_pattern(&v, actual_value.as_ref())?
@@ -245,18 +275,20 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
     ) -> Result<(), PatternFail<'s, 'v>> {
         if let Rest::Exact = rest {
             if value.len() != items.len() {
-                return Err(PatternFail::ArrayLengthMismatch {
+                return Err(PatternFail::new(PatternFailReason::ArrayLengthMismatch {
                     expected: items.len(),
                     actual: value.len(),
-                });
+                }));
             }
         }
 
         if value.len() < items.len() {
-            return Err(PatternFail::ArrayMinimumLengthMismatch {
-                expected: items.len(),
-                actual: value.len(),
-            });
+            return Err(PatternFail::new(
+                PatternFailReason::ArrayMinimumLengthMismatch {
+                    expected: items.len(),
+                    actual: value.len(),
+                },
+            ));
         }
 
         for (ArrayPatternItem::Pattern(p), val) in std::iter::zip(items, value.iter()) {
@@ -292,7 +324,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         if matches {
             Ok(())
         } else {
-            Err(PatternFail::LiteralMismatch)
+            Err(PatternFail::new(PatternFailReason::LiteralMismatch))
         }
     }
 
@@ -316,7 +348,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
     pub fn eval_assigment_set<'a: 's, 'b: 's>(
         &self,
         assignments: AssignmentSet<'a, 'b>,
-    ) -> Result<Environment<'i, 's, 'v>, AssignmentError<'s,'v>> {
+    ) -> Result<Environment<'i, 's, 'v>, AssignmentError<'s, 'v>> {
         match assignments.sort_topological() {
             Ok(sorted_set) => {
                 let mut local_env = self.outer_env.clone();
@@ -330,9 +362,9 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                     let mut matcher = Matcher::new_with_local(&local_env, collected_env.clone());
                     let evaluation = Evaluation::new(&local_env);
 
-                    let value = match evaluation.eval_expr(&expression){
+                    let value = match evaluation.eval_expr(&expression) {
                         Ok(value) => value,
-                        Err(e) => return Err(AssignmentError::EvalError(e))
+                        Err(e) => return Err(AssignmentError::EvalError(e)),
                     };
 
                     match matcher.match_pattern(&pattern, &value) {
@@ -363,8 +395,8 @@ impl Default for Matcher<'_, '_, '_, 'static> {
 }
 
 #[derive(Debug)]
-pub enum AssignmentError<'s,'v> {
+pub enum AssignmentError<'s, 'v> {
     TopologyError(HashSet<Identifier<'s>>),
-    EvalError(EvalError<'s,'v>),
-    MatchError(PatternFail<'s,'v>),
+    EvalError(EvalError<'s, 'v>),
+    MatchError(PatternFail<'s, 'v>),
 }

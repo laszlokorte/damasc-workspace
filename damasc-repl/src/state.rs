@@ -32,7 +32,10 @@ impl<'i, 's> State<'i, 's> {
         self.environment.bindings.keys().collect()
     }
 
-    pub fn eval(&mut self, command: Command<'s, 's>) -> Result<ReplOutput<'i, 's>, ReplError<'s, 's>> {
+    pub fn eval(
+        &mut self,
+        command: Command<'s, 's>,
+    ) -> Result<ReplOutput<'i, 's>, ReplError<'s, 's>> {
         match command {
             Command::Exit => Ok(ReplOutput::Exit),
             Command::Help => Ok(ReplOutput::Ok),
@@ -79,7 +82,9 @@ impl<'i, 's> State<'i, 's> {
                             local_env
                         }
                         Err(AssignmentError::EvalError(e)) => return Err(ReplError::EvalError(e)),
-                        Err(AssignmentError::MatchError(e)) => return Err(ReplError::MatchError(e)),
+                        Err(AssignmentError::MatchError(e)) => {
+                            return Err(ReplError::MatchError(e))
+                        }
                         Err(AssignmentError::TopologyError(e)) => {
                             return Err(ReplError::TopologyError(e))
                         }
@@ -114,9 +119,11 @@ impl<'i, 's> State<'i, 's> {
                 let matcher = Matcher::new(&self.environment);
                 let mut new_bindings = match matcher.eval_assigment_set(assignments) {
                     Ok(new_env) => new_env,
-                    Err(AssignmentError::EvalError(e)) => { return Err(ReplError::EvalError(e))},
-                    Err(AssignmentError::MatchError(e)) => { return Err(ReplError::MatchError(e))},
-                    Err(AssignmentError::TopologyError(e)) => { return Err(ReplError::TopologyError(e))},
+                    Err(AssignmentError::EvalError(e)) => return Err(ReplError::EvalError(e)),
+                    Err(AssignmentError::MatchError(e)) => return Err(ReplError::MatchError(e)),
+                    Err(AssignmentError::TopologyError(e)) => {
+                        return Err(ReplError::TopologyError(e))
+                    }
                 };
                 let mut local_env = self.environment.clone();
                 local_env.bindings.append(&mut new_bindings.bindings);

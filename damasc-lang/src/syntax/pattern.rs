@@ -18,6 +18,13 @@ impl<'s> Pattern<'s> {
             location: None,
         }
     }
+
+    pub fn new_with_location(body: PatternBody<'s>, location: Location) -> Pattern<'s> {
+        Self {
+            body,
+            location: Some(location),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]

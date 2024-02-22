@@ -19,6 +19,12 @@ impl<'s> Expression<'s> {
             location: None,
         }
     }
+    pub fn new_with_location(body: ExpressionBody<'s>, location: Location) -> Expression<'s> {
+        Self {
+            body,
+            location: Some(location),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]

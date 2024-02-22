@@ -1,3 +1,4 @@
+use damasc_lang::runtime::matching::PatternFailReason;
 use std::iter;
 
 use damasc_lang::{
@@ -30,8 +31,8 @@ impl<'s> Capture<'s> {
 
         match matcher.match_pattern(&self.pattern, value) {
             Ok(()) => Ok(Some(matcher.into_env())),
-            Err(e) => match e {
-                PatternFail::EvalError(_e) => Err(CaptureError::EvalError),
+            Err(e) => match e.reason {
+                PatternFailReason::EvalError(_e) => Err(CaptureError::EvalError),
                 _ => Ok(None),
             },
         }
@@ -50,16 +51,17 @@ impl<'s> MultiCapture<'s> {
         values: impl Iterator<Item = &'x Value<'s, 'v>>,
     ) -> Result<Option<Environment<'i, 's, 'v>>, CaptureError> {
         let mut zipped = iter::zip(self.patterns.patterns.iter(), values);
-        let result = zipped.try_fold(env.clone(), |e, (pat, val)| {
-            let mut m = Matcher::new_with_local(&e, e.clone());
-            m.match_pattern(pat, val)?;
-            Ok(m.into_env())
-        });
+        let result: Result<Environment, PatternFail> =
+            zipped.try_fold(env.clone(), |e, (pat, val)| {
+                let mut m = Matcher::new_with_local(&e, e.clone());
+                m.match_pattern(pat, val)?;
+                Ok(m.into_env())
+            });
 
         match result {
             Ok(final_env) => Ok(Some(final_env)),
-            Err(e) => match e {
-                PatternFail::EvalError(_e) => Err(CaptureError::EvalError),
+            Err(e) => match &e.reason {
+                PatternFailReason::EvalError(_e) => Err(CaptureError::EvalError),
                 _ => Ok(None),
             },
         }
