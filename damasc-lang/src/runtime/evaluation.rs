@@ -32,15 +32,15 @@ pub enum EvalError<'s, 'v> {
     TypeError(ValueType, Value<'s, 'v>),
     CollectionTypeError(Value<'s, 'v>),
     CastError(ValueType, Value<'s, 'v>),
-    UnknownIdentifier,
-    InvalidNumber,
-    MathDivision,
+    UnknownIdentifier(Identifier<'s>),
+    InvalidNumber(String),
+    MathDivisionByZero,
     KeyNotDefined(Value<'s, 'v>, Value<'s, 'v>),
-    OutOfBound,
-    Overflow,
-    UnknownFunction,
+    OutOfBound(usize, usize),
+    IntegerOverflow,
+    UnknownFunction(Identifier<'s>),
     PatternError(Box<PatternFail<'s, 'v>>),
-    PatternExhaustionError,
+    PatternExhaustionError(Value<'s, 'v>),
 }
 
 pub struct Evaluation<'e, 'i, 's, 'v> {
@@ -98,12 +98,12 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             }
             ExpressionBody::Template(template) => self.eval_template(template),
             ExpressionBody::Abstraction(LambdaAbstraction { arguments, body }) => {
-                let Some(new_env) = self
+                let new_env = match self
                     .env
-                    .extract_except(body.get_identifiers(), arguments.get_identifiers())
-                else {
-                    return Err(EvalError::UnknownIdentifier);
-                };
+                    .extract_except(body.get_identifiers(), arguments.get_identifiers()) {
+                        Ok(new_env) => new_env,
+                        Err(missing_id) => return Err(EvalError::UnknownIdentifier(missing_id.deep_clone()))
+                    };
 
                 Ok(Value::Lambda(new_env, arguments.clone(), *body.clone()))
             }
@@ -122,7 +122,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             Literal::Number(s) => str::parse::<i64>(s)
                 .map(Value::Integer)
                 .map(Ok)
-                .unwrap_or(Err(EvalError::InvalidNumber)),
+                .unwrap_or(Err(EvalError::InvalidNumber(s.to_string()))),
             Literal::Boolean(b) => Ok(Value::Boolean(*b)),
             Literal::Type(t) => Ok(Value::Type(*t)),
         }
@@ -183,7 +183,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 l.checked_add(*r)
                     .map(Value::Integer)
                     .map(Ok)
-                    .unwrap_or(Err(EvalError::Overflow))
+                    .unwrap_or(Err(EvalError::IntegerOverflow))
             }
             BinaryOperator::Minus => {
                 let Value::Integer(l) = left else {
@@ -195,7 +195,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 l.checked_sub(*r)
                     .map(Value::Integer)
                     .map(Ok)
-                    .unwrap_or(Err(EvalError::Overflow))
+                    .unwrap_or(Err(EvalError::IntegerOverflow))
             }
             BinaryOperator::Times => {
                 let Value::Integer(l) = left else {
@@ -207,7 +207,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 l.checked_mul(*r)
                     .map(Value::Integer)
                     .map(Ok)
-                    .unwrap_or(Err(EvalError::Overflow))
+                    .unwrap_or(Err(EvalError::IntegerOverflow))
             }
             BinaryOperator::Over => {
                 let Value::Integer(l) = left else {
@@ -217,12 +217,12 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                     return Err(EvalError::TypeError(ValueType::Integer, right.clone()));
                 };
                 if *r == 0 {
-                    return Err(EvalError::MathDivision);
+                    return Err(EvalError::MathDivisionByZero);
                 }
                 l.checked_div(*r)
                     .map(Value::Integer)
                     .map(Ok)
-                    .unwrap_or(Err(EvalError::Overflow))
+                    .unwrap_or(Err(EvalError::IntegerOverflow))
             }
             BinaryOperator::Mod => {
                 let Value::Integer(l) = left else {
@@ -234,7 +234,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 l.checked_rem(*r)
                     .map(Value::Integer)
                     .map(Ok)
-                    .unwrap_or(Err(EvalError::Overflow))
+                    .unwrap_or(Err(EvalError::IntegerOverflow))
             }
             BinaryOperator::In => {
                 let Value::String(s) = left else {
@@ -255,7 +255,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 l.checked_pow(*r as u32)
                     .map(Value::Integer)
                     .map(Ok)
-                    .unwrap_or(Err(EvalError::Overflow))
+                    .unwrap_or(Err(EvalError::IntegerOverflow))
             }
             BinaryOperator::Is => {
                 let Value::Type(specified_type) = right else {
@@ -438,7 +438,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 };
 
                 let Some(val) = a.get(index).map(|v| v.clone().into_owned()) else {
-                    return Err(EvalError::OutOfBound);
+                    return Err(EvalError::OutOfBound(a.len(), index));
                 };
 
                 Ok(val)
@@ -454,7 +454,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 };
 
                 let Some(val) = s.chars().nth(index).map(|v| v.clone().to_string()) else {
-                    return Err(EvalError::OutOfBound);
+                    return Err(EvalError::OutOfBound(s.len(), index));
                 };
 
                 Ok(Value::String(Cow::Owned(val)))
@@ -464,9 +464,9 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         }
     }
 
-    fn eval_identifier(&self, id: &Identifier) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
+    fn eval_identifier(&self, id: &Identifier<'s>) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
         let Some(val) = self.env.bindings.get(id) else {
-            return Err(EvalError::UnknownIdentifier);
+            return Err(EvalError::UnknownIdentifier(id.clone()));
         };
 
         Ok(val.clone())
@@ -474,7 +474,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
 
     fn eval_call(
         &self,
-        function: &Identifier,
+        function: &Identifier<'s>,
         argument: &Value<'s, 'v>,
     ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
         Ok(match function.name.as_ref() {
@@ -506,7 +506,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             "rebind" => match argument {
                 Value::Array(arr) => {
                     let Some(x) = arr.first() else {
-                        return Err(EvalError::OutOfBound);
+                        return Err(EvalError::OutOfBound(1, arr.len()));
                     };
 
                     let Value::Lambda(env, pattern, expression) = x.clone().into_owned() else {
@@ -514,7 +514,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                     };
 
                     let Some(y) = arr.get(1) else {
-                        return Err(EvalError::OutOfBound);
+                        return Err(EvalError::OutOfBound(2, arr.len()));
                     };
 
                     let Value::Object(obj) = y.clone().into_owned() else {
@@ -534,7 +534,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 _ => return Err(EvalError::TypeError(ValueType::Array, argument.clone())),
             },
             "type" => Value::Type(argument.get_type()),
-            _ => return Err(EvalError::UnknownFunction),
+            _ => return Err(EvalError::UnknownFunction(function.clone())),
         })
     }
 
@@ -710,7 +710,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             return local_eval.eval_expr(&case.body);
         }
 
-        Err(EvalError::PatternExhaustionError)
+        Err(EvalError::PatternExhaustionError(subject_value.clone()))
     }
 
     fn eval_condition<'x: 's>(

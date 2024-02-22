@@ -63,7 +63,7 @@ impl<'i, 's, 'v> Environment<'i, 's, 'v> {
         &self,
         identifiers: impl Iterator<Item = &'x Identifier<'y>>,
         exceptions: impl Iterator<Item = &'x Identifier<'y>>,
-    ) -> Option<Environment<'i, 's, 'v>> {
+    ) -> Result<Environment<'i, 's, 'v>, &'x Identifier<'y>> {
         let mut env = Environment::new();
         let skip = exceptions.collect::<HashSet<_>>();
 
@@ -72,11 +72,13 @@ impl<'i, 's, 'v> Environment<'i, 's, 'v> {
                 continue;
             }
 
-            let current_value = self.bindings.get(id)?;
+            let Some(current_value) = self.bindings.get(id) else {
+                return Err(id);
+            };
             env.bindings.insert(id.deep_clone(), current_value.clone());
         }
 
-        Some(env)
+        Ok(env)
     }
 
     pub(crate) fn deep_clone<'ix, 'sx, 'vx>(&self) -> Environment<'ix, 'sx, 'vx> {
