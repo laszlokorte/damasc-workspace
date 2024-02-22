@@ -1,3 +1,4 @@
+use crate::syntax::location::Location;
 use std::borrow::Cow;
 
 use crate::identifier::Identifier;
@@ -8,11 +9,12 @@ use super::pattern::Pattern;
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Expression<'s> {
     pub body: ExpressionBody<'s>,
+    pub location: Option<Location>,
 }
 
 impl<'s> Expression<'s> {
     pub fn new(body: ExpressionBody<'s>) -> Expression<'s> {
-        Self { body }
+        Self { body, location: None }
     }
 }
 

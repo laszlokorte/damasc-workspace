@@ -1,3 +1,4 @@
+use crate::syntax::location::Location;
 use crate::identifier::Identifier;
 use crate::literal::Literal;
 use crate::syntax::expression::Expression;
@@ -7,11 +8,12 @@ use crate::value_type::ValueType;
 #[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]
 pub struct Pattern<'s> {
     pub body: PatternBody<'s>,
+    pub location: Option<Location>,
 }
 
 impl<'s> Pattern<'s> {
     pub fn new(body: PatternBody<'s>) -> Pattern<'s> {
-        Self { body }
+        Self { body, location: None }
     }
 }
 
