@@ -1,3 +1,4 @@
+use crate::syntax::pattern::PatternBody;
 use std::{
     borrow::Cow,
     collections::{btree_map::Entry, BTreeMap, BTreeSet},
@@ -52,39 +53,39 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         pattern: &'x Pattern<'s>,
         value: &Value<'s, 'v>,
     ) -> Result<(), PatternFail> {
-        match &pattern {
-            Pattern::Discard => Ok(()),
-            Pattern::Capture(name, pat) => self
+        match &pattern.body {
+            PatternBody::Discard => Ok(()),
+            PatternBody::Capture(name, pat) => self
                 .match_pattern(pat, value)
                 .and_then(|_| self.match_identifier(name, value)),
-            Pattern::Identifier(name) => self.match_identifier(name, value),
-            Pattern::TypedDiscard(t) => {
+            PatternBody::Identifier(name) => self.match_identifier(name, value),
+            PatternBody::TypedDiscard(t) => {
                 if t == &value.get_type() {
                     Ok(())
                 } else {
                     Err(PatternFail::TypeMismatch)
                 }
             }
-            Pattern::TypedIdentifier(name, t) => {
+            PatternBody::TypedIdentifier(name, t) => {
                 if t != &value.get_type() {
                     return Err(PatternFail::TypeMismatch);
                 }
                 self.match_identifier(name, value)
             }
-            Pattern::Object(pattern, rest) => {
+            PatternBody::Object(pattern, rest) => {
                 let Value::Object(o) = value else {
                     return Err(PatternFail::ObjectMissmatch);
                 };
                 self.match_object(pattern, rest, o)
             }
-            Pattern::Array(items, rest) => {
+            PatternBody::Array(items, rest) => {
                 let Value::Array(a) = value else {
                     return Err(PatternFail::ArrayMissmatch);
                 };
                 self.match_array(items, rest, a)
             }
-            Pattern::Literal(l) => self.match_literal(l, value),
-            Pattern::PinnedExpression(expr) => {
+            PatternBody::Literal(l) => self.match_literal(l, value),
+            PatternBody::PinnedExpression(expr) => {
                 let eval = Evaluation::new(self.outer_env);
 
                 let Ok(val) = eval.eval_expr(expr) else {
@@ -152,9 +153,10 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         let mut keys = value.keys().collect::<BTreeSet<_>>();
         for prop in props {
             let (k, v) = match prop {
-                ObjectPropertyPattern::Single(key) => {
-                    (key.name.clone(), Pattern::Identifier(key.clone()))
-                }
+                ObjectPropertyPattern::Single(key) => (
+                    key.name.clone(),
+                    Pattern::new(PatternBody::Identifier(key.clone())),
+                ),
                 ObjectPropertyPattern::Match(PropertyPattern {
                     key: PropertyKey::Identifier(key),
                     value,

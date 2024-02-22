@@ -8,6 +8,7 @@ use crate::syntax::expression::MatchCase;
 use crate::syntax::expression::MatchExpression;
 use crate::syntax::expression::ObjectComprehension;
 use crate::syntax::pattern::Pattern;
+use crate::syntax::pattern::PatternBody;
 use nom::multi::many1;
 use std::borrow::Cow;
 
@@ -416,7 +417,7 @@ fn expression_lambda_match_abstraction<'v, 's, E: ParserError<'s>>(
             |cases| {
                 let local_identifier = Identifier::new("___local");
                 Expression::new(ExpressionBody::Abstraction(LambdaAbstraction {
-                    arguments: Pattern::Identifier(local_identifier.clone()),
+                    arguments: Pattern::new(PatternBody::Identifier(local_identifier.clone())),
                     body: Box::new(Expression::new(ExpressionBody::Match(MatchExpression {
                         subject: Box::new(Expression::new(ExpressionBody::Identifier(
                             local_identifier,

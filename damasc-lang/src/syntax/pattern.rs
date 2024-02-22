@@ -5,7 +5,18 @@ use crate::syntax::expression::PropertyKey;
 use crate::value_type::ValueType;
 
 #[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]
-pub enum Pattern<'s> {
+pub struct Pattern<'s> {
+    pub body: PatternBody<'s>,
+}
+
+impl<'s> Pattern<'s> {
+    pub fn new(body: PatternBody<'s>) -> Pattern<'s> {
+        Self { body }
+    }
+}
+
+#[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]
+pub enum PatternBody<'s> {
     Discard,
     Capture(Identifier<'s>, Box<Pattern<'s>>),
     Identifier(Identifier<'s>),
@@ -16,39 +27,44 @@ pub enum Pattern<'s> {
     Object(ObjectPattern<'s>, Rest<'s>),
     Array(ArrayPattern<'s>, Rest<'s>),
 }
+
 impl<'s> Pattern<'s> {
     pub(crate) fn deep_clone<'x>(&self) -> Pattern<'x> {
-        match self {
-            Pattern::Discard => Pattern::Discard,
-            Pattern::Capture(i, p) => Pattern::Capture(i.deep_clone(), Box::new(p.deep_clone())),
-            Pattern::Identifier(i) => Pattern::Identifier(i.deep_clone()),
-            Pattern::TypedDiscard(t) => Pattern::TypedDiscard(*t),
-            Pattern::TypedIdentifier(i, t) => Pattern::TypedIdentifier(i.deep_clone(), *t),
-            Pattern::Literal(l) => Pattern::Literal(l.deep_clone()),
-            Pattern::Object(pat, rst) => Pattern::Object(
+        Pattern::new(match &self.body {
+            PatternBody::Discard => PatternBody::Discard,
+            PatternBody::Capture(i, p) => {
+                PatternBody::Capture(i.deep_clone(), Box::new(p.deep_clone()))
+            }
+            PatternBody::Identifier(i) => PatternBody::Identifier(i.deep_clone()),
+            PatternBody::TypedDiscard(t) => PatternBody::TypedDiscard(*t),
+            PatternBody::TypedIdentifier(i, t) => PatternBody::TypedIdentifier(i.deep_clone(), *t),
+            PatternBody::Literal(l) => PatternBody::Literal(l.deep_clone()),
+            PatternBody::Object(pat, rst) => PatternBody::Object(
                 pat.iter().map(|e| e.deep_clone()).collect(),
                 rst.deep_clone(),
             ),
-            Pattern::Array(pat, rst) => Pattern::Array(
+            PatternBody::Array(pat, rst) => PatternBody::Array(
                 pat.iter().map(|e| e.deep_clone()).collect(),
                 rst.deep_clone(),
             ),
-            Pattern::PinnedExpression(e) => Pattern::PinnedExpression(Box::new(e.deep_clone())),
-        }
+            PatternBody::PinnedExpression(e) => {
+                PatternBody::PinnedExpression(Box::new(e.deep_clone()))
+            }
+        })
     }
 }
 
 impl<'a> std::fmt::Display for Pattern<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let _ = match self {
-            Pattern::Discard => write!(f, "_"),
-            Pattern::Literal(l) => write!(f, "{l}"),
-            Pattern::Capture(id, pat) => write!(f, "{id} @ {pat}"),
-            Pattern::TypedDiscard(t) => write!(f, "_ is {t}"),
-            Pattern::Identifier(id) => write!(f, "{id}"),
-            Pattern::PinnedExpression(expr) => write!(f, "^{expr}"),
-            Pattern::TypedIdentifier(id, t) => write!(f, "{id} is {t}"),
-            Pattern::Object(props, rest) => {
+        let _ = match &self.body {
+            PatternBody::Discard => write!(f, "_"),
+            PatternBody::Literal(l) => write!(f, "{l}"),
+            PatternBody::Capture(id, pat) => write!(f, "{id} @ {pat}"),
+            PatternBody::TypedDiscard(t) => write!(f, "_ is {t}"),
+            PatternBody::Identifier(id) => write!(f, "{id}"),
+            PatternBody::PinnedExpression(expr) => write!(f, "^{expr}"),
+            PatternBody::TypedIdentifier(id, t) => write!(f, "{id} is {t}"),
+            PatternBody::Object(props, rest) => {
                 let _ = write!(f, "{{");
 
                 for prop in props {
@@ -82,7 +98,7 @@ impl<'a> std::fmt::Display for Pattern<'a> {
 
                 write!(f, "}}")
             }
-            Pattern::Array(items, rest) => {
+            PatternBody::Array(items, rest) => {
                 let _ = write!(f, "[");
                 for ArrayPatternItem::Pattern(item) in items {
                     let _ = write!(f, "{item},");

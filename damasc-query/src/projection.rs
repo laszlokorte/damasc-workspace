@@ -6,6 +6,8 @@ use damasc_lang::syntax::expression::Expression;
 use damasc_lang::syntax::expression::ExpressionBody;
 use damasc_lang::syntax::expression::ExpressionSet;
 use damasc_lang::syntax::pattern::Pattern;
+use damasc_lang::syntax::pattern::PatternBody;
+
 use damasc_lang::syntax::pattern::PatternSet;
 use damasc_lang::value::Value;
 
@@ -74,7 +76,9 @@ impl Default for MultiProjection<'_> {
             predicate: MultiPredicate {
                 capture: MultiCapture {
                     patterns: PatternSet {
-                        patterns: vec![Pattern::Identifier(Identifier::new("$$"))],
+                        patterns: vec![Pattern::new(PatternBody::Identifier(Identifier::new(
+                            "$$",
+                        )))],
                     },
                 },
                 guard: Expression::new(ExpressionBody::Literal(Literal::Boolean(true))),

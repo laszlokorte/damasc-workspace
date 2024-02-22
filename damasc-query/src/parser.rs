@@ -1,5 +1,6 @@
 use damasc_lang::literal::Literal;
 use damasc_lang::syntax::expression::ExpressionBody;
+use damasc_lang::syntax::pattern::PatternBody;
 use damasc_lang::{
     identifier::Identifier,
     parser::{
@@ -88,7 +89,7 @@ pub fn projection<'x, 's, E: ParserError<'s>>(
             ),
             |(patterns, guard, proj)| {
                 let pats = patterns.unwrap_or(PatternSet {
-                    patterns: vec![Pattern::Discard],
+                    patterns: vec![Pattern::new(PatternBody::Discard)],
                 });
                 let auto_named_pats = PatternSet {
                     patterns: pats
@@ -96,7 +97,10 @@ pub fn projection<'x, 's, E: ParserError<'s>>(
                         .into_iter()
                         .enumerate()
                         .map(|(i, p)| {
-                            Pattern::Capture(Identifier::new_owned(format!("${i}")), Box::new(p))
+                            Pattern::new(PatternBody::Capture(
+                                Identifier::new_owned(format!("${i}")),
+                                Box::new(p),
+                            ))
                         })
                         .collect(),
                 };

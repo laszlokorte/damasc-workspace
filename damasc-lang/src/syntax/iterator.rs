@@ -1,6 +1,7 @@
 use crate::syntax::expression::ExpressionBody;
 use crate::syntax::expression::IfElseExpression;
 use crate::syntax::expression::MatchExpression;
+use crate::syntax::pattern::PatternBody;
 use nom::lib::std::collections::HashSet;
 use std::collections::VecDeque;
 
@@ -20,28 +21,28 @@ use super::{
 
 impl Pattern<'_> {
     pub(crate) fn get_identifiers(&self) -> impl Iterator<Item = &Identifier> {
-        PatternIterator::new(self).flat_map(|p| match &p {
-            Pattern::Capture(id, _) => Either::Left(Some(id).into_iter()),
-            Pattern::Identifier(id) => Either::Left(Some(id).into_iter()),
-            Pattern::TypedIdentifier(id, _) => Either::Left(Some(id).into_iter()),
-            Pattern::Object(props, ..) => Either::Right(props.iter().filter_map(|p| match p {
+        PatternIterator::new(self).flat_map(|p| match &p.body {
+            PatternBody::Capture(id, _) => Either::Left(Some(id).into_iter()),
+            PatternBody::Identifier(id) => Either::Left(Some(id).into_iter()),
+            PatternBody::TypedIdentifier(id, _) => Either::Left(Some(id).into_iter()),
+            PatternBody::Object(props, ..) => Either::Right(props.iter().filter_map(|p| match p {
                 ObjectPropertyPattern::Single(id) => Some(id),
                 ObjectPropertyPattern::Match(PropertyPattern { key, .. }) => match key {
                     PropertyKey::Identifier(id) => Some(id),
                     PropertyKey::Expression(_expr) => None,
                 },
             })),
-            Pattern::Discard => Either::Left(None.into_iter()),
-            Pattern::TypedDiscard(_) => Either::Left(None.into_iter()),
-            Pattern::Literal(_) => Either::Left(None.into_iter()),
-            Pattern::Array(_, _) => Either::Left(None.into_iter()),
-            Pattern::PinnedExpression(_) => Either::Left(None.into_iter()),
+            PatternBody::Discard => Either::Left(None.into_iter()),
+            PatternBody::TypedDiscard(_) => Either::Left(None.into_iter()),
+            PatternBody::Literal(_) => Either::Left(None.into_iter()),
+            PatternBody::Array(_, _) => Either::Left(None.into_iter()),
+            PatternBody::PinnedExpression(_) => Either::Left(None.into_iter()),
         })
     }
 
     pub(crate) fn get_expressions(&self) -> impl Iterator<Item = &Expression> {
-        PatternIterator::new(self).flat_map(|p| match &p {
-            Pattern::Object(props, _) => {
+        PatternIterator::new(self).flat_map(|p| match &p.body {
+            PatternBody::Object(props, _) => {
                 Either::Left(Box::new(props.iter().filter_map(|p| match p {
                     ObjectPropertyPattern::Single(_id) => None,
                     ObjectPropertyPattern::Match(PropertyPattern { key, .. }) => match key {
@@ -50,15 +51,15 @@ impl Pattern<'_> {
                     },
                 })) as Box<dyn Iterator<Item = &Expression>>)
             }
-            Pattern::Discard => Either::Right(None.into_iter()),
-            Pattern::Capture(_, _) => Either::Right(None.into_iter()),
-            Pattern::Identifier(_) => Either::Right(None.into_iter()),
-            Pattern::TypedDiscard(_) => Either::Right(None.into_iter()),
-            Pattern::TypedIdentifier(_, _) => Either::Right(None.into_iter()),
-            Pattern::Literal(_) => Either::Right(None.into_iter()),
-            Pattern::Array(_, _) => Either::Right(None.into_iter()),
-            Pattern::PinnedExpression(e) => Either::Left(
-                Box::new(Some(e.as_ref()).into_iter()) as Box<dyn Iterator<Item = &Expression>>
+            PatternBody::Discard => Either::Right(None.into_iter()),
+            PatternBody::Capture(_, _) => Either::Right(None.into_iter()),
+            PatternBody::Identifier(_) => Either::Right(None.into_iter()),
+            PatternBody::TypedDiscard(_) => Either::Right(None.into_iter()),
+            PatternBody::TypedIdentifier(_, _) => Either::Right(None.into_iter()),
+            PatternBody::Literal(_) => Either::Right(None.into_iter()),
+            PatternBody::Array(_, _) => Either::Right(None.into_iter()),
+            PatternBody::PinnedExpression(e) => Either::Left(
+                Box::new(Some(e.as_ref()).into_iter()) as Box<dyn Iterator<Item = &Expression>>,
             ),
         })
     }
@@ -77,15 +78,15 @@ impl<'e, 's> PatternIterator<'e, 's> {
     }
 
     fn push_children(&mut self, pattern: &'e Pattern<'s>) {
-        match &pattern {
-            Pattern::Discard => {}
-            Pattern::Capture(_, _) => {}
-            Pattern::Identifier(_) => {}
-            Pattern::TypedDiscard(_) => {}
-            Pattern::PinnedExpression(_) => {}
-            Pattern::TypedIdentifier(_, _) => {}
-            Pattern::Literal(_) => {}
-            Pattern::Object(props, rest) => {
+        match &pattern.body {
+            PatternBody::Discard => {}
+            PatternBody::Capture(_, _) => {}
+            PatternBody::Identifier(_) => {}
+            PatternBody::TypedDiscard(_) => {}
+            PatternBody::PinnedExpression(_) => {}
+            PatternBody::TypedIdentifier(_, _) => {}
+            PatternBody::Literal(_) => {}
+            PatternBody::Object(props, rest) => {
                 for p in props {
                     match p {
                         ObjectPropertyPattern::Single(_) => {}
@@ -102,7 +103,7 @@ impl<'e, 's> PatternIterator<'e, 's> {
                     self.pattern_stack.push_front(p);
                 }
             }
-            Pattern::Array(items, rest) => {
+            PatternBody::Array(items, rest) => {
                 for ArrayPatternItem::Pattern(p) in items {
                     self.pattern_stack.push_front(p);
                 }
