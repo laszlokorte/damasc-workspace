@@ -45,10 +45,18 @@ impl<'s> Expression<'s> {
             location: None,
         }
     }
+
     pub fn new_with_location(body: ExpressionBody<'s>, location: Location) -> Expression<'s> {
         Self {
             body,
             location: Some(location),
+        }
+    }
+
+    pub fn new_with_optional_location(body: ExpressionBody<'s>, location: Option<Location>) -> Expression<'s> {
+        Self {
+            body,
+            location: location,
         }
     }
 }
