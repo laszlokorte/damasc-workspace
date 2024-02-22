@@ -1,3 +1,4 @@
+use crate::value_type::ValueType;
 use crate::runtime::evaluation::EvalError;
 use crate::syntax::pattern::PatternBody;
 use std::{
@@ -24,16 +25,30 @@ use super::{
 
 #[derive(Debug, Clone)]
 pub enum PatternFail<'s, 'v> {
-    IdentifierConflict,
-    ArrayMissmatch,
+    IdentifierConflict {
+        identifier: Identifier<'s>, 
+        expected: Value<'s, 'v>, 
+        actual: Value<'s, 'v>,
+    },
     ArrayLengthMismatch,
-    TypeMismatch,
-    ObjectMissmatch,
-    ObjectLengthMismatch,
-    ObjectKeyMismatch,
+    TypeMismatch {
+        expected: ValueType,
+        actual: Value<'s,'v>,
+    },
+    ObjectLengthMismatch {
+        expected: usize,
+        actual: usize,
+    },
+    ObjectKeyMismatch {
+        expected: Cow<'s, str>, 
+        actual: ValueObjectMap<'s, 'v>
+    },
     EvalError(Box<EvalError<'s, 'v>>),
     LiteralMismatch,
-    ExpressionMissmatch,
+    ExpressionMissmatch {
+        expected: Value<'s, 'v>, 
+        actual: Value<'s, 'v>,
+    },
 }
 
 #[derive(Clone, Debug)]
@@ -64,24 +79,24 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                 if t == &value.get_type() {
                     Ok(())
                 } else {
-                    Err(PatternFail::TypeMismatch)
+                    Err(PatternFail::TypeMismatch { expected: *t, actual: value.clone()})
                 }
             }
             PatternBody::TypedIdentifier(name, t) => {
                 if t != &value.get_type() {
-                    return Err(PatternFail::TypeMismatch);
+                    return Err(PatternFail::TypeMismatch { expected: *t, actual: value.clone()});
                 }
                 self.match_identifier(name, value)
             }
             PatternBody::Object(pattern, rest) => {
                 let Value::Object(o) = value else {
-                    return Err(PatternFail::ObjectMissmatch);
+                    return Err(PatternFail::TypeMismatch { expected: ValueType::Object, actual: value.clone()});
                 };
                 self.match_object(pattern, rest, o)
             }
             PatternBody::Array(items, rest) => {
                 let Value::Array(a) = value else {
-                    return Err(PatternFail::ArrayMissmatch);
+                    return Err(PatternFail::TypeMismatch { expected: ValueType::Array, actual: value.clone()});
                 };
                 self.match_array(items, rest, a)
             }
@@ -89,29 +104,19 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
             PatternBody::PinnedExpression(expr) => {
                 let eval = Evaluation::new(self.outer_env);
 
-                let val = match eval.eval_expr(expr) {
+                let exptected_value = match eval.eval_expr(expr) {
                     Err(e) => return Err(PatternFail::EvalError(Box::new(e))),
-                    Ok(val) => val
+                    Ok(expected) => expected
                 };
 
-                if &val == value {
+                if &exptected_value == value {
                     Ok(())
                 } else {
-                    Err(PatternFail::ExpressionMissmatch)
+                    Err(PatternFail::ExpressionMissmatch {
+                        expected: exptected_value, 
+                        actual: value.clone(),
+                    })
                 }
-
-                // let local_env = self.clone().into_env();
-
-                // let eval = Evaluation::new(&local_env);
-                // let Ok(val) = eval.eval_expr(expr) else {
-                //     return Err(PatternFail::EvalError);
-                // };
-
-                // if &val == value {
-                //     Ok(())
-                // } else {
-                //     Err(PatternFail::ExpressionMissmatch)
-                // }
             }
         }
     }
@@ -121,16 +126,16 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         name: &'x Identifier<'x>,
         value: &Value<'s, 'v>,
     ) -> Result<(), PatternFail<'s, 'v>> {
-        let id = Identifier {
-            name: Cow::Owned(name.name.to_string()),
-        };
-
-        match self.local_env.bindings.entry(id) {
+        match self.local_env.bindings.entry(name.deep_clone()) {
             Entry::Occupied(entry) => {
                 if value == entry.get() {
                     Ok(())
                 } else {
-                    Err(PatternFail::IdentifierConflict)
+                    Err(PatternFail::IdentifierConflict{
+                        identifier: name.deep_clone(), 
+                        expected: entry.get().clone(), 
+                        actual: value.clone(),
+                    })
                 }
             }
             Entry::Vacant(entry) => {
@@ -148,7 +153,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
     ) -> Result<(), PatternFail<'s, 'v>> {
         if let Rest::Exact = rest {
             if value.len() != props.len() {
-                return Err(PatternFail::ObjectLengthMismatch);
+                return Err(PatternFail::ObjectLengthMismatch{expected: props.len(), actual: value.len()});
             }
         }
 
@@ -170,7 +175,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                     let evaluation = Evaluation::new(self.outer_env);
                     match evaluation.eval_expr(exp) {
                         Ok(Value::String(k)) => (k.clone(), value.clone()),
-                        Ok(_) => return Err(PatternFail::TypeMismatch),
+                        Ok(v) => return Err(PatternFail::TypeMismatch{expected: ValueType::String, actual: v}),
                         Err(e) => return Err(PatternFail::EvalError(Box::new(e))),
                     }
                     
@@ -178,11 +183,11 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
             };
 
             if !keys.remove(&k) {
-                return Err(PatternFail::ObjectKeyMismatch);
+                return Err(PatternFail::ObjectKeyMismatch{expected: k, actual: value.clone()});
             }
 
             let Some(actual_value) = value.get(&k) else {
-                return Err(PatternFail::ObjectKeyMismatch);
+                return Err(PatternFail::ObjectKeyMismatch{expected: k, actual: value.clone()});
             };
 
             self.match_pattern(&v, actual_value.as_ref())?
