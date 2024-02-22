@@ -14,7 +14,10 @@ pub struct Expression<'s> {
 
 impl<'s> Expression<'s> {
     pub fn new(body: ExpressionBody<'s>) -> Expression<'s> {
-        Self { body, location: None }
+        Self {
+            body,
+            location: None,
+        }
     }
 }
 

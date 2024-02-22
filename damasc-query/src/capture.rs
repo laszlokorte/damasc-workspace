@@ -12,7 +12,7 @@ use damasc_lang::{
 #[derive(Debug)]
 pub enum CaptureError {
     PatternError,
-    EvalError
+    EvalError,
 }
 
 #[derive(Clone, Debug)]

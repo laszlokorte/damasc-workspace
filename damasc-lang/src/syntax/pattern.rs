@@ -1,8 +1,8 @@
-use crate::syntax::location::Location;
 use crate::identifier::Identifier;
 use crate::literal::Literal;
 use crate::syntax::expression::Expression;
 use crate::syntax::expression::PropertyKey;
+use crate::syntax::location::Location;
 use crate::value_type::ValueType;
 
 #[derive(Clone, Debug, PartialOrd, Ord, Eq, PartialEq, Hash)]
@@ -13,7 +13,10 @@ pub struct Pattern<'s> {
 
 impl<'s> Pattern<'s> {
     pub fn new(body: PatternBody<'s>) -> Pattern<'s> {
-        Self { body, location: None }
+        Self {
+            body,
+            location: None,
+        }
     }
 }
 

@@ -32,7 +32,7 @@ fn main() -> rustyline::Result<()> {
                         println!("{e}")
                     }
                     Ok(ReplOutput::Write(_)) => println!("Write"),
-                    Err(_) => eprintln!("ERR"),
+                    Err(e) => {dbg!(e); eprintln!("ERR")},
                 }
             }
 

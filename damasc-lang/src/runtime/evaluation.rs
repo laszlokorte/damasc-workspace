@@ -100,10 +100,13 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             ExpressionBody::Abstraction(LambdaAbstraction { arguments, body }) => {
                 let new_env = match self
                     .env
-                    .extract_except(body.get_identifiers(), arguments.get_identifiers()) {
-                        Ok(new_env) => new_env,
-                        Err(missing_id) => return Err(EvalError::UnknownIdentifier(missing_id.deep_clone()))
-                    };
+                    .extract_except(body.get_identifiers(), arguments.get_identifiers())
+                {
+                    Ok(new_env) => new_env,
+                    Err(missing_id) => {
+                        return Err(EvalError::UnknownIdentifier(missing_id.deep_clone()))
+                    }
+                };
 
                 Ok(Value::Lambda(new_env, arguments.clone(), *body.clone()))
             }
@@ -279,7 +282,11 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         }
     }
 
-    fn eval_unary(&self, op: &UnaryOperator, arg: &Value<'s, 'v>) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
+    fn eval_unary(
+        &self,
+        op: &UnaryOperator,
+        arg: &Value<'s, 'v>,
+    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
         match op {
             UnaryOperator::Minus => {
                 let Value::Integer(v) = arg else {
@@ -358,7 +365,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         Ok(into)
     }
 
-    fn eval_array<'x: 's, 'y>(&self, vec: &'y [ArrayItem<'x>]) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
+    fn eval_array<'x: 's, 'y>(
+        &self,
+        vec: &'y [ArrayItem<'x>],
+    ) -> Result<Value<'s, 'v>, EvalError<'s, 'v>> {
         let result = vec![];
 
         self.eval_into_array(result, vec).map(Value::Array)
@@ -405,7 +415,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         }
         let right_value = self.eval_expr(right)?;
         let Value::Boolean(right_bool) = right_value else {
-            return Err(EvalError::TypeError(ValueType::Boolean, right_value.clone()));
+            return Err(EvalError::TypeError(
+                ValueType::Boolean,
+                right_value.clone(),
+            ));
         };
         return Ok(Value::Boolean(right_bool));
     }
@@ -510,7 +523,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                     };
 
                     let Value::Lambda(env, pattern, expression) = x.clone().into_owned() else {
-                        return Err(EvalError::TypeError(ValueType::Lambda, x.clone().into_owned()));
+                        return Err(EvalError::TypeError(
+                            ValueType::Lambda,
+                            x.clone().into_owned(),
+                        ));
                     };
 
                     let Some(y) = arr.get(1) else {
@@ -518,7 +534,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                     };
 
                     let Value::Object(obj) = y.clone().into_owned() else {
-                        return Err(EvalError::TypeError(ValueType::Object, y.clone().into_owned()));
+                        return Err(EvalError::TypeError(
+                            ValueType::Object,
+                            y.clone().into_owned(),
+                        ));
                     };
 
                     let mut new_env = env.clone();
@@ -549,11 +568,13 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 let prefix = Ok(Cow::Owned(part.fixed_start.as_ref().into()));
                 let end_val = self.eval_expr(&part.dynamic_end);
 
-                match end_val.clone()
-                    .map(|v| v.convert(ValueType::String))
-                {
+                match end_val.clone().map(|v| v.convert(ValueType::String)) {
                     Ok(Some(Value::String(end))) => [prefix, Ok(end)],
-                    Ok(_) => [prefix, end_val.and_then(|v| Err(EvalError::TypeError(ValueType::String, v.clone())))],
+                    Ok(_) => [
+                        prefix,
+                        end_val
+                            .and_then(|v| Err(EvalError::TypeError(ValueType::String, v.clone()))),
+                    ],
                     Err(e) => [prefix, Err(e)],
                 }
             })
@@ -616,7 +637,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
     ) -> Result<impl Iterator<Item = Environment<'i, 's, 'v>>, EvalError<'s, 'v>> {
         let expression_value: Value<'_, '_> = self.eval_expr(&source.collection)?;
         let Value::Array(vals) = expression_value else {
-            return Err(EvalError::TypeError(ValueType::Array, expression_value.clone()));
+            return Err(EvalError::TypeError(
+                ValueType::Array,
+                expression_value.clone(),
+            ));
         };
 
         let mut results = vec![];
@@ -638,7 +662,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 let pred_result = local_eval.eval_expr(p)?;
 
                 let Value::Boolean(pred_result_bool) = pred_result else {
-                    return Err(EvalError::TypeError(ValueType::Boolean, pred_result.clone()));
+                    return Err(EvalError::TypeError(
+                        ValueType::Boolean,
+                        pred_result.clone(),
+                    ));
                 };
 
                 if !pred_result_bool {
@@ -720,7 +747,10 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         let condition_value = self.eval_expr(&if_else.condition)?;
 
         let Value::Boolean(condition_bool) = condition_value else {
-            return Err(EvalError::TypeError(ValueType::Boolean, condition_value.clone()));
+            return Err(EvalError::TypeError(
+                ValueType::Boolean,
+                condition_value.clone(),
+            ));
         };
 
         if condition_bool {

@@ -32,7 +32,7 @@ impl<'i, 's> State<'i, 's> {
         self.environment.bindings.keys().collect()
     }
 
-    pub fn eval(&mut self, command: Command<'s, 's>) -> Result<ReplOutput<'i, 's>, ReplError> {
+    pub fn eval(&mut self, command: Command<'s, 's>) -> Result<ReplOutput<'i, 's>, ReplError<'s, 's>> {
         match command {
             Command::Exit => Ok(ReplOutput::Exit),
             Command::Help => Ok(ReplOutput::Ok),
@@ -60,12 +60,12 @@ impl<'i, 's> State<'i, 's> {
                 Ok(ReplOutput::Values(ValueBag {
                     values: transform_result.map_err(|e| match e {
                         ProjectionError::PredicateError(PredicateError::PatternError) => {
-                            ReplError::MatchError
+                            ReplError::TransformError
                         }
                         ProjectionError::PredicateError(PredicateError::GuardError) => {
-                            ReplError::EvalError
+                            ReplError::TransformError
                         }
-                        ProjectionError::EvalError => ReplError::EvalError,
+                        ProjectionError::EvalError => ReplError::TransformError,
                     })?,
                 }))
             }
@@ -78,10 +78,10 @@ impl<'i, 's> State<'i, 's> {
                             local_env.bindings.append(&mut new_bindings.bindings);
                             local_env
                         }
-                        Err(AssignmentError::EvalError) => return Err(ReplError::EvalError),
-                        Err(AssignmentError::MatchError) => return Err(ReplError::MatchError),
-                        Err(AssignmentError::TopologyError) => {
-                            return Err(ReplError::TopologyError)
+                        Err(AssignmentError::EvalError(e)) => return Err(ReplError::EvalError(e)),
+                        Err(AssignmentError::MatchError(e)) => return Err(ReplError::MatchError(e)),
+                        Err(AssignmentError::TopologyError(e)) => {
+                            return Err(ReplError::TopologyError(e))
                         }
                     }
                 } else {
@@ -96,27 +96,27 @@ impl<'i, 's> State<'i, 's> {
                             .append(&mut new_bindings.bindings.clone());
                         Ok(ReplOutput::Bindings(new_bindings))
                     }
-                    Err(AssignmentError::EvalError) => Err(ReplError::EvalError),
-                    Err(AssignmentError::MatchError) => Err(ReplError::MatchError),
-                    Err(AssignmentError::TopologyError) => Err(ReplError::TopologyError),
+                    Err(AssignmentError::EvalError(e)) => Err(ReplError::EvalError(e)),
+                    Err(AssignmentError::MatchError(e)) => Err(ReplError::MatchError(e)),
+                    Err(AssignmentError::TopologyError(e)) => Err(ReplError::TopologyError(e)),
                 }
             }
             Command::Match(assignments) => {
                 let matcher = Matcher::new(&self.environment);
                 match matcher.eval_assigment_set(assignments) {
                     Ok(new_bindings) => Ok(ReplOutput::Bindings(new_bindings)),
-                    Err(AssignmentError::EvalError) => Err(ReplError::EvalError),
-                    Err(AssignmentError::MatchError) => Err(ReplError::MatchError),
-                    Err(AssignmentError::TopologyError) => Err(ReplError::TopologyError),
+                    Err(AssignmentError::EvalError(e)) => Err(ReplError::EvalError(e)),
+                    Err(AssignmentError::MatchError(e)) => Err(ReplError::MatchError(e)),
+                    Err(AssignmentError::TopologyError(e)) => Err(ReplError::TopologyError(e)),
                 }
             }
             Command::Eval(assignments, expresions) => {
                 let matcher = Matcher::new(&self.environment);
                 let mut new_bindings = match matcher.eval_assigment_set(assignments) {
                     Ok(new_env) => new_env,
-                    Err(AssignmentError::EvalError) => return Err(ReplError::EvalError),
-                    Err(AssignmentError::MatchError) => return Err(ReplError::MatchError),
-                    Err(AssignmentError::TopologyError) => return Err(ReplError::TopologyError),
+                    Err(AssignmentError::EvalError(e)) => { return Err(ReplError::EvalError(e))},
+                    Err(AssignmentError::MatchError(e)) => { return Err(ReplError::MatchError(e))},
+                    Err(AssignmentError::TopologyError(e)) => { return Err(ReplError::TopologyError(e))},
                 };
                 let mut local_env = self.environment.clone();
                 local_env.bindings.append(&mut new_bindings.bindings);
@@ -130,7 +130,7 @@ impl<'i, 's> State<'i, 's> {
                     .collect::<Result<Vec<_>, EvalError>>();
                 match values {
                     Ok(v) => Ok(ReplOutput::Values(ValueBag { values: v })),
-                    Err(_err) => Err(ReplError::EvalError),
+                    Err(e) => Err(ReplError::EvalError(e)),
                 }
             }
         }
