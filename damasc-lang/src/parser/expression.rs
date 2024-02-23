@@ -1,3 +1,4 @@
+use crate::literal::Literal;
 use crate::parser::located::located_expression;
 use crate::parser::pattern::pattern;
 use crate::syntax::expression::ArrayComprehension;
@@ -28,7 +29,6 @@ use nom::{
 
 use crate::{
     identifier::Identifier,
-    literal::Literal,
     syntax::expression::{
         ArrayItem, BinaryExpression, BinaryOperator, CallExpression, Expression, ExpressionBody,
         ExpressionSet, LogicalExpression, LogicalOperator, MemberExpression, ObjectProperty,
@@ -826,12 +826,12 @@ fn expression_numeric_exponential_operator<'s, E: ParserError<'s>>(
 fn expression_numeric_exponential<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<Expression<'v>, E> {
-    let (input, init) = context("expression_numeric_exponential_lhs", expression_indexed)(input)?;
+    let (input, init) = context("expression_numeric_exponential_lhs", expression_path)(input)?;
 
     fold_many0(
         pair(
             ws(expression_numeric_exponential_operator),
-            context("expression_numeric_exponential_rhs", expression_indexed),
+            context("expression_numeric_exponential_rhs", expression_path),
         ),
         move || init.clone(),
         |left, (operator, right)| {
@@ -851,71 +851,27 @@ fn expression_numeric_exponential<'v, 's, E: ParserError<'s>>(
     )(input)
 }
 
-enum LambdaOrIndex<'a> {
-    Lamba(Expression<'a>),
+enum PathSegment<'a> {
+    Application(Expression<'a>),
     Index(Expression<'a>),
+    Prop(Identifier<'a>, Location),
 }
 
-fn expression_indexed<'v, 's, E: ParserError<'s>>(
+fn expression_path<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<Expression<'v>, E> {
-    let (input, init) = context("expression_indexed_lhs", expression_member)(input)?;
+    let (input, init) = context("expression_path_lhs", expression_primary)(input)?;
 
     fold_many0(
         alt((
             map(
                 delimited(
                     ws(tag("[")),
-                    context("expression_indexed_rhs", expression),
+                    context("expression_path_rhs", expression),
                     ws(tag("]")),
                 ),
-                LambdaOrIndex::Index,
+                PathSegment::Index,
             ),
-            map(
-                preceded(ws(tag(".")), expression_with_paren),
-                LambdaOrIndex::Lamba,
-            ),
-        )),
-        move || init.clone(),
-        |acc, ident| {
-            let right = match ident {
-                LambdaOrIndex::Lamba(ref e) => e,
-                LambdaOrIndex::Index(ref e) => e,
-            };
-
-            let outer_location = acc
-                .location
-                .and_then(|l| right.location.map(|r| Location::new(l.start, r.end)));
-
-            Expression::new_with_optional_location(
-                match ident {
-                    LambdaOrIndex::Lamba(param) => ExpressionBody::Application(LambdaApplication {
-                        lambda: Box::new(acc),
-                        parameter: Box::new(param),
-                    }),
-                    LambdaOrIndex::Index(expr) => ExpressionBody::Member(MemberExpression {
-                        object: Box::new(acc),
-                        property: Box::new(expr),
-                    }),
-                },
-                outer_location,
-            )
-        },
-    )(input)
-}
-
-enum LambdaOrProp<'a, T> {
-    Lamba(Expression<'a>),
-    Prop((LocatedSpan<T>, Identifier<'a>, LocatedSpan<T>)),
-}
-
-fn expression_member<'v, 's, E: ParserError<'s>>(
-    input: ParserInput<'s>,
-) -> ParserResult<Expression<'v>, E> {
-    let (input, init) = context("expression_member_lhs", expression_primary)(input)?;
-
-    fold_many0(
-        alt((
             map(
                 preceded(
                     ws(tag(".")),
@@ -924,45 +880,49 @@ fn expression_member<'v, 's, E: ParserError<'s>>(
                         tuple((position, identifier, position)),
                     ),
                 ),
-                LambdaOrProp::Prop,
+                |(ls,id,rs)| PathSegment::Prop(id, Location::new(ls.location_offset(), rs.location_offset())),
             ),
             map(
                 preceded(ws(tag(".")), expression_with_paren),
-                LambdaOrProp::Lamba,
+                PathSegment::Application,
             ),
         )),
         move || init.clone(),
-        |acc, ident| {
-            let right_end = match ident {
-                LambdaOrProp::Lamba(ref e) => e.location.map(|l| l.end),
-                LambdaOrProp::Prop((_, _, rs)) => Some(rs.location_offset()),
+        |acc, segment| {
+            let right_location = match segment {
+                PathSegment::Application(ref e) => e.location,
+                PathSegment::Index(ref e) => e.location,
+                PathSegment::Prop(_, loc) => Some(loc),
             };
 
             let outer_location = acc
                 .location
-                .and_then(|l| right_end.map(|r| Location::new(l.start, r)));
+                .and_then(|l| right_location.map(|r| Location::new(l.start, r.end)));
 
             Expression::new_with_optional_location(
-                match ident {
-                    LambdaOrProp::Lamba(param) => ExpressionBody::Application(LambdaApplication {
+                match segment {
+                    PathSegment::Application(param) => ExpressionBody::Application(LambdaApplication {
                         lambda: Box::new(acc),
                         parameter: Box::new(param),
                     }),
-                    LambdaOrProp::Prop((ls, ident, rs)) => {
-                        ExpressionBody::Member(MemberExpression {
-                            object: Box::new(acc),
-                            property: Box::new(Expression::new_with_location(
-                                ExpressionBody::Literal(Literal::String(ident.name)),
-                                Location::new(ls.location_offset(), rs.location_offset()),
-                            )),
-                        })
-                    }
+                    PathSegment::Index(expr) => ExpressionBody::Member(MemberExpression {
+                        object: Box::new(acc),
+                        property: Box::new(expr),
+                    }),
+                    PathSegment::Prop(id, loc) => ExpressionBody::Member(MemberExpression {
+                           object: Box::new(acc),
+                           property: Box::new(Expression::new_with_location(
+                               ExpressionBody::Literal(Literal::String(id.name)),
+                               loc,
+                           )),
+                       }),
                 },
                 outer_location,
             )
         },
     )(input)
 }
+
 
 fn expression_primary<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
@@ -1040,7 +1000,7 @@ fn expression_unary_numeric<'v, 's, E: ParserError<'s>>(
     located_expression(map(
         pair(
             ws(expression_unary_numeric_operator),
-            context("expression_unary_numeric_operand", expression_indexed),
+            context("expression_unary_numeric_operand", expression_path),
         ),
         |(operator, argument)| {
             ExpressionBody::Unary(UnaryExpression {
