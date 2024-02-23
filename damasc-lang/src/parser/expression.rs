@@ -14,7 +14,7 @@ use crate::syntax::pattern::Pattern;
 use crate::syntax::pattern::PatternBody;
 use nom::multi::many1;
 use nom_locate::position;
-use nom_locate::LocatedSpan;
+
 use std::borrow::Cow;
 
 use nom::{
@@ -853,7 +853,7 @@ fn expression_numeric_exponential<'v, 's, E: ParserError<'s>>(
 
 enum PathSegment<'a> {
     Application(Expression<'a>),
-    Index(Expression<'a>),
+    Index(Expression<'a>, Location),
     Prop(Identifier<'a>, Location),
 }
 
@@ -865,12 +865,13 @@ fn expression_path<'v, 's, E: ParserError<'s>>(
     fold_many0(
         alt((
             map(
+                tuple((position,
                 delimited(
                     ws(tag("[")),
                     context("expression_path_rhs", expression),
                     ws(tag("]")),
-                ),
-                PathSegment::Index,
+                ), position)),
+                |(ls,expr,rs)| PathSegment::Index(expr, Location::new(ls.location_offset(), rs.location_offset())),
             ),
             map(
                 preceded(
@@ -891,7 +892,7 @@ fn expression_path<'v, 's, E: ParserError<'s>>(
         |acc, segment| {
             let right_location = match segment {
                 PathSegment::Application(ref e) => e.location,
-                PathSegment::Index(ref e) => e.location,
+                PathSegment::Index(_, loc) => Some(loc),
                 PathSegment::Prop(_, loc) => Some(loc),
             };
 
@@ -905,7 +906,7 @@ fn expression_path<'v, 's, E: ParserError<'s>>(
                         lambda: Box::new(acc),
                         parameter: Box::new(param),
                     }),
-                    PathSegment::Index(expr) => ExpressionBody::Member(MemberExpression {
+                    PathSegment::Index(expr, _) => ExpressionBody::Member(MemberExpression {
                         object: Box::new(acc),
                         property: Box::new(expr),
                     }),
