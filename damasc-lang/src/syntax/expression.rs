@@ -56,10 +56,7 @@ impl<'s> Expression<'s> {
         body: ExpressionBody<'s>,
         location: Option<Location>,
     ) -> Expression<'s> {
-        Self {
-            body,
-            location,
-        }
+        Self { body, location }
     }
 }
 

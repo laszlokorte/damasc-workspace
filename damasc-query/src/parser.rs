@@ -146,26 +146,20 @@ pub fn transformation<'a, 'b, 's, E: ParserError<'s>>(
 pub fn transformation_all_consuming<'a, 'b>(input: &str) -> Option<Transformation<'a, 'b>> {
     match all_consuming(transformation::<Error<ParserInput>>)(ParserInput::new(input)) {
         Ok((_, r)) => Some(r),
-        Err(_e) => {
-            None
-        }
+        Err(_e) => None,
     }
 }
 
 pub fn query_bag_all_consuming(input: ParserInput) -> Option<ExpressionSet> {
     match all_consuming(query_bag::<Error<ParserInput>>)(input) {
         Ok((_, r)) => Some(r),
-        Err(_e) => {
-            None
-        }
+        Err(_e) => None,
     }
 }
 
 pub fn query_bag_allow_empty_all_consuming(input: &str) -> Option<ExpressionSet> {
     match all_consuming(query_bag_allow_empty)(ParserInput::new(input)) {
         Ok((_, r)) => Some(r),
-        Err(_e) => {
-            None
-        }
+        Err(_e) => None,
     }
 }

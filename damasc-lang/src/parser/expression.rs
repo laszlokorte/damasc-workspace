@@ -852,7 +852,7 @@ fn expression_numeric_exponential<'v, 's, E: ParserError<'s>>(
 }
 
 enum PathSegment<'a> {
-    Application(Expression<'a>),
+    Application(Expression<'a>, Location),
     Index(Expression<'a>, Location),
     Prop(Identifier<'a>, Location),
 }
@@ -865,13 +865,21 @@ fn expression_path<'v, 's, E: ParserError<'s>>(
     fold_many0(
         alt((
             map(
-                tuple((position,
-                delimited(
-                    ws(tag("[")),
-                    context("expression_path_rhs", expression),
-                    ws(tag("]")),
-                ), position)),
-                |(ls,expr,rs)| PathSegment::Index(expr, Location::new(ls.location_offset(), rs.location_offset())),
+                tuple((
+                    position,
+                    delimited(
+                        ws(tag("[")),
+                        context("expression_path_rhs", expression),
+                        ws(tag("]")),
+                    ),
+                    position,
+                )),
+                |(ls, expr, rs)| {
+                    PathSegment::Index(
+                        expr,
+                        Location::new(ls.location_offset(), rs.location_offset()),
+                    )
+                },
             ),
             map(
                 preceded(
@@ -881,49 +889,60 @@ fn expression_path<'v, 's, E: ParserError<'s>>(
                         tuple((position, identifier, position)),
                     ),
                 ),
-                |(ls,id,rs)| PathSegment::Prop(id, Location::new(ls.location_offset(), rs.location_offset())),
+                |(ls, id, rs)| {
+                    PathSegment::Prop(
+                        id,
+                        Location::new(ls.location_offset(), rs.location_offset()),
+                    )
+                },
             ),
             map(
-                preceded(ws(tag(".")), expression_with_paren),
-                PathSegment::Application,
+                tuple((ws(terminated(position, tag("."))), expression_with_paren, position)),
+                |(ls, expr, rs)| {
+                    PathSegment::Application(
+                        expr,
+                        Location::new(ls.location_offset(), rs.location_offset()),
+                    )
+                }
             ),
         )),
         move || init.clone(),
         |acc, segment| {
             let right_location = match segment {
-                PathSegment::Application(ref e) => e.location,
-                PathSegment::Index(_, loc) => Some(loc),
-                PathSegment::Prop(_, loc) => Some(loc),
+                PathSegment::Application(_, loc) => loc,
+                PathSegment::Index(_, loc) => loc,
+                PathSegment::Prop(_, loc) => loc,
             };
 
             let outer_location = acc
                 .location
-                .and_then(|l| right_location.map(|r| Location::new(l.start, r.end)));
+                .map(|l| Location::new(l.start, right_location.end));
 
             Expression::new_with_optional_location(
                 match segment {
-                    PathSegment::Application(param) => ExpressionBody::Application(LambdaApplication {
-                        lambda: Box::new(acc),
-                        parameter: Box::new(param),
-                    }),
+                    PathSegment::Application(param, _) => {
+                        ExpressionBody::Application(LambdaApplication {
+                            lambda: Box::new(acc),
+                            parameter: Box::new(param),
+                        })
+                    }
                     PathSegment::Index(expr, _) => ExpressionBody::Member(MemberExpression {
                         object: Box::new(acc),
                         property: Box::new(expr),
                     }),
                     PathSegment::Prop(id, loc) => ExpressionBody::Member(MemberExpression {
-                           object: Box::new(acc),
-                           property: Box::new(Expression::new_with_location(
-                               ExpressionBody::Literal(Literal::String(id.name)),
-                               loc,
-                           )),
-                       }),
+                        object: Box::new(acc),
+                        property: Box::new(Expression::new_with_location(
+                            ExpressionBody::Literal(Literal::String(id.name)),
+                            loc,
+                        )),
+                    }),
                 },
                 outer_location,
             )
         },
     )(input)
 }
-
 
 fn expression_primary<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
