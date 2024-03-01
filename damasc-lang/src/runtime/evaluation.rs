@@ -1,3 +1,4 @@
+use crate::value::LambdaBinding;
 use crate::runtime::matching::PatternFail;
 use crate::syntax::expression::IfElseExpression;
 use crate::syntax::expression::MatchExpression;
@@ -142,9 +143,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 .eval_template(template)
                 .map_err(|e| e.justify(expression)),
             ExpressionBody::Abstraction(LambdaAbstraction { arguments, body }) => {
-                let new_env = match self
-                    .env
-                    .extract_except(body.get_identifiers(), arguments.get_identifiers())
+                let new_env = match LambdaBinding::try_from_env(&self.env, body.get_identifiers(), arguments.get_identifiers())
                 {
                     Ok(new_env) => new_env,
                     Err(missing_id) => {
@@ -816,14 +815,15 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             .eval_expr(&app.parameter)
             .map_err(EvalErrorPropagation::Nested)?;
 
-        let Value::Lambda(env, pattern, lambda_body) = lambda else {
+        let Value::Lambda(bindings, pattern, lambda_body) = lambda else {
             return Err(EvalErrorPropagation::Shallow(EvalErrorReason::TypeError(
                 ValueType::Lambda,
                 lambda.clone(),
             )));
         };
 
-        let mut matcher = Matcher::new(&env);
+        let local_env = bindings.into();
+        let mut matcher = Matcher::new(&local_env);
         if let Err(e) = matcher.match_pattern(&pattern, &param) {
             return Err(EvalErrorPropagation::Shallow(
                 EvalErrorReason::PatternError(Box::new(e)),

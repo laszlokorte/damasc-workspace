@@ -1,8 +1,10 @@
+use crate::runtime::env::Environment;
+use std::collections::HashSet;
+use crate::identifier::Identifier;
 use crate::value_type::ValueType;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 
-use crate::runtime::env::Environment;
 use crate::syntax::expression::Expression;
 use crate::syntax::pattern::Pattern;
 
@@ -15,30 +17,10 @@ pub enum Value<'s, 'v> {
     Array(ValueArray<'s, 'v>),
     Object(ValueObjectMap<'s, 'v>),
     Type(ValueType),
-    Lambda(Environment<'s, 's, 's>, Pattern<'s>, Expression<'s>),
+    Lambda(LambdaBinding<'s, 'v>, Pattern<'s>, Expression<'s>),
 }
 
 pub(crate) type ValueArray<'s, 'v> = Vec<Cow<'v, Value<'s, 'v>>>;
-
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct ValueBag<'s, 'v> {
-    pub values: Vec<Value<'s, 'v>>,
-}
-
-impl std::fmt::Display for ValueBag<'_, '_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for v in &self.values {
-            writeln!(f, "{v};")?;
-        }
-        Ok(())
-    }
-}
-
-impl<'s, 'v> ValueBag<'s, 'v> {
-    pub fn new(values: Vec<Value<'s, 'v>>) -> Self {
-        Self { values }
-    }
-}
 
 pub(crate) type ValueObjectMap<'s, 'v> = BTreeMap<Cow<'s, str>, Cow<'v, Value<'s, 'v>>>;
 
@@ -153,5 +135,139 @@ impl<'s, 'v> std::fmt::Display for Value<'s, 'v> {
             }
         };
         write!(f, "")
+    }
+}
+
+
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct ValueBag<'s, 'v> {
+    pub values: Vec<Value<'s, 'v>>,
+}
+
+impl std::fmt::Display for ValueBag<'_, '_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for v in &self.values {
+            writeln!(f, "{v};")?;
+        }
+        Ok(())
+    }
+}
+
+impl<'s, 'v> ValueBag<'s, 'v> {
+    pub fn new(values: Vec<Value<'s, 'v>>) -> Self {
+        Self { values }
+    }
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, PartialOrd, Eq, Ord)]
+pub struct LambdaBinding<'s, 'v> {
+    pub bindings: BTreeMap<Identifier<'s>, Value<'s, 'v>>,
+}
+
+
+impl<'s, 'v> LambdaBinding<'s, 'v> {
+    pub fn clear(&mut self) {
+        self.bindings.clear();
+    }
+
+    pub fn identifiers(&self) -> std::collections::HashSet<&Identifier> {
+        self.bindings.keys().collect()
+    }
+
+    pub fn combine(&self, other: &Self) -> Option<Self> {
+        let mut bindings = self.bindings.clone();
+
+        for (id, value) in &other.bindings {
+            match bindings.insert(id.clone(), value.clone()) {
+                Some(ref old) => {
+                    if old != value {
+                        return None;
+                    } else {
+                        continue;
+                    }
+                }
+                None => continue,
+            }
+        }
+
+        Some(LambdaBinding { bindings })
+    }
+
+    pub(crate) fn replace<'y: 's, 'ii, 'ss, 'vv>(
+        &mut self,
+        identifiers: impl Iterator<Item = (Identifier<'y>, Value<'s, 'v>)>,
+    ) {
+        for (id, val) in identifiers {
+            self.bindings.entry(id.clone()).and_modify(|old| *old = val);
+        }
+    }
+
+    pub(crate) fn try_from_env<'x, 'y: 'x, 'ii, 'ss, 'vv>(
+        env: &'_ Environment<'s, 's, 'v>,
+        identifiers: impl Iterator<Item = &'x Identifier<'y>>,
+        exceptions: impl Iterator<Item = &'x Identifier<'y>>,
+    ) -> Result<LambdaBinding<'s, 'v>, &'x Identifier<'y>> {
+        let mut binding = LambdaBinding::new();
+        let skip = exceptions.collect::<HashSet<_>>();
+
+        for id in identifiers {
+            if skip.contains(id) {
+                continue;
+            }
+
+            let Some(current_value) = env.bindings.get(id) else {
+                return Err(id);
+            };
+            binding.bindings.insert(id.deep_clone(), current_value.clone());
+        }
+
+        Ok(binding)
+    }
+
+    pub(crate) fn deep_clone<'sx, 'vx>(&self) -> LambdaBinding<'sx, 'vx> {
+        LambdaBinding {
+            bindings: self
+                .bindings
+                .iter()
+                .map(|(k, v)| (k.deep_clone(), v.deep_clone()))
+                .collect(),
+        }
+    }
+}
+
+impl LambdaBinding<'_, '_> {
+    pub const fn new() -> Self {
+        Self {
+            bindings: BTreeMap::new(),
+        }
+    }
+}
+
+impl<'s, 'v> Into<Environment<'s, 's, 'v>> for LambdaBinding<'s, 'v> {
+
+    fn into(self) -> Environment<'s, 's, 'v> { 
+        Environment {
+            bindings: self
+                .bindings
+                .iter()
+                .map(|(k, v)| (k.deep_clone(), v.deep_clone()))
+                .collect(),
+        }
+    }
+}
+
+impl std::fmt::Display for LambdaBinding<'_, '_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for (id, v) in &self.bindings {
+            writeln!(f, "{id} = {v};")?;
+        }
+        Ok(())
+    }
+}
+
+impl Default for LambdaBinding<'_, '_> {
+    fn default() -> Self {
+        Self::new()
     }
 }

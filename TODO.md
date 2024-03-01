@@ -11,7 +11,6 @@
 * implement a proper declarative grammar
 * add location information to expression and pattern identifiers
 * refactor match to take and return env, instead of struct property
-* refactor extract environment from lambda expression
 * refactor move damasc Value into own crate
 * refactor move evaluation and matcher into own crate, separate from expression and pattern
 * refactor move assignments and topology into own crate

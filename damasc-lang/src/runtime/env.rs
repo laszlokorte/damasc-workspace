@@ -1,4 +1,3 @@
-use nom::lib::std::collections::HashSet;
 use std::collections::BTreeMap;
 
 use crate::{identifier::Identifier, value::Value};
@@ -34,61 +33,6 @@ impl<'i, 's, 'v> Environment<'i, 's, 'v> {
         }
 
         Some(Environment { bindings })
-    }
-
-    pub(crate) fn replace<'x: 'i, 'y: 'x, 'ii, 'ss, 'vv>(
-        &mut self,
-        identifiers: impl Iterator<Item = (Identifier<'y>, Value<'s, 'v>)>,
-    ) {
-        for (id, val) in identifiers {
-            self.bindings.entry(id.clone()).and_modify(|old| *old = val);
-        }
-    }
-
-    pub(crate) fn extract<'x, 'y: 'x, 'ii, 'ss, 'vv>(
-        &self,
-        identifiers: impl Iterator<Item = &'x Identifier<'y>>,
-    ) -> Option<Environment<'i, 's, 'v>> {
-        let mut env = Environment::new();
-
-        for id in identifiers {
-            let current_value = self.bindings.get(id)?;
-            env.bindings.insert(id.deep_clone(), current_value.clone());
-        }
-
-        Some(env)
-    }
-
-    pub(crate) fn extract_except<'x, 'y: 'x, 'ii, 'ss, 'vv>(
-        &self,
-        identifiers: impl Iterator<Item = &'x Identifier<'y>>,
-        exceptions: impl Iterator<Item = &'x Identifier<'y>>,
-    ) -> Result<Environment<'i, 's, 'v>, &'x Identifier<'y>> {
-        let mut env = Environment::new();
-        let skip = exceptions.collect::<HashSet<_>>();
-
-        for id in identifiers {
-            if skip.contains(id) {
-                continue;
-            }
-
-            let Some(current_value) = self.bindings.get(id) else {
-                return Err(id);
-            };
-            env.bindings.insert(id.deep_clone(), current_value.clone());
-        }
-
-        Ok(env)
-    }
-
-    pub(crate) fn deep_clone<'ix, 'sx, 'vx>(&self) -> Environment<'ix, 'sx, 'vx> {
-        Environment {
-            bindings: self
-                .bindings
-                .iter()
-                .map(|(k, v)| (k.deep_clone(), v.deep_clone()))
-                .collect(),
-        }
     }
 }
 
