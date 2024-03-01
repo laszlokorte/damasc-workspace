@@ -2,7 +2,7 @@ use crate::runtime::evaluation::EvalError;
 use crate::syntax::location::Location;
 use crate::syntax::pattern::PatternBody;
 use crate::value_type::ValueType;
-use std::collections::HashSet;
+
 use std::{
     borrow::Cow,
     collections::{btree_map::Entry, BTreeMap, BTreeSet},
@@ -12,11 +12,9 @@ use crate::{
     identifier::Identifier,
     literal::Literal,
     syntax::{
-        assignment::{Assignment, AssignmentSet},
         expression::PropertyKey,
         pattern::{ArrayPatternItem, ObjectPropertyPattern, Pattern, PropertyPattern, Rest},
     },
-    topology::TopologyError,
     value::{Value, ValueObjectMap},
 };
 
@@ -83,33 +81,29 @@ pub enum PatternFailReason<'s, 'v> {
 #[derive(Clone, Debug)]
 pub struct Matcher<'i, 's, 'v, 'e> {
     pub outer_env: &'e Environment<'i, 's, 'v>,
-    pub local_env: Environment<'i, 's, 'v>,
 }
 
 impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
-    pub fn into_env(mut self) -> Environment<'i, 's, 'v> {
-        let mut result = self.outer_env.clone();
-        result.bindings.append(&mut self.local_env.bindings);
-        result
-    }
-
     pub fn match_pattern<'x>(
-        &'x mut self,
+        &'x self,
+        slf_env: Environment<'i, 's, 'v>,
         pattern: &'x Pattern<'s>,
         value: &Value<'s, 'v>,
-    ) -> Result<(), PatternFail<'s, 'v>> {
+    ) -> Result<Environment<'i, 's, 'v>, PatternFail<'s, 'v>> {
         match &pattern.body {
-            PatternBody::Discard => Ok(()),
-            PatternBody::Capture(name, pat) => self.match_pattern(pat, value).and_then(|_| {
-                self.match_identifier(name, value)
-                    .map_err(|e| pattern.cause_error(e))
-            }),
+            PatternBody::Discard => Ok(slf_env),
+            PatternBody::Capture(name, pat) => {
+                self.match_pattern(slf_env, pat, value).and_then(|slf_env| {
+                    self.match_identifier(slf_env, name, value)
+                        .map_err(|e| pattern.cause_error(e))
+                })
+            }
             PatternBody::Identifier(name) => self
-                .match_identifier(name, value)
+                .match_identifier(slf_env, name, value)
                 .map_err(|e| pattern.cause_error(e)),
             PatternBody::TypedDiscard(t) => {
                 if t == &value.get_type() {
-                    Ok(())
+                    Ok(slf_env)
                 } else {
                     Err(pattern.cause_error(PatternFailReason::TypeMismatch {
                         expected: *t,
@@ -124,7 +118,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                         actual: value.clone(),
                     }));
                 }
-                self.match_identifier(name, value)
+                self.match_identifier(slf_env, name, value)
                     .map_err(|e| pattern.cause_error(e))
             }
             PatternBody::Object(object_pattern, rest) => {
@@ -134,12 +128,11 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                         actual: value.clone(),
                     }));
                 };
-                self.match_object(object_pattern, rest, o).map_err(
-                    |propagation| match propagation {
+                self.match_object(slf_env, object_pattern, rest, o)
+                    .map_err(|propagation| match propagation {
                         PatternFailPropagation::Shallow(e) => pattern.cause_error(e),
                         PatternFailPropagation::Nested(e) => e,
-                    },
-                )
+                    })
             }
             PatternBody::Array(items, rest) => {
                 let Value::Array(a) = value else {
@@ -148,14 +141,14 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                         actual: value.clone(),
                     }));
                 };
-                self.match_array(items, rest, a)
+                self.match_array(slf_env, items, rest, a)
                     .map_err(|propagation| match propagation {
                         PatternFailPropagation::Shallow(e) => pattern.cause_error(e),
                         PatternFailPropagation::Nested(e) => e,
                     })
             }
             PatternBody::Literal(l) => self
-                .match_literal(l, value)
+                .match_literal(slf_env, l, value)
                 .map_err(|e| pattern.cause_error(e)),
             PatternBody::PinnedExpression(expr) => {
                 let eval = Evaluation::new(self.outer_env);
@@ -168,7 +161,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                 };
 
                 if &exptected_value == value {
-                    Ok(())
+                    Ok(slf_env)
                 } else {
                     Err(pattern.cause_error(PatternFailReason::ExpressionMissmatch {
                         expected: exptected_value,
@@ -180,14 +173,15 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
     }
 
     fn match_identifier<'x>(
-        &'x mut self,
+        &'x self,
+        mut slf_env: Environment<'i, 's, 'v>,
         name: &'x Identifier<'x>,
         value: &Value<'s, 'v>,
-    ) -> Result<(), PatternFailReason<'s, 'v>> {
-        match self.local_env.bindings.entry(name.deep_clone()) {
+    ) -> Result<Environment<'i, 's, 'v>, PatternFailReason<'s, 'v>> {
+        match slf_env.bindings.entry(name.deep_clone()) {
             Entry::Occupied(entry) => {
                 if value == entry.get() {
-                    Ok(())
+                    Ok(slf_env)
                 } else {
                     Err(PatternFailReason::IdentifierConflict {
                         identifier: name.deep_clone(),
@@ -198,17 +192,18 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
             }
             Entry::Vacant(entry) => {
                 entry.insert(value.clone());
-                Ok(())
+                Ok(slf_env)
             }
         }
     }
 
     fn match_object<'x>(
-        &'x mut self,
+        &'x self,
+        mut slf_env: Environment<'i, 's, 'v>,
         props: &'x [ObjectPropertyPattern<'s>],
         rest: &Rest<'s>,
         value: &ValueObjectMap<'s, 'v>,
-    ) -> Result<(), PatternFailPropagation<'s, 'v>> {
+    ) -> Result<Environment<'i, 's, 'v>, PatternFailPropagation<'s, 'v>> {
         if let Rest::Exact = rest {
             if value.len() != props.len() {
                 return Err(PatternFailPropagation::Shallow(
@@ -273,7 +268,8 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                 ));
             };
 
-            self.match_pattern(&v, actual_value.as_ref())
+            slf_env = self
+                .match_pattern(slf_env, &v, actual_value.as_ref())
                 .map_err(PatternFailPropagation::Nested)?
         }
 
@@ -282,19 +278,20 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                 .iter()
                 .map(|&k| (k.clone(), value.get(k).unwrap().clone()))
                 .collect();
-            self.match_pattern(rest_pattern, &Value::Object(remaining))
+            self.match_pattern(slf_env, rest_pattern, &Value::Object(remaining))
                 .map_err(PatternFailPropagation::Nested)
         } else {
-            Ok(())
+            Ok(slf_env)
         }
     }
 
     fn match_array<'x>(
-        &'x mut self,
+        &'x self,
+        mut slf_env: Environment<'i, 's, 'v>,
         items: &[ArrayPatternItem<'s>],
         rest: &Rest<'s>,
         value: &[Cow<'v, Value<'s, 'v>>],
-    ) -> Result<(), PatternFailPropagation<'s, 'v>> {
+    ) -> Result<Environment<'i, 's, 'v>, PatternFailPropagation<'s, 'v>> {
         if let Rest::Exact = rest {
             if value.len() != items.len() {
                 return Err(PatternFailPropagation::Shallow(
@@ -316,30 +313,29 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         }
 
         for (ArrayPatternItem::Pattern(p), val) in std::iter::zip(items, value.iter()) {
-            self.match_pattern(p, val.as_ref())
+            slf_env = self
+                .match_pattern(slf_env, p, val.as_ref())
                 .map_err(PatternFailPropagation::Nested)?
         }
 
         if let Rest::Collect(rest_pattern) = rest {
             self.match_pattern(
+                slf_env,
                 rest_pattern,
                 &Value::Array(value.iter().skip(items.len()).cloned().collect()),
             )
             .map_err(PatternFailPropagation::Nested)
         } else {
-            Ok(())
+            Ok(slf_env)
         }
-    }
-
-    pub fn clear(&mut self) {
-        self.local_env.bindings.clear();
     }
 
     fn match_literal(
         &self,
+        slf_env: Environment<'i, 's, 'v>,
         literal: &Literal,
         value: &Value,
-    ) -> Result<(), PatternFailReason<'s, 'v>> {
+    ) -> Result<Environment<'i, 's, 'v>, PatternFailReason<'s, 'v>> {
         let matches = match (literal, value) {
             (Literal::Null, Value::Null) => true,
             (Literal::String(a), Value::String(b)) => a == b,
@@ -352,66 +348,14 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         };
 
         if matches {
-            Ok(())
+            Ok(slf_env)
         } else {
             Err(PatternFailReason::LiteralMismatch)
         }
     }
 
     pub fn new<'x: 'e>(env: &'x Environment<'i, 's, 'v>) -> Self {
-        Self {
-            outer_env: env,
-            local_env: Environment::new(),
-        }
-    }
-
-    pub fn new_with_local<'x: 'e>(
-        outer_env: &'x Environment<'i, 's, 'v>,
-        local_env: Environment<'i, 's, 'v>,
-    ) -> Self {
-        Self {
-            outer_env,
-            local_env,
-        }
-    }
-
-    pub fn eval_assigment_set<'a: 's, 'b: 's>(
-        &self,
-        assignments: AssignmentSet<'a, 'b>,
-    ) -> Result<Environment<'i, 's, 'v>, AssignmentError<'s, 'v>> {
-        match assignments.sort_topological() {
-            Ok(sorted_set) => {
-                let mut local_env = self.outer_env.clone();
-                let mut collected_env = Environment::default();
-
-                for Assignment {
-                    pattern,
-                    expression,
-                } in sorted_set.assignments
-                {
-                    let mut matcher = Matcher::new_with_local(&local_env, collected_env.clone());
-                    let evaluation = Evaluation::new(&local_env);
-
-                    let value = match evaluation.eval_expr(&expression) {
-                        Ok(value) => value,
-                        Err(e) => return Err(AssignmentError::EvalError(e)),
-                    };
-
-                    match matcher.match_pattern(&pattern, &value) {
-                        Ok(()) => {
-                            collected_env
-                                .bindings
-                                .append(&mut matcher.local_env.bindings.clone());
-                            local_env = matcher.into_env();
-                        }
-                        Err(e) => return Err(AssignmentError::MatchError(e)),
-                    }
-                }
-
-                Ok(collected_env)
-            }
-            Err(TopologyError::Cycle(c)) => Err(AssignmentError::TopologyError(c)),
-        }
+        Self { outer_env: env }
     }
 }
 
@@ -419,14 +363,6 @@ impl Default for Matcher<'_, '_, '_, 'static> {
     fn default() -> Self {
         Self {
             outer_env: &EMPTY_ENVIRONMENT,
-            local_env: Environment::new(),
         }
     }
-}
-
-#[derive(Debug)]
-pub enum AssignmentError<'s, 'v> {
-    TopologyError(HashSet<Identifier<'s>>),
-    EvalError(EvalError<'s, 'v>),
-    MatchError(PatternFail<'s, 'v>),
 }

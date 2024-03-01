@@ -1,6 +1,5 @@
 #![feature(assert_matches)]
 
-use damasc_query::iter::IndexedPredicateIterator;
 use damasc_lang::{
     parser::{
         expression::expression_all_consuming, pattern::pattern_all_consuming,
@@ -9,6 +8,7 @@ use damasc_lang::{
     runtime::env::Environment,
     value::Value,
 };
+use damasc_query::iter::IndexedPredicateIterator;
 use damasc_query::iter::PredicateIterator;
 use damasc_query::iter::ProjectionIterator;
 use damasc_query::projection::Projection;
@@ -73,10 +73,16 @@ fn test_indexed_iteration() {
 
     let pred_iter = IndexedPredicateIterator::new(env, pred, iter);
 
-
     assert_eq!(bag.values.len(), 17);
     assert_eq!(pred_iter.clone().count(), 4);
-    assert_eq!(pred_iter.filter_map(|r| r.ok()).map(|(i,_)| i).collect::<Vec<_>>().as_slice(), &[13,14,15,16]);
+    assert_eq!(
+        pred_iter
+            .filter_map(|r| r.ok())
+            .map(|(i, _)| i)
+            .collect::<Vec<_>>()
+            .as_slice(),
+        &[13, 14, 15, 16]
+    );
 }
 
 #[test]

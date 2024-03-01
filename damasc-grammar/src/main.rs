@@ -1,8 +1,6 @@
-
 fn main() {
     #[cfg(feature = "assignment")]
     {
-        use damasc_grammar::assignment::parser::single_assignment;
         use ariadne::Color;
         use ariadne::Fmt;
         use ariadne::Label;
@@ -10,6 +8,7 @@ fn main() {
         use ariadne::ReportKind;
         use ariadne::Source;
         use chumsky::Parser;
+        use damasc_grammar::assignment::parser::single_assignment;
 
         for src in ["foo =   bar", "abc = 42", "foo bar"] {
             let result = single_assignment().parse(src.trim()).into_result();

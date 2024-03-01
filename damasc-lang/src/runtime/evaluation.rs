@@ -1,8 +1,8 @@
-use crate::value::LambdaBinding;
 use crate::runtime::matching::PatternFail;
 use crate::syntax::expression::IfElseExpression;
 use crate::syntax::expression::MatchExpression;
 use crate::syntax::location::Location;
+use crate::value::LambdaBinding;
 use crate::value::ValueArray;
 use crate::value::ValueObjectMap;
 use crate::value_type::ValueType;
@@ -143,8 +143,11 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 .eval_template(template)
                 .map_err(|e| e.justify(expression)),
             ExpressionBody::Abstraction(LambdaAbstraction { arguments, body }) => {
-                let new_env = match LambdaBinding::try_from_env(&self.env, body.get_identifiers(), arguments.get_identifiers())
-                {
+                let new_env = match LambdaBinding::try_from_env(
+                    self.env,
+                    body.get_identifiers(),
+                    arguments.get_identifiers(),
+                ) {
                     Ok(new_env) => new_env,
                     Err(missing_id) => {
                         return Err(expression.cause_error(EvalErrorReason::UnknownIdentifier(
@@ -823,14 +826,18 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         };
 
         let local_env = bindings.into();
-        let mut matcher = Matcher::new(&local_env);
-        if let Err(e) = matcher.match_pattern(&pattern, &param) {
-            return Err(EvalErrorPropagation::Shallow(
-                EvalErrorReason::PatternError(Box::new(e)),
-            ));
+        let matcher = Matcher::new(&local_env);
+
+        let new_env = match matcher.match_pattern(Environment::new(), &pattern, &param) {
+            Err(e) => {
+                return Err(EvalErrorPropagation::Shallow(
+                    EvalErrorReason::PatternError(Box::new(e)),
+                ));
+            }
+            Ok(new_env) => new_env,
         };
 
-        let local_env = matcher.into_env();
+        let local_env = matcher.outer_env.combine_with_override(&new_env);
         let local_eval = Evaluation::new(&local_env);
 
         local_eval
@@ -880,18 +887,21 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         let mut results = vec![];
 
         for val in vals {
-            let mut matcher = Matcher::new(self.env);
-            if let Err(e) = matcher.match_pattern(&source.pattern, &val) {
-                if source.strong_pattern {
-                    return Err(EvalErrorPropagation::Shallow(
-                        EvalErrorReason::PatternError(Box::new(e)),
-                    ));
-                } else {
-                    continue;
+            let matcher = Matcher::new(self.env);
+            let new_env = match matcher.match_pattern(Environment::new(), &source.pattern, &val) {
+                Err(err) => {
+                    if source.strong_pattern {
+                        return Err(EvalErrorPropagation::Shallow(
+                            EvalErrorReason::PatternError(Box::new(err)),
+                        ));
+                    } else {
+                        continue;
+                    }
                 }
+                Ok(new_env) => new_env,
             };
 
-            let local_env = matcher.into_env();
+            let local_env = matcher.outer_env.combine_with_override(&new_env);
             let local_eval = Evaluation::new(&local_env);
 
             if let Some(p) = &source.predicate {
@@ -951,15 +961,14 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             .map_err(EvalErrorPropagation::Nested)?;
 
         for case in &match_expr.cases {
-            let mut matcher = Matcher::new(self.env);
-            if matcher
-                .match_pattern(&case.pattern, &subject_value)
-                .is_err()
-            {
-                continue;
-            };
+            let matcher = Matcher::new(self.env);
+            let new_env =
+                match matcher.match_pattern(Environment::new(), &case.pattern, &subject_value) {
+                    Err(_) => continue,
+                    Ok(new_env) => new_env,
+                };
 
-            let local_env = matcher.into_env();
+            let local_env = matcher.outer_env.combine_with_override(&new_env);
             let local_eval = Evaluation::new(&local_env);
 
             if let Some(guard) = &case.guard {

@@ -34,6 +34,16 @@ impl<'i, 's, 'v> Environment<'i, 's, 'v> {
 
         Some(Environment { bindings })
     }
+
+    pub fn combine_with_override(&self, other: &Self) -> Self {
+        let mut bindings = self.bindings.clone();
+
+        for (id, value) in &other.bindings {
+            bindings.insert(id.clone(), value.clone());
+        }
+
+        Environment { bindings }
+    }
 }
 
 impl Environment<'_, '_, '_> {

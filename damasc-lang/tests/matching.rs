@@ -2,8 +2,8 @@
 
 use core::assert_matches::assert_matches;
 use damasc_lang::parser;
+use damasc_lang::runtime::assignment::AssignmentEvaluation;
 use damasc_lang::runtime::env::Environment;
-use damasc_lang::runtime::matching::Matcher;
 
 #[test]
 fn test_matching_fail() {
@@ -13,9 +13,9 @@ fn test_matching_fail() {
             unreachable!("Can not parse assignments");
         };
 
-        let env = Environment::new();
-        let matcher = Matcher::new(&env);
+        let env = Environment::default();
+        let assignment_eval = AssignmentEvaluation::new(&env);
 
-        assert_matches!(matcher.eval_assigment_set(assignment), Err(_));
+        assert_matches!(assignment_eval.eval_assigment_set(assignment), Err(_));
     }
 }

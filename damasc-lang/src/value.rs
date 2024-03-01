@@ -1,9 +1,9 @@
-use crate::runtime::env::Environment;
-use std::collections::HashSet;
 use crate::identifier::Identifier;
+use crate::runtime::env::Environment;
 use crate::value_type::ValueType;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
+use std::collections::HashSet;
 
 use crate::syntax::expression::Expression;
 use crate::syntax::pattern::Pattern;
@@ -138,8 +138,6 @@ impl<'s, 'v> std::fmt::Display for Value<'s, 'v> {
     }
 }
 
-
-
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct ValueBag<'s, 'v> {
     pub values: Vec<Value<'s, 'v>>,
@@ -164,7 +162,6 @@ impl<'s, 'v> ValueBag<'s, 'v> {
 pub struct LambdaBinding<'s, 'v> {
     pub bindings: BTreeMap<Identifier<'s>, Value<'s, 'v>>,
 }
-
 
 impl<'s, 'v> LambdaBinding<'s, 'v> {
     pub fn clear(&mut self) {
@@ -219,7 +216,9 @@ impl<'s, 'v> LambdaBinding<'s, 'v> {
             let Some(current_value) = env.bindings.get(id) else {
                 return Err(id);
             };
-            binding.bindings.insert(id.deep_clone(), current_value.clone());
+            binding
+                .bindings
+                .insert(id.deep_clone(), current_value.clone());
         }
 
         Ok(binding)
@@ -244,11 +243,10 @@ impl LambdaBinding<'_, '_> {
     }
 }
 
-impl<'s, 'v> Into<Environment<'s, 's, 'v>> for LambdaBinding<'s, 'v> {
-
-    fn into(self) -> Environment<'s, 's, 'v> { 
+impl<'s, 'v> From<LambdaBinding<'s, 'v>> for Environment<'s, 's, 'v> {
+    fn from(val: LambdaBinding<'s, 'v>) -> Self {
         Environment {
-            bindings: self
+            bindings: val
                 .bindings
                 .iter()
                 .map(|(k, v)| (k.deep_clone(), v.deep_clone()))

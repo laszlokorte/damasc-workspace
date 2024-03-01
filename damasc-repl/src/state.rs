@@ -1,3 +1,5 @@
+use damasc_lang::runtime::assignment::AssignmentError;
+use damasc_lang::runtime::assignment::AssignmentEvaluation;
 use damasc_query::predicate::PredicateError;
 use damasc_query::projection::ProjectionError;
 use itertools::Itertools;
@@ -6,11 +8,7 @@ use std::collections::BTreeSet;
 use damasc_lang::identifier::Identifier;
 use damasc_lang::runtime::evaluation::Evaluation;
 use damasc_lang::{
-    runtime::{
-        env::Environment,
-        evaluation::EvalError,
-        matching::{AssignmentError, Matcher},
-    },
+    runtime::{env::Environment, evaluation::EvalError},
     value::ValueBag,
 };
 use damasc_query::iter::MultiProjectionIterator;
@@ -74,8 +72,8 @@ impl<'i, 's> State<'i, 's> {
             }
             Command::Assign(assignments, locals) => {
                 let local_env = if let Some(loc) = locals {
-                    let local_matcher = Matcher::new(&self.environment);
-                    match local_matcher.eval_assigment_set(loc) {
+                    let assign_eval = AssignmentEvaluation::new(&self.environment);
+                    match assign_eval.eval_assigment_set(loc) {
                         Ok(mut new_bindings) => {
                             let mut local_env = self.environment.clone();
                             local_env.bindings.append(&mut new_bindings.bindings);
@@ -93,8 +91,8 @@ impl<'i, 's> State<'i, 's> {
                     self.environment.clone()
                 };
 
-                let matcher = Matcher::new(&local_env);
-                match matcher.eval_assigment_set(assignments) {
+                let assign_eval = AssignmentEvaluation::new(&local_env);
+                match assign_eval.eval_assigment_set(assignments) {
                     Ok(new_bindings) => {
                         self.environment
                             .bindings
@@ -107,8 +105,8 @@ impl<'i, 's> State<'i, 's> {
                 }
             }
             Command::Match(assignments) => {
-                let matcher = Matcher::new(&self.environment);
-                match matcher.eval_assigment_set(assignments) {
+                let assign_eval = AssignmentEvaluation::new(&self.environment);
+                match assign_eval.eval_assigment_set(assignments) {
                     Ok(new_bindings) => Ok(ReplOutput::Bindings(new_bindings)),
                     Err(AssignmentError::EvalError(e)) => Err(ReplError::EvalError(e)),
                     Err(AssignmentError::MatchError(e)) => Err(ReplError::MatchError(e)),
@@ -116,8 +114,8 @@ impl<'i, 's> State<'i, 's> {
                 }
             }
             Command::Eval(assignments, expresions) => {
-                let matcher = Matcher::new(&self.environment);
-                let mut new_bindings = match matcher.eval_assigment_set(assignments) {
+                let assign_eval = AssignmentEvaluation::new(&self.environment);
+                let mut new_bindings = match assign_eval.eval_assigment_set(assignments) {
                     Ok(new_env) => new_env,
                     Err(AssignmentError::EvalError(e)) => return Err(ReplError::EvalError(e)),
                     Err(AssignmentError::MatchError(e)) => return Err(ReplError::MatchError(e)),

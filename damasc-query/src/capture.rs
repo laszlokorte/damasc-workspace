@@ -27,10 +27,10 @@ impl<'s> Capture<'s> {
         env: &Environment<'i, 's, 'v>,
         value: &'v Value<'s, 'v>,
     ) -> Result<Option<Environment<'i, 's, 'v>>, CaptureError> {
-        let mut matcher = Matcher::new(env);
+        let matcher = Matcher::new(env);
 
-        match matcher.match_pattern(&self.pattern, value) {
-            Ok(()) => Ok(Some(matcher.into_env())),
+        match matcher.match_pattern(Environment::new(), &self.pattern, value) {
+            Ok(new_env) => Ok(Some(matcher.outer_env.combine_with_override(&new_env))),
             Err(e) => match e.reason {
                 PatternFailReason::EvalError(_e) => Err(CaptureError::EvalError),
                 _ => Ok(None),
@@ -53,9 +53,9 @@ impl<'s> MultiCapture<'s> {
         let mut zipped = iter::zip(self.patterns.patterns.iter(), values);
         let result: Result<Environment, PatternFail> =
             zipped.try_fold(env.clone(), |e, (pat, val)| {
-                let mut m = Matcher::new_with_local(&e, e.clone());
-                m.match_pattern(pat, val)?;
-                Ok(m.into_env())
+                let m = Matcher::new(&e);
+                let new_env = m.match_pattern(e.clone(), pat, val)?;
+                Ok(m.outer_env.combine_with_override(&new_env))
             });
 
         match result {
