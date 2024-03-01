@@ -8,7 +8,8 @@ members = [
     "damasc-repl",
     "damasc-wasm",
     "damasc-http",
-    "damasc-join",
+    "damasc-join", 
+    "damasc-grammar",
 ]
 
 [profile.release]

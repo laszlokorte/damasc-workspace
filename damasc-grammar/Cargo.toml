@@ -1,0 +1,9 @@
+[package]
+name = "damasc-grammar"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+damasc-lang = { path = "../damasc-lang" }
+chumsky = "1.0.0-alpha.0"
+ariadne = "0.4.0"

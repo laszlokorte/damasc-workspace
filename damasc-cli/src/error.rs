@@ -1,10 +1,9 @@
 use ariadne::ReportBuilder;
-use std::ops::Range;
-use damasc_lang::runtime::matching::PatternFailReason;
 use ariadne::{ColorGenerator, Label, Report, ReportKind, Source};
 use damasc_lang::runtime::evaluation::EvalErrorReason;
+use damasc_lang::runtime::matching::PatternFailReason;
 use damasc_repl::io::ReplError;
-
+use std::ops::Range;
 
 pub(crate) fn print_error(input: &str, e: ReplError) {
     let mut colors = ColorGenerator::new();
@@ -23,19 +22,50 @@ pub(crate) fn print_error(input: &str, e: ReplError) {
             let builder = builder.with_code("Evaluation");
 
             let builder = builder.with_message(match eval_error.reason {
-                EvalErrorReason::KindError(actual) => format!("Expected a type, but found {}.", actual),
-                EvalErrorReason::TypeError(expected_type, value) => format!("Expected a value of type {} but found {} of type {}.", expected_type, value, value.get_type()),
-                EvalErrorReason::CollectionTypeError(val) => format!("Value must be an Array, Object or String, but was {} of type {}.", val, val.get_type()),
-                EvalErrorReason::CastError(expected_type, val) => format!("Value {} of type {} can not be converted into {}..", val, val.get_type(), expected_type),
-                EvalErrorReason::UnknownIdentifier(identifier) => format!("Unknown identifier {}.", identifier),
-                EvalErrorReason::InvalidNumber(lit) => format!("Literal {} is not a valid number.", lit),
-                EvalErrorReason::MathDivisionByZero => format!("Division By Zero"),
-                EvalErrorReason::KeyNotDefined(key, val) => format!("Object {} has no key {}.", val, key),
-                EvalErrorReason::OutOfBound(expected_lengnth, actual_length) => format!("Tried to access index {} of value that has a length of {}..", expected_lengnth, actual_length),
-                EvalErrorReason::IntegerOverflow => format!("Integer overflow"),
-                EvalErrorReason::UnknownFunction(fun) => format!("Function of name {} does not exist.", fun),
-                EvalErrorReason::PatternError(_e) => format!("A pattern failed to match during evaluation."),
-                EvalErrorReason::PatternExhaustionError(val) => format!("None of the provided cases was a match for value {}.", val),
+                EvalErrorReason::KindError(actual) => {
+                    format!("Expected a type, but found {}.", actual)
+                }
+                EvalErrorReason::TypeError(expected_type, value) => format!(
+                    "Expected a value of type {} but found {} of type {}.",
+                    expected_type,
+                    value,
+                    value.get_type()
+                ),
+                EvalErrorReason::CollectionTypeError(val) => format!(
+                    "Value must be an Array, Object or String, but was {} of type {}.",
+                    val,
+                    val.get_type()
+                ),
+                EvalErrorReason::CastError(expected_type, val) => format!(
+                    "Value {} of type {} can not be converted into {}..",
+                    val,
+                    val.get_type(),
+                    expected_type
+                ),
+                EvalErrorReason::UnknownIdentifier(identifier) => {
+                    format!("Unknown identifier {}.", identifier)
+                }
+                EvalErrorReason::InvalidNumber(lit) => {
+                    format!("Literal {} is not a valid number.", lit)
+                }
+                EvalErrorReason::MathDivisionByZero => "Division By Zero".to_string(),
+                EvalErrorReason::KeyNotDefined(key, val) => {
+                    format!("Object {} has no key {}.", val, key)
+                }
+                EvalErrorReason::OutOfBound(expected_lengnth, actual_length) => format!(
+                    "Tried to access index {} of value that has a length of {}..",
+                    expected_lengnth, actual_length
+                ),
+                EvalErrorReason::IntegerOverflow => "Integer overflow".to_string(),
+                EvalErrorReason::UnknownFunction(fun) => {
+                    format!("Function of name {} does not exist.", fun)
+                }
+                EvalErrorReason::PatternError(_e) => {
+                    "A pattern failed to match during evaluation.".to_string()
+                }
+                EvalErrorReason::PatternExhaustionError(val) => {
+                    format!("None of the provided cases was a match for value {}.", val)
+                }
             });
 
             let builder = builder.with_label(
@@ -50,12 +80,10 @@ pub(crate) fn print_error(input: &str, e: ReplError) {
                 .unwrap();
         }
         ReplError::MatchError(pattern_fail) => {
-
             let Some(source_location) = pattern_fail.location else {
                 eprintln!("Match Failed");
                 return;
             };
-
 
             let builder = Report::build(ReportKind::Error, "REPL", source_location.start);
 
@@ -68,9 +96,9 @@ pub(crate) fn print_error(input: &str, e: ReplError) {
                 PatternFailReason::TypeMismatch { expected, actual } => format!("Value was expected to be of type {} but the actual type is {}.", expected, actual),
                 PatternFailReason::ObjectLengthMismatch { expected, actual } => format!("Object is expected to have {} different fields. But the actual number of fields is {}.", expected, actual),
                 PatternFailReason::ObjectKeyMismatch { expected, actual } => format!("The object was expected to have a key {}, but has only keys: {}.", expected, actual.keys().map(|k| k.as_ref()).intersperse(", ").collect::<String>()),
-                PatternFailReason::LiteralMismatch => format!("The value does not match the expected literal."),
+                PatternFailReason::LiteralMismatch => "The value does not match the expected literal.".to_string(),
                 PatternFailReason::ExpressionMissmatch { expected, actual } => format!("The value is expected to be {} but actually was {}.", expected, actual),
-                PatternFailReason::EvalError(_eval_error) => format!("During the pattern matching an evaulation error occured."),
+                PatternFailReason::EvalError(_eval_error) => "During the pattern matching an evaulation error occured.".to_string(),
             });
 
             let builder = builder.with_label(
@@ -83,14 +111,21 @@ pub(crate) fn print_error(input: &str, e: ReplError) {
                 .finish()
                 .print(("REPL", Source::from(input)))
                 .unwrap();
-
         }
         ReplError::TopologyError(cycle) => {
-            let builder: ReportBuilder<(&str, Range<usize>)> = Report::build(ReportKind::Error, "REPL", 0);
+            let builder: ReportBuilder<(&str, Range<usize>)> =
+                Report::build(ReportKind::Error, "REPL", 0);
 
             let builder = builder.with_code("Topology");
 
-            let builder = builder.with_message(format!("These defintions cyclicly depend on each other: {}", cycle.iter().map(|k| k.name.as_ref()).intersperse(", ").collect::<String>()));
+            let builder = builder.with_message(format!(
+                "These defintions cyclicly depend on each other: {}",
+                cycle
+                    .iter()
+                    .map(|k| k.name.as_ref())
+                    .intersperse(", ")
+                    .collect::<String>()
+            ));
 
             builder
                 .finish()

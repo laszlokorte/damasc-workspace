@@ -897,13 +897,17 @@ fn expression_path<'v, 's, E: ParserError<'s>>(
                 },
             ),
             map(
-                tuple((ws(terminated(position, tag("."))), expression_with_paren, position)),
+                tuple((
+                    ws(terminated(position, tag("."))),
+                    expression_with_paren,
+                    position,
+                )),
                 |(ls, expr, rs)| {
                     PathSegment::Application(
                         expr,
                         Location::new(ls.location_offset(), rs.location_offset()),
                     )
-                }
+                },
             ),
         )),
         move || init.clone(),
