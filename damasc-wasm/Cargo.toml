@@ -11,5 +11,4 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 cfg-if = {version="1.0.0"}
 wasm-bindgen = {version="0.2.91"}
-wee_alloc = {version="0.4.5"}
 damasc-repl = {path="../damasc-repl"}
