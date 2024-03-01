@@ -3,6 +3,15 @@ name = "damasc-grammar"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["assignment"]
+value = []
+expression = ["value"]
+pattern = []
+assignment = ["expression", "pattern"]
+query = ["assignment"]
+join = ["assignment"]
+
 [dependencies]
 damasc-lang = { path = "../damasc-lang" }
 chumsky = "1.0.0-alpha.0"
