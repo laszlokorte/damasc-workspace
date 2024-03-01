@@ -5,7 +5,7 @@ use crate::value_type::ValueType;
 
 use std::{
     borrow::Cow,
-    collections::{btree_map::Entry, BTreeMap, BTreeSet},
+    collections::{btree_map::Entry, BTreeMap},
 };
 
 use crate::{
@@ -215,7 +215,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
             }
         }
 
-        let mut keys = value.keys().collect::<BTreeSet<_>>();
+        let mut keys = value.clone();
         for prop in props {
             let (k, v) = match prop {
                 ObjectPropertyPattern::Single(key) => (
@@ -250,7 +250,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                 }
             };
 
-            if !keys.remove(&k) {
+            if let None = keys.remove(&k) {
                 return Err(PatternFailPropagation::Shallow(
                     PatternFailReason::ObjectKeyMismatch {
                         expected: k,
@@ -276,8 +276,9 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         if let Rest::Collect(rest_pattern) = rest {
             let remaining: BTreeMap<Cow<str>, Cow<Value>> = keys
                 .iter()
-                .map(|&k| (k.clone(), value.get(k).unwrap().clone()))
+                .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
+
             self.match_pattern(slf_env, rest_pattern, &Value::Object(remaining))
                 .map_err(PatternFailPropagation::Nested)
         } else {
