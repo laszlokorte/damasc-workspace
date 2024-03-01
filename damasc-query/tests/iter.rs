@@ -1,5 +1,6 @@
 #![feature(assert_matches)]
 
+use damasc_query::iter::IndexedPredicateIterator;
 use damasc_lang::{
     parser::{
         expression::expression_all_consuming, pattern::pattern_all_consuming,
@@ -47,6 +48,35 @@ fn test_predicate_iteration() {
 
     assert_eq!(bag.values.len(), 17);
     assert_eq!(pred_iter.count(), 4);
+}
+
+#[test]
+fn test_indexed_iteration() {
+    let values = include_str!("./example_values.txt");
+    let Some(bag) = value_bag_all_consuming(values) else {
+        unreachable!("Values could not be read.");
+    };
+    let Some(pattern) = pattern_all_consuming("[_,_]") else {
+        unreachable!("Pattern parse error");
+    };
+    let Some(guard) = expression_all_consuming("true") else {
+        unreachable!("Pattern parse error");
+    };
+
+    let pred = Predicate {
+        capture: Capture { pattern },
+        guard,
+    };
+
+    let iter = bag.values.iter().enumerate();
+    let env = Environment::default();
+
+    let pred_iter = IndexedPredicateIterator::new(env, pred, iter);
+
+
+    assert_eq!(bag.values.len(), 17);
+    assert_eq!(pred_iter.clone().count(), 4);
+    assert_eq!(pred_iter.filter_map(|r| r.ok()).map(|(i,_)| i).collect::<Vec<_>>().as_slice(), &[13,14,15,16]);
 }
 
 #[test]
