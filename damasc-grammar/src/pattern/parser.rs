@@ -1,14 +1,32 @@
+use crate::identifier::parser::single_identifier;
+use crate::util::meta_to_location;
+use damasc_lang::syntax::pattern::PatternBody;
+use damasc_lang::syntax::pattern::Pattern;
+
+use crate::literal::parser::single_literal;
+
 use chumsky::extra;
 use chumsky::prelude::Rich;
 
 use chumsky::Parser;
-use damasc_lang::identifier::Identifier;
-use damasc_lang::syntax::pattern::Pattern;
-use damasc_lang::syntax::pattern::PatternBody;
 
-pub fn single_pattern<'a>() -> impl Parser<'a, &'a str, Pattern<'a>, extra::Err<Rich<'a, char>>> {
-    let identifier = chumsky::text::ident()
-        .map(|c| Pattern::new(PatternBody::<'a>::Identifier(Identifier::new(c))));
+use chumsky::prelude::*;
 
-    identifier
+pub fn single_pattern<'s>() -> impl Parser<'s, &'s str, Pattern<'s>, extra::Err<Rich<'s, char>>> {
+    recursive(|_pattern| {
+        let literal = single_literal().map_with(|l, meta| Pattern::new_with_location(PatternBody::Literal(l), meta_to_location(meta)))
+        .labelled("literal")
+        .as_context();
+
+        let identifier = single_identifier().map_with(|i, meta| Pattern::new_with_location(PatternBody::Identifier(i), meta_to_location(meta)))
+        .labelled("identifier")
+        .as_context();
+
+
+
+        choice((
+            literal,
+            identifier
+        ))
+    })
 }

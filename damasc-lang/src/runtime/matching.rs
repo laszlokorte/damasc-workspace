@@ -250,7 +250,7 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
                 }
             };
 
-            if let None = keys.remove(&k) {
+            if keys.remove(&k).is_none() {
                 return Err(PatternFailPropagation::Shallow(
                     PatternFailReason::ObjectKeyMismatch {
                         expected: k,
@@ -274,10 +274,8 @@ impl<'i: 's, 's, 'v: 's, 'e> Matcher<'i, 's, 'v, 'e> {
         }
 
         if let Rest::Collect(rest_pattern) = rest {
-            let remaining: BTreeMap<Cow<str>, Cow<Value>> = keys
-                .iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect();
+            let remaining: BTreeMap<Cow<str>, Cow<Value>> =
+                keys.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
 
             self.match_pattern(slf_env, rest_pattern, &Value::Object(remaining))
                 .map_err(PatternFailPropagation::Nested)

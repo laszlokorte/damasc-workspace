@@ -1,17 +1,27 @@
-use chumsky::prelude::just;
+use crate::util::meta_to_location;
+use damasc_lang::syntax::expression::ExpressionBody;
+use damasc_lang::syntax::expression::Expression;
+
+use crate::literal::parser::single_literal;
+
 use chumsky::extra;
 use chumsky::prelude::Rich;
 
 use chumsky::Parser;
-use damasc_lang::identifier::Identifier;
-use damasc_lang::syntax::expression::Expression;
-use damasc_lang::syntax::expression::ExpressionBody;
 
-pub fn single_expression<'a>(
-) -> impl Parser<'a, &'a str, Expression<'a>, extra::Err<Rich<'a, char>>> {
-    let identifier = chumsky::text::ident()
-        .or(chumsky::text::ident().delimited_by(just("("), just(")")))
-        .map(|c| Expression::new(ExpressionBody::<'a>::Identifier(Identifier::new(c))));
+use chumsky::prelude::*;
 
-    identifier
+pub fn single_expression<'s>() -> Boxed<'s, 's, &'s str, Expression<'s>, extra::Err<Rich<'s, char>>> {
+    recursive(|_expression| {
+        // let object = ...;
+        // let array = ...;
+        // let abstraction = ...;
+        // let maching = ...;
+        // let condition = ...;
+
+        let literal = single_literal();
+
+        literal.map_with(|l, meta| Expression::new_with_location(ExpressionBody::Literal(l), meta_to_location(meta)))
+    })
+    .boxed()
 }

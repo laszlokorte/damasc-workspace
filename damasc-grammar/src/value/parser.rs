@@ -1,5 +1,11 @@
+use crate::identifier::parser::single_identifier;
+use crate::literal::parser::single_literal;
+use crate::literal::parser::single_string_literal;
+use chumsky::error::Error;
 use chumsky::extra;
 use chumsky::prelude::Rich;
+
+use damasc_lang::literal::Literal;
 use std::borrow::Cow;
 
 use chumsky::Parser;
@@ -8,50 +14,9 @@ use damasc_lang::value::Value;
 
 use chumsky::prelude::*;
 
-
-pub fn single_value<'s>() -> impl Parser<'s, &'s str, Value<'s,'s>, extra::Err<Rich<'s, char>>> {
+pub fn single_value<'s>() -> Boxed<'s, 's, &'s str, Value<'s, 's>, extra::Err<Rich<'s, char>>> {
     recursive(|value| {
-        let value = value
-        .labelled("value");
-
-        let integer = just('-')
-            .or_not()
-            .then(text::int(10))
-            .to_slice()
-            .map(|s: &str| s.parse().unwrap()).labelled("integer")
-            .boxed();
-
-        let escape = just('\\')
-            .then(choice((
-                just('\\'),
-                just('/'),
-                just('"'),
-                just('b').to('\x08'),
-                just('f').to('\x0C'),
-                just('n').to('\n'),
-                just('r').to('\r'),
-                just('t').to('\t'),
-                just('u').ignore_then(text::digits(16).exactly(4).to_slice().validate(
-                    |digits, e, emitter| {
-                        char::from_u32(u32::from_str_radix(digits, 16).unwrap()).unwrap_or_else(
-                            || {
-                                emitter.emit(Rich::custom(e.span(), "invalid unicode character"));
-                                '\u{FFFD}' // unicode replacement character
-                            },
-                        )
-                    },
-                )),
-            )))
-            .ignored()
-            .boxed();
-
-        let string = none_of("\\\"")
-            .ignored()
-            .or(escape)
-            .repeated()
-            .to_slice()
-            .delimited_by(just('"'), just('"'))
-            .labelled("string").as_context().boxed();
+        let value = value.labelled("value");
 
         let array = value
             .clone()
@@ -69,12 +34,17 @@ pub fn single_value<'s>() -> impl Parser<'s, &'s str, Value<'s,'s>, extra::Err<R
                     .ignored()
                     .recover_with(via_parser(end()))
                     .recover_with(skip_then_retry_until(any().ignored(), end())),
-            ).labelled("array").as_context()
+            )
+            .labelled("array")
+            .as_context()
             .boxed();
 
-        let member = string.clone()
-            .map(Cow::Borrowed).labelled("object_key").as_context().then_ignore(just(':').padded()).then(value
-            .map(Cow::Owned).labelled("object_value").as_context());
+        let member = single_string_literal()
+            .or(single_identifier().map(|i| i.name))
+            .labelled("object_key")
+            .as_context()
+            .then_ignore(just(':').padded())
+            .then(value.labelled("value").as_context().map(Cow::Owned));
         let object = member
             .clone()
             .separated_by(just(',').padded().recover_with(skip_then_retry_until(
@@ -86,20 +56,27 @@ pub fn single_value<'s>() -> impl Parser<'s, &'s str, Value<'s,'s>, extra::Err<R
             .padded()
             .delimited_by(
                 just('{'),
-                just('}').ignored()
+                just('}')
+                    .ignored()
                     .recover_with(via_parser(end()))
                     .recover_with(skip_then_retry_until(any().ignored(), end())),
-            ).labelled("object").as_context()
+            )
+            .labelled("object")
+            .as_context()
             .boxed();
 
         choice((
-            just("null").to(Value::Null).labelled("null"),
-            just("true").to(Value::Boolean(true)).labelled("true"),
-            just("false").to(Value::Boolean(false)).labelled("false"),
-            integer.map(Value::Integer),
-            string.map(|s|Value::String(Cow::Borrowed(s))),
-            object.map(|entries| Value::Object(entries)),
-            array.map(|members| Value::Array(members)),
+            single_literal().try_map(move |lit, span| match lit {
+                Literal::Null => Ok(Value::Null),
+                Literal::String(s) => Ok(Value::String(s)),
+                Literal::Number(num) => num
+                    .parse()
+                    .map(Value::Integer).map_err(move |_| Error::<&str>::expected_found(None, None, span)),
+                Literal::Boolean(b) => Ok(Value::Boolean(b)),
+                Literal::Type(t) => Ok(Value::Type(t)),
+            }),
+            object.map(Value::Object),
+            array.map(Value::Array),
         ))
         .recover_with(skip_then_retry_until(
             any().ignored(),
@@ -107,4 +84,5 @@ pub fn single_value<'s>() -> impl Parser<'s, &'s str, Value<'s,'s>, extra::Err<R
         ))
         .padded()
     })
+    .boxed()
 }
