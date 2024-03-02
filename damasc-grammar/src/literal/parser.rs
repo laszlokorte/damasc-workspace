@@ -9,7 +9,7 @@ use damasc_lang::literal::Literal;
 use chumsky::prelude::*;
 
 pub fn single_string_literal<'s>(
-) -> Boxed<'s, 's, &'s str, Cow<'s, str>, extra::Err<Rich<'s, char>>> {
+) -> impl Parser<'s, &'s str, Cow<'s, str>, extra::Err<Rich<'s, char>>> {
     let escape = just('\\')
         .then(choice((
             just('\\'),
@@ -40,13 +40,12 @@ pub fn single_string_literal<'s>(
         .map(Cow::Borrowed)
         .delimited_by(just('"'), just('"'))
         .labelled("string")
-        .as_context()
-        .boxed();
+        .as_context();
 
-    string.boxed()
+    string
 }
 
-pub fn single_literal<'s>() -> Boxed<'s, 's, &'s str, Literal<'s>, extra::Err<Rich<'s, char>>> {
+pub fn single_literal<'s>() -> impl Parser<'s, &'s str, Literal<'s>, extra::Err<Rich<'s, char>>> {
     let integer = just('-')
         .or_not()
         .then(text::int(10))
@@ -65,5 +64,4 @@ pub fn single_literal<'s>() -> Boxed<'s, 's, &'s str, Literal<'s>, extra::Err<Ri
         integer.map(Literal::Number),
         single_string_literal().map(Literal::String),
     ))
-    .boxed()
 }
