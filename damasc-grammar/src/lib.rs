@@ -18,3 +18,5 @@ pub mod query;
 
 #[cfg(feature = "join")]
 pub mod join;
+
+pub mod json;

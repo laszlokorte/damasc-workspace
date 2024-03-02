@@ -1,24 +1,35 @@
-use chumsky::extra;
-use chumsky::prelude::Rich;
-use std::borrow::Cow;
-
-use chumsky::Parser;
-
-use damasc_lang::value::Value;
-
 use chumsky::prelude::*;
+use std::{collections::HashMap};
 
+#[derive(Clone, Debug)]
+pub enum Json {
+    Invalid,
+    Null,
+    Bool(bool),
+    Str(String),
+    Num(f64),
+    Array(Vec<Json>),
+    Object(HashMap<String, Json>),
+}
 
-pub fn single_value<'s>() -> impl Parser<'s, &'s str, Value<'s,'s>, extra::Err<Rich<'s, char>>> {
+fn parser<'a>() -> impl Parser<'a, &'a str, Json, extra::Err<Rich<'a, char>>> {
     recursive(|value| {
-        let value = value
-        .labelled("value");
+        let digits = text::digits(10).to_slice();
 
-        let integer = just('-')
+        let frac = just('.').then(digits);
+
+        let exp = just('e')
+            .or(just('E'))
+            .then(one_of("+-").or_not())
+            .then(digits);
+
+        let number = just('-')
             .or_not()
             .then(text::int(10))
+            .then(frac.or_not())
+            .then(exp.or_not())
             .to_slice()
-            .map(|s: &str| s.parse().unwrap()).labelled("integer")
+            .map(|s: &str| s.parse().unwrap())
             .boxed();
 
         let escape = just('\\')
@@ -50,12 +61,12 @@ pub fn single_value<'s>() -> impl Parser<'s, &'s str, Value<'s,'s>, extra::Err<R
             .or(escape)
             .repeated()
             .to_slice()
+            .map(ToString::to_string)
             .delimited_by(just('"'), just('"'))
-            .labelled("string").as_context().boxed();
+            .boxed();
 
         let array = value
             .clone()
-            .map(Cow::Owned)
             .separated_by(just(',').padded().recover_with(skip_then_retry_until(
                 any().ignored(),
                 one_of(",]").ignored(),
@@ -69,41 +80,51 @@ pub fn single_value<'s>() -> impl Parser<'s, &'s str, Value<'s,'s>, extra::Err<R
                     .ignored()
                     .recover_with(via_parser(end()))
                     .recover_with(skip_then_retry_until(any().ignored(), end())),
-            ).labelled("array").as_context()
+            )
             .boxed();
 
-        let member = string.clone()
-            .map(Cow::Borrowed).labelled("object_key").as_context().then_ignore(just(':').padded()).then(value
-            .map(Cow::Owned).labelled("object_value").as_context());
+        let member = string.clone().then_ignore(just(':').padded()).then(value);
         let object = member
             .clone()
             .separated_by(just(',').padded().recover_with(skip_then_retry_until(
                 any().ignored(),
                 one_of(",}").ignored(),
             )))
-            .allow_trailing()
             .collect()
             .padded()
             .delimited_by(
                 just('{'),
-                just('}').ignored()
+                just('}')
+                    .ignored()
                     .recover_with(via_parser(end()))
                     .recover_with(skip_then_retry_until(any().ignored(), end())),
-            ).labelled("object").as_context()
+            )
             .boxed();
 
         choice((
-            just("null").to(Value::Null).labelled("null"),
-            just("true").to(Value::Boolean(true)).labelled("true"),
-            just("false").to(Value::Boolean(false)).labelled("false"),
-            integer.map(Value::Integer),
-            string.map(|s|Value::String(Cow::Borrowed(s))),
-            object.map(|entries| Value::Object(entries)),
-            array.map(|members| Value::Array(members)),
+            just("null").to(Json::Null),
+            just("true").to(Json::Bool(true)),
+            just("false").to(Json::Bool(false)),
+            number.map(Json::Num),
+            string.map(Json::Str),
+            array.map(Json::Array),
+            object.map(Json::Object),
         ))
+        .recover_with(via_parser(nested_delimiters(
+            '{',
+            '}',
+            [('[', ']')],
+            |_| Json::Invalid,
+        )))
+        .recover_with(via_parser(nested_delimiters(
+            '[',
+            ']',
+            [('{', '}')],
+            |_| Json::Invalid,
+        )))
         .recover_with(skip_then_retry_until(
             any().ignored(),
-            one_of("]}").ignored(),
+            one_of(",]}").ignored(),
         ))
         .padded()
     })

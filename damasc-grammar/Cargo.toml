@@ -14,5 +14,5 @@ join = ["assignment"]
 
 [dependencies]
 damasc-lang = { path = "../damasc-lang" }
-chumsky = "1.0.0-alpha.0"
+chumsky = {version = "1.0.0-alpha.0", features = ["label"]}
 ariadne = "0.4.0"

@@ -1,3 +1,4 @@
+use chumsky::prelude::just;
 use chumsky::extra;
 use chumsky::prelude::Rich;
 
@@ -9,6 +10,7 @@ use damasc_lang::syntax::expression::ExpressionBody;
 pub fn single_expression<'a>(
 ) -> impl Parser<'a, &'a str, Expression<'a>, extra::Err<Rich<'a, char>>> {
     let identifier = chumsky::text::ident()
+        .or(chumsky::text::ident().delimited_by(just("("), just(")")))
         .map(|c| Expression::new(ExpressionBody::<'a>::Identifier(Identifier::new(c))));
 
     identifier
