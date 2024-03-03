@@ -1,3 +1,4 @@
+use damasc_lang::value_type::ValueType;
 use chumsky::extra;
 use chumsky::prelude::Rich;
 use std::borrow::Cow;
@@ -51,17 +52,32 @@ pub fn single_literal<'s>() -> impl Parser<'s, &'s str, Literal<'s>, extra::Err<
         .then(text::int(10))
         .to_slice()
         .map(Cow::Borrowed)
+        .map(Literal::Number)
         .boxed();
 
     let boolean = choice((
-        just("true").to(Literal::Boolean(true)).labelled("true"),
-        just("false").to(Literal::Boolean(false)).labelled("false"),
-    ));
+        just("true").to(true).labelled("true"),
+        just("false").to(false).labelled("false"),
+    )).map(Literal::Boolean).boxed();
+
+    let value_type = choice((
+        just("Type").to(ValueType::Type).labelled("Type"),
+        just("Null").to(ValueType::Null).labelled("Null"),
+        just("Boolean").to(ValueType::Boolean).labelled("Boolean"),
+        just("Integer").to(ValueType::Integer).labelled("Integer"),
+        just("Array").to(ValueType::Array).labelled("Array"),
+        just("Object").to(ValueType::Object).labelled("Object"),
+        just("String").to(ValueType::String).labelled("String"),
+        just("Lambda").to(ValueType::Lambda).labelled("Lambda"),
+    )).map(Literal::Type).boxed();
+
+    let null = just("null").to(Literal::Null).labelled("null");
 
     choice((
-        just("null").to(Literal::Null).labelled("null"),
+        null,
         boolean,
-        integer.map(Literal::Number),
+        integer,
+        value_type,
         single_string_literal().map(Literal::String),
     ))
 }
