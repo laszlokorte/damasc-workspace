@@ -19,9 +19,7 @@ impl<'a> Identifier<'a> {
     }
 
     pub fn new_cow(name: Cow<'a, str>) -> Self {
-        Self {
-            name,
-        }
+        Self { name }
     }
 }
 

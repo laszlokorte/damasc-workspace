@@ -1,7 +1,7 @@
 use crate::literal::single_string_literal;
-use chumsky::prelude::just;
 use chumsky::error::Error;
 use chumsky::extra;
+use chumsky::prelude::just;
 use chumsky::prelude::Rich;
 use chumsky::text::unicode::ident;
 
@@ -24,5 +24,7 @@ pub fn single_identifier<'s>(
         })
         .or(just("#").ignore_then(ident()))
         .map(Identifier::new)
-        .or(just("#").ignore_then(single_string_literal()).map(Identifier::new_cow))
+        .or(just("#")
+            .ignore_then(single_string_literal())
+            .map(Identifier::new_cow))
 }

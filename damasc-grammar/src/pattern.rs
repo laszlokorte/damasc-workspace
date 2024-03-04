@@ -29,8 +29,7 @@ type ExpressionParserDelc<'s> = (
     Recursive<Indirect<'s, 's, &'s str, Expression<'s>, extra::Err<Rich<'s, char>>>>,
 );
 
-pub fn single_pattern<'a>(
-) -> impl Parser<'a, &'a str, Pattern<'a>, extra::Err<Rich<'a, char>>> {
+pub fn single_pattern<'a>() -> impl Parser<'a, &'a str, Pattern<'a>, extra::Err<Rich<'a, char>>> {
     let (single_pat, mut expr_decl) = decl_single_pattern();
     let (single_expr, mut pat_decl) = decl_single_expression();
 
@@ -57,7 +56,8 @@ pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s> {
             .ignore_then(
                 just("as")
                     .padded()
-                    .ignore_then(single_type_literal()).or_not()
+                    .ignore_then(single_type_literal())
+                    .or_not(),
             )
             .map_with(|value_type, meta| {
                 if let Some(t) = value_type {

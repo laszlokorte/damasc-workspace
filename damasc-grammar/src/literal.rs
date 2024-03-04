@@ -33,8 +33,6 @@ pub fn single_string_literal<'s>(
         .ignored()
         .boxed();
 
-    
-
     none_of("\\\"")
         .ignored()
         .or(escape)

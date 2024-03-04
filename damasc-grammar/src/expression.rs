@@ -1,5 +1,3 @@
-use damasc_lang::syntax::pattern::PatternBody;
-use damasc_lang::syntax::expression::CallExpression;
 use crate::pattern::decl_single_pattern;
 use chumsky::recursive::Indirect;
 use damasc_lang::identifier::Identifier;
@@ -7,6 +5,7 @@ use damasc_lang::literal::Literal;
 use damasc_lang::syntax::expression::ArrayComprehension;
 use damasc_lang::syntax::expression::BinaryExpression;
 use damasc_lang::syntax::expression::BinaryOperator;
+use damasc_lang::syntax::expression::CallExpression;
 use damasc_lang::syntax::expression::ComprehensionSource;
 use damasc_lang::syntax::expression::LambdaApplication;
 use damasc_lang::syntax::expression::LogicalExpression;
@@ -20,6 +19,7 @@ use damasc_lang::syntax::expression::StringTemplatePart;
 use damasc_lang::syntax::expression::UnaryExpression;
 use damasc_lang::syntax::expression::UnaryOperator;
 use damasc_lang::syntax::pattern::Pattern;
+use damasc_lang::syntax::pattern::PatternBody;
 use std::borrow::Cow;
 
 use crate::identifier::single_identifier;
@@ -58,7 +58,6 @@ pub fn single_expression<'a>(
 
     single_expr
 }
-
 
 pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s> {
     let pattern_declaration = Recursive::declare();
@@ -99,7 +98,8 @@ pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s> {
             .padded()
             .ignore_then(boxed_expression.clone())
             .then(
-                matching_case.clone()
+                matching_case
+                    .clone()
                     .separated_by(just(',').padded().recover_with(skip_then_retry_until(
                         any().ignored(),
                         one_of(",}").ignored(),
@@ -127,16 +127,22 @@ pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s> {
 
         let condition = just("if")
             .padded()
-            .ignore_then(boxed_expression.clone().recover_with(skip_then_retry_until(
-                any().ignored(),
-                choice((just("{").padded(), )).ignored(),
-            )).labelled("if_condition"))
+            .ignore_then(
+                boxed_expression
+                    .clone()
+                    .recover_with(skip_then_retry_until(
+                        any().ignored(),
+                        choice((just("{").padded(),)).ignored(),
+                    ))
+                    .labelled("if_condition"),
+            )
             .then(
                 boxed_expression
                     .clone()
                     .delimited_by(
                         just('{').padded(),
-                        just('}').padded()
+                        just('}')
+                            .padded()
                             .ignored()
                             .recover_with(via_parser(end()))
                             .recover_with(skip_then_retry_until(any().ignored(), end())),
@@ -147,14 +153,19 @@ pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s> {
             .then(
                 just("else")
                     .padded()
-                    .ignore_then(boxed_expression.clone().labelled("else_body").as_context()
-                    .delimited_by(
-                        just('{'),
-                        just('}')
-                            .ignored()
-                            .recover_with(via_parser(end()))
-                            .recover_with(skip_then_retry_until(any().ignored(), end())),
-                    ))
+                    .ignore_then(
+                        boxed_expression
+                            .clone()
+                            .labelled("else_body")
+                            .as_context()
+                            .delimited_by(
+                                just('{'),
+                                just('}')
+                                    .ignored()
+                                    .recover_with(via_parser(end()))
+                                    .recover_with(skip_then_retry_until(any().ignored(), end())),
+                            ),
+                    )
                     .or_not(),
             )
             .map_with(|((condition, true_branch), false_branch), meta| {
@@ -169,36 +180,48 @@ pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s> {
             })
             .boxed();
 
-        let abstraction_param = pattern_declaration.clone().delimited_by(
-            just("("),
-            just(")")
-                .ignored()
-                .recover_with(via_parser(end()))
-                .recover_with(skip_then_retry_until(any().ignored(), end())),
-        ).or(pattern_declaration.clone());
+        let abstraction_param = pattern_declaration
+            .clone()
+            .delimited_by(
+                just("("),
+                just(")")
+                    .ignored()
+                    .recover_with(via_parser(end()))
+                    .recover_with(skip_then_retry_until(any().ignored(), end())),
+            )
+            .or(pattern_declaration.clone());
 
-        let abstraction = just("fn").padded()
-            .ignore_then(abstraction_param.clone().recover_with(skip_then_retry_until(
-                any().ignored(),
-                choice((just("=>").padded(), )).ignored(),
-            )))
-            .then(just("=>").padded().ignore_then(boxed_expression.clone()
-                    .labelled("lamba_body")
-                    .as_context()))
+        let abstraction = just("fn")
+            .padded()
+            .ignore_then(
+                abstraction_param
+                    .clone()
+                    .recover_with(skip_then_retry_until(
+                        any().ignored(),
+                        choice((just("=>").padded(),)).ignored(),
+                    )),
+            )
+            .then(
+                just("=>")
+                    .padded()
+                    .ignore_then(boxed_expression.clone().labelled("lamba_body").as_context()),
+            )
             .map_with(|(arguments, body), meta| {
                 Expression::new_with_location(
                     ExpressionBody::Abstraction(LambdaAbstraction { arguments, body }),
                     meta_to_location(meta),
                 )
             })
-	        .labelled("lambda")
-	        .as_context()
+            .labelled("lambda")
+            .as_context()
             .boxed();
 
         let matching_abstraction = just("fn")
-            .padded().then(just("match").padded())
+            .padded()
+            .then(just("match").padded())
             .ignore_then(
-                matching_case.clone()
+                matching_case
+                    .clone()
                     .separated_by(just(',').padded().recover_with(skip_then_retry_until(
                         any().ignored(),
                         one_of(",}").ignored(),
@@ -217,16 +240,19 @@ pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s> {
                     .as_context(),
             )
             .map_with(|cases, meta| {
-            	let local_identifier = Identifier::new("___local");
+                let local_identifier = Identifier::new("___local");
                 ExpressionBody::Abstraction(LambdaAbstraction {
                     arguments: Pattern::new(PatternBody::Identifier(local_identifier.clone())),
-                    body: Box::new(Expression::new_with_location(ExpressionBody::Match(MatchExpression {
-                        subject: Box::new(Expression::new(ExpressionBody::Identifier(
-                            local_identifier,
-                        ))),
-                        cases: cases,
-                    }), meta_to_location(meta))),
-                })               
+                    body: Box::new(Expression::new_with_location(
+                        ExpressionBody::Match(MatchExpression {
+                            subject: Box::new(Expression::new(ExpressionBody::Identifier(
+                                local_identifier,
+                            ))),
+                            cases,
+                        }),
+                        meta_to_location(meta),
+                    )),
+                })
             })
             .map_with(|body, meta| Expression::new_with_location(body, meta_to_location(meta)))
             .boxed();
@@ -240,16 +266,27 @@ pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s> {
                     .map(|ref o| Option::is_none(o))
                     .padded(),
             )
-            .then(pattern_declaration.clone()
-            .recover_with(skip_then_retry_until(
-                any().ignored(),
-                choice((just("in").padded(),)).ignored(),
-            )).labelled("pattern").as_context())
+            .then(
+                pattern_declaration
+                    .clone()
+                    .recover_with(skip_then_retry_until(
+                        any().ignored(),
+                        choice((just("in").padded(),)).ignored(),
+                    ))
+                    .labelled("pattern")
+                    .as_context(),
+            )
             .then_ignore(just("in").padded())
-            .then(boxed_expression.clone().recover_with(skip_then_retry_until(
-                any().ignored(),
-                choice((just("if").padded(),just("]").padded())).ignored(),
-            )).labelled("expression").as_context())
+            .then(
+                boxed_expression
+                    .clone()
+                    .recover_with(skip_then_retry_until(
+                        any().ignored(),
+                        choice((just("if").padded(), just("]").padded())).ignored(),
+                    ))
+                    .labelled("expression")
+                    .as_context(),
+            )
             .then(
                 just("if")
                     .padded()
@@ -456,16 +493,21 @@ pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s> {
             .map(PathSegment::Application)
             .boxed();
 
-
-        let call = single_identifier().then(parenthesis.clone()).map_with(|(function, argument), meta| {
-            Expression::new_with_location(
-                ExpressionBody::Call(CallExpression { function, argument: Box::new(argument) }),
-                meta_to_location(meta),
-            )
-        }).boxed();
+        let call = single_identifier()
+            .then(parenthesis.clone())
+            .map_with(|(function, argument), meta| {
+                Expression::new_with_location(
+                    ExpressionBody::Call(CallExpression {
+                        function,
+                        argument: Box::new(argument),
+                    }),
+                    meta_to_location(meta),
+                )
+            })
+            .boxed();
 
         let path_base = choice((
-        	matching_abstraction,
+            matching_abstraction,
             abstraction,
             matching,
             condition,
