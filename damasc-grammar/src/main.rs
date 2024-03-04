@@ -1,3 +1,4 @@
+
 fn main() {
     #[cfg(feature = "assignment")]
     {
@@ -9,21 +10,25 @@ fn main() {
         use ariadne::ReportKind;
         use ariadne::Source;
         use chumsky::Parser;
-        use damasc_grammar::assignment::parser::single_assignment;
+        use damasc_grammar::assignment::assignment_set;
+
 
         let mut colors = ColorGenerator::new();
 
         for src in [
-            "foo =   bar",
+            "foo =   bar; x=5;y=[1,2,3]",
             "abc = 42",
-            "foo bar",
+            "foo bar; x=5;y=[1,2,3]",
             "42 = 2",
             "foo = (a",
             "foo = )a",
             "foo = (a]",
             "y = [x,y,z for x in y]",
+            "y = [x,y,z for match ^(x+x) in y]",
+            "y = [x,y,z for match {x,y} in y]",
+            "y = [x,y,z for match {x ...y} in y]",
         ] {
-            let result = single_assignment().parse(src).into_result();
+            let result = assignment_set().parse(src).into_result();
             match result {
                 Ok(expr) => println!("{}: {}", "Success".fg(Color::Green), expr),
                 Err(errs) => {
@@ -60,7 +65,7 @@ fn main() {
         use ariadne::ReportKind;
         use ariadne::Source;
         use chumsky::Parser;
-        use damasc_grammar::value::parser::single_value;
+        use damasc_grammar::value::single_value;
 
         let mut colors = ColorGenerator::new();
 

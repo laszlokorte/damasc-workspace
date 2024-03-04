@@ -31,6 +31,16 @@ impl<'a, 'b> AssignmentSet<'a, 'b> {
     }
 }
 
+impl std::fmt::Display for AssignmentSet<'_, '_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for a in &self.assignments {
+            a.fmt(f)?;
+        }
+        Ok(())
+    }
+}
+
+
 impl<'a, 'b> Node for Assignment<'a, 'b> {
     type OutputIter<'x> = impl Iterator<Item = &'x Identifier<'x>> where Self: 'x;
     type InputIter<'x> = impl Iterator<Item = &'x Identifier<'x>> where Self: 'x;
