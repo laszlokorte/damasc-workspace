@@ -17,6 +17,12 @@ impl<'a> Identifier<'a> {
             name: Cow::Owned(name),
         }
     }
+
+    pub fn new_cow(name: Cow<'a, str>) -> Self {
+        Self {
+            name,
+        }
+    }
 }
 
 impl Identifier<'_> {

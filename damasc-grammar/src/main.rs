@@ -1,4 +1,3 @@
-
 fn main() {
     #[cfg(feature = "assignment")]
     {
@@ -11,7 +10,6 @@ fn main() {
         use ariadne::Source;
         use chumsky::Parser;
         use damasc_grammar::assignment::assignment_set;
-
 
         let mut colors = ColorGenerator::new();
 

@@ -1,6 +1,6 @@
-use damasc_lang::value_type::ValueType;
 use chumsky::extra;
 use chumsky::prelude::Rich;
+use damasc_lang::value_type::ValueType;
 use std::borrow::Cow;
 
 use chumsky::Parser;
@@ -33,7 +33,9 @@ pub fn single_string_literal<'s>(
         .ignored()
         .boxed();
 
-    let string = none_of("\\\"")
+    
+
+    none_of("\\\"")
         .ignored()
         .or(escape)
         .repeated()
@@ -41,14 +43,11 @@ pub fn single_string_literal<'s>(
         .map(Cow::Borrowed)
         .delimited_by(just('"'), just('"'))
         .labelled("string")
-        .as_context();
-
-    string
+        .as_context()
 }
 
-
-pub fn single_type_literal<'s>(
-) -> impl Parser<'s, &'s str, ValueType, extra::Err<Rich<'s, char>>> {
+pub fn single_type_literal<'s>() -> impl Parser<'s, &'s str, ValueType, extra::Err<Rich<'s, char>>>
+{
     choice((
         just("Type").to(ValueType::Type).labelled("Type"),
         just("Null").to(ValueType::Null).labelled("Null"),
@@ -58,7 +57,8 @@ pub fn single_type_literal<'s>(
         just("Object").to(ValueType::Object).labelled("Object"),
         just("String").to(ValueType::String).labelled("String"),
         just("Lambda").to(ValueType::Lambda).labelled("Lambda"),
-    )).boxed()
+    ))
+    .boxed()
 }
 
 pub fn single_literal<'s>() -> impl Parser<'s, &'s str, Literal<'s>, extra::Err<Rich<'s, char>>> {
@@ -73,7 +73,9 @@ pub fn single_literal<'s>() -> impl Parser<'s, &'s str, Literal<'s>, extra::Err<
     let boolean = choice((
         just("true").to(true).labelled("true"),
         just("false").to(false).labelled("false"),
-    )).map(Literal::Boolean).boxed();
+    ))
+    .map(Literal::Boolean)
+    .boxed();
 
     let value_type = single_type_literal().map(Literal::Type).boxed();
 

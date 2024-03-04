@@ -40,7 +40,6 @@ impl std::fmt::Display for AssignmentSet<'_, '_> {
     }
 }
 
-
 impl<'a, 'b> Node for Assignment<'a, 'b> {
     type OutputIter<'x> = impl Iterator<Item = &'x Identifier<'x>> where Self: 'x;
     type InputIter<'x> = impl Iterator<Item = &'x Identifier<'x>> where Self: 'x;

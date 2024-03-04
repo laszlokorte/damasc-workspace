@@ -1,0 +1,280 @@
+5+5
+10
+{foo: "bar",baz: "foo"}[[1,2,224,243,243,234,1,[true,false,["bar","baz"]],[132,1,[7,"foo"],23,123]][2^3-1][2][1]] in {foo: "bar",baz: "foo"}
+true
+5+3*7-6*2
+14
+[[3,2,1][-1], [3,2,1][-2], [3,2,1][-3]]
+[1,2,3]
+!true
+false
+!false
+true
+!!false
+false
+!!true
+true
+"hello"[0]
+"h"
+"hello"[-1]
+"o"
+42+8 == 50
+true
+3*6 > 6
+true
+36-12 < 36
+true
+100^2 > 99^2
+true
+100^2 == 10000
+true
+36 + 6 <= 42
+36 + 6 >= 42
+36 + 6 == 42
+true
+36 + 6 != 42
+false
+-5 + 5
+0
+true && true
+true
+true && false
+false
+false && false
+false
+false && true
+false
+true || true
+true
+true || false
+true
+false || false
+false
+false || true
+true
+"hello"[2] == "hello"[-2]
+true
+null == 5
+false
+null
+null
+null!=null
+false
+{x:{y:{z:{w:42}}}}.x.y.z.w
+42
+{[["foo","bar"][0]]: 42}
+{foo: 42}
+{...{x:3}, y:7, ...{x:5}, ...{y:42}, y: 25}
+{x: 5, y: 25, }
+{a: 5,...{a:10,b:11,c:12},b: 22, ...{d:50, c:51}}
+{ a: 10, b: 22, c: 51, d: 50 }
+[...[1,2,3],...[4,5,6],8,9,...[]]
+[1, 2, 3, 4, 5, 6, 8, 9, ]
+null is Null
+true
+true is Boolean
+true
+false is Boolean
+true
+42 is Integer
+true
+-42 is Integer
+true
+"Hello" is String
+true
+[1,2,3] is Array
+true
+{foo: 23} is Object
+true
+("hello" is Object) is Boolean
+true
+!("hello" is Object)
+true
+length("You can count on me")
+19
+length([4,8,15,23,42])
+5
+length({foo:42, bar:23})
+2
+type(true)
+Boolean
+type(false)
+Boolean
+type("foo")
+String
+type(23)
+Integer
+type(-42)
+Integer
+type([1,2,3])
+Array
+type({x:42, y:32})
+Object
+type(null)
+Null
+type(Integer)
+Type
+type(type(true))
+Type
+values({x:23, y:42})
+[23, 42, ]
+keys({"1": "one", "2":"two", "3":"three"})
+["1","2","3"]
+{"1": "one", "2":"two", "3":"three"}["3"]
+"three"
+`hello, is ${["you","me"][1]} you are ${["looking","singing"][0]} for?`
+"hello, is me you are looking for?"
+`I am ${9*9} years old`
+"I am 81 years old"
+true as Integer
+1
+false as Integer
+0
+42 as String
+"42"
+String as String
+"String"
+null as String
+"null"
+null as Boolean
+false
+[7,8,9] as Integer
+3
+{x:23,y:42} as Integer
+2
+"hello" as Boolean
+true
+[7,8,9] as Boolean
+true
+{x:23,y:42} as Boolean
+true
+[] as Boolean
+false
+{} as Boolean
+false
+"" as Boolean
+false
+0 as Boolean
+false
+42 as Boolean
+true
+-23 as Boolean
+true
+{#where : 10, #limit: 42, #into: 23}.#limit
+42
+{"where" : 10, "limit": 42, "into": 23}.#into
+23
+23+42
+23*42
+65
+966
+23+42
+23*42
+65
+966
+[5 for _ in []]
+[]
+[5 for _ in [1,2,3]]
+[5,5,5]
+[x for x in [1,2,3]]
+[1,2,3]
+[2*x for x in [1,2,3]]
+[2,4,6]
+[x for x in [1,2,3,4,5] if x > 3]
+[4,5]
+[2 for x in [1,2,3,4,5] if x > 3]
+[2,2]
+{[x]: length(x) for x in ["hallo","ciao"]}
+{ciao: 4, hallo: 5, }
+{[x]: [type(x), length(x)] for x in ["hallo","ciao"]}
+{ciao: [String, 4, ], hallo: [String, 5, ], }
+{[x]: [type(x), length(x)] for x in ["hallo","ciao",1,2,3] if type(x)==String}
+{ciao: [String, 4, ], hallo: [String, 5, ], }
+[[x,y] for x in [1,2,3,4,5] for y in [1,2,3,4,5] if x+y > 3]
+[[1, 3, ], [1, 4, ], [1, 5, ], [2, 2, ], [2, 3, ], [2, 4, ], [2, 5, ], [3, 1, ], [3, 2, ], [3, 3, ], [3, 4, ], [3, 5, ], [4, 1, ], [4, 2, ], [4, 3, ], [4, 4, ], [4, 5, ], [5, 1, ], [5, 2, ], [5, 3, ], [5, 4, ], [5, 5, ], ]
+[1,2,3 for x in [10,10,10]]
+[1, 2, 3, 1, 2, 3, 1, 2, 3, ]
+["a", x for x in [1,2,3]]
+["a", 1, "a", 2, "a", 3, ]
+["and", ...x for x in [[1,2,3], [4,5,6], []]]
+["and", 1, 2, 3, "and", 4, 5, 6, "and", ]
+["and", ...x for x in [[1,2,3], [4,5,6], []] if length(x) > 0]
+["and", 1, 2, 3, "and", 4, 5, 6, ]
+{...x for x in [{x:5}, {y:10}]}
+{x: 5, y: 10, }
+{[name]: value for {name, value} in [{name: "x", value:5}, {name:"y", value:10}]}
+{x: 5, y: 10, }
+{x:0,y:0,z:0, ...{[name]: value for {name, value} in [{name: "x", value:5}, {name:"y", value:10}]}}
+{x: 5, y: 10, z: 0, }
+{x:0,y:0,z:0, ...{[name]: value for {name, value} in [{name: "x", value:5}, {name:"y", value:10}, {name:"z", value: "foo"}] if value is Integer}}
+{x: 5, y: 10, z: 0, }
+[x for match {x} in [1,2,3,{x:7},{x:10}]]
+[7, 10, ]
+[x for match {y} in [1,2,3,{x:7},{x:10}]]
+[]
+[y,2*y for match {x: y} in [1,2,3,{x:7},{x:10}]]
+[7, 14, 10, 20, ]
+[y,2*y for match {x: y} in [1,2,3,{x:7},{x:10}] if y > 7]
+[10, 20, ]
+[a for match {a, y:a} in [a*y, {a,y} for y in [1,2,3,4,5] for a in [1,5,10,100]]]
+[1, 5, ]
+[p for l in [[1,2,3], [4,5,6]] for p in l]
+[1, 2, 3, 4, 5, 6, ]
+[x for [x,y] in [[p,p] for p in [1,2,3]]]
+[1, 2, 3, ]
+[a for [x,y] in [[p,-p] for p in [1,2,3]] for a in [x,y,x,x]]
+[1, -1, 1, 1, 2, -2, 2, 2, 3, -3, 3, 3, ]
+(fn x => x) is Lambda
+true
+(fn x => x) is String
+false
+fn x => x is Lambda
+fn x => (x is Lambda)
+(fn 5 => 32).(5)
+32
+(fn x => x*2).(5)
+10
+(fn [x,x] => x*x).([5,5])
+25
+(fn x => x).(fn x => x)
+(fn x => x)
+((fn f => (fn x => f.(fn a => (x.(x)).(a))).(fn x => f.(fn a => (x.(x)).(a)))).(fn R => fn x => x>0 && (x==1 || (R.(x-1))))).(10)
+true
+({foo: fn x => x}).foo.({x:fn [a,a,...] => 2*a}).x.([9,9,9])
+18
+(fn x => x.(x).(x).(x).(x)).(fn x => x)
+fn (x) => x
+match (true) { true => "a", false => "b", }
+"a"
+match (false) { true => "a", false => "b", }
+"b"
+match ("blub") { _ => 42 }
+42
+((fn f => (fn x => f.(fn a => (x.(x)).(a))).(fn x => f.(fn a => (x.(x)).(a)))).(fn R => fn match { 0 => 1, x => x * R.(x-1) })).(5)
+120
+((fn f => (fn x => f.(fn a => (x.(x)).(a))).(fn x => f.(fn a => (x.(x)).(a)))).(fn R => fn match { 0 => 1, #match => #match * R.(#match-1) })).(5)
+120
+if true { 23}else { 42 }
+23
+if false { 23}else { 42 }
+42
+if true { 23 }
+23
+if false { 23 }
+null
+rebind([(fn x => fn y => 2*x).(23), {x: 108}]).(42)
+216
+(fn vs => {[`${x}*${y}`]:x*y for x in vs for y in vs if x<y}).([1,2,3,4])
+{"1*2": 2,"1*3": 3,"1*4": 4,"2*3": 6,"2*4": 8,"3*4": 12,}
+(fn vs => [x*y for x in vs for y in vs if x<y]).([1,2,3,4])
+[2, 3, 4, 6, 8, 12, ]
+(fn fs => [fs.foo[1].(42), fs.foo[0].(23)]).({foo: [fn x => x*2, fn x => x*3]})
+[126, 46, ]
+{[(x*y) as String]: `${x}*${y}` for x in [23,42] for y in [15,16]}
+{"345": "23*15","368": "23*16","630": "42*15","672": "42*16",}
+match ([1,2]) { [a,b] if a>b => 42, [a,a] => 23, [a,b] if a+1 == b => a+b, _ => 99 }
+3
+[{a:[{b:{c:[[{d:23}]]}}]}][0].a[0].b.c[0][0]["d"]
+23
+[{a:[{b:{c:[[{d:fn x => [{x}]}]]}}]}][0].a[0].b.c[0][0]["d"].(42)[0].x
+42
