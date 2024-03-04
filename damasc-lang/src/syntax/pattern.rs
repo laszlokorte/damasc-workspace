@@ -66,28 +66,31 @@ pub enum PatternBody<'s> {
 }
 
 impl<'s> Pattern<'s> {
-    pub(crate) fn deep_clone<'x>(&self) -> Pattern<'x> {
-        Pattern::new(match &self.body {
-            PatternBody::Discard => PatternBody::Discard,
-            PatternBody::Capture(i, p) => {
-                PatternBody::Capture(i.deep_clone(), Box::new(p.deep_clone()))
+    pub fn deep_clone<'x>(&self) -> Pattern<'x> {
+        Pattern {
+            location: self.location,
+            body: match &self.body {
+                PatternBody::Discard => PatternBody::Discard,
+                PatternBody::Capture(i, p) => {
+                    PatternBody::Capture(i.deep_clone(), Box::new(p.deep_clone()))
+                }
+                PatternBody::Identifier(i) => PatternBody::Identifier(i.deep_clone()),
+                PatternBody::TypedDiscard(t) => PatternBody::TypedDiscard(*t),
+                PatternBody::TypedIdentifier(i, t) => PatternBody::TypedIdentifier(i.deep_clone(), *t),
+                PatternBody::Literal(l) => PatternBody::Literal(l.deep_clone()),
+                PatternBody::Object(pat, rst) => PatternBody::Object(
+                    pat.iter().map(|e| e.deep_clone()).collect(),
+                    rst.deep_clone(),
+                ),
+                PatternBody::Array(pat, rst) => PatternBody::Array(
+                    pat.iter().map(|e| e.deep_clone()).collect(),
+                    rst.deep_clone(),
+                ),
+                PatternBody::PinnedExpression(e) => {
+                    PatternBody::PinnedExpression(Box::new(e.deep_clone()))
+                }
             }
-            PatternBody::Identifier(i) => PatternBody::Identifier(i.deep_clone()),
-            PatternBody::TypedDiscard(t) => PatternBody::TypedDiscard(*t),
-            PatternBody::TypedIdentifier(i, t) => PatternBody::TypedIdentifier(i.deep_clone(), *t),
-            PatternBody::Literal(l) => PatternBody::Literal(l.deep_clone()),
-            PatternBody::Object(pat, rst) => PatternBody::Object(
-                pat.iter().map(|e| e.deep_clone()).collect(),
-                rst.deep_clone(),
-            ),
-            PatternBody::Array(pat, rst) => PatternBody::Array(
-                pat.iter().map(|e| e.deep_clone()).collect(),
-                rst.deep_clone(),
-            ),
-            PatternBody::PinnedExpression(e) => {
-                PatternBody::PinnedExpression(Box::new(e.deep_clone()))
-            }
-        })
+        }
     }
 }
 

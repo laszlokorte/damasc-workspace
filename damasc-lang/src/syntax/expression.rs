@@ -81,29 +81,32 @@ pub enum ExpressionBody<'s> {
 }
 
 impl<'s> Expression<'s> {
-    pub(crate) fn deep_clone<'x>(&self) -> Expression<'x> {
-        Expression::new(match &self.body {
-            ExpressionBody::Array(a) => {
-                ExpressionBody::Array(a.iter().map(|e| e.deep_clone()).collect())
+    pub fn deep_clone<'x>(&self) -> Expression<'x> {
+        Expression {
+            location: self.location,
+            body: match &self.body {
+                ExpressionBody::Array(a) => {
+                    ExpressionBody::Array(a.iter().map(|e| e.deep_clone()).collect())
+                }
+                ExpressionBody::Binary(b) => ExpressionBody::Binary(b.deep_clone()),
+                ExpressionBody::Identifier(i) => ExpressionBody::Identifier(i.deep_clone()),
+                ExpressionBody::Literal(l) => ExpressionBody::Literal(l.deep_clone()),
+                ExpressionBody::Logical(l) => ExpressionBody::Logical(l.deep_clone()),
+                ExpressionBody::Member(x) => ExpressionBody::Member(x.deep_clone()),
+                ExpressionBody::Object(x) => {
+                    ExpressionBody::Object(x.iter().map(|e| e.deep_clone()).collect())
+                }
+                ExpressionBody::Unary(x) => ExpressionBody::Unary(x.deep_clone()),
+                ExpressionBody::Call(x) => ExpressionBody::Call(x.deep_clone()),
+                ExpressionBody::Template(x) => ExpressionBody::Template(x.deep_clone()),
+                ExpressionBody::Abstraction(x) => ExpressionBody::Abstraction(x.deep_clone()),
+                ExpressionBody::Application(x) => ExpressionBody::Application(x.deep_clone()),
+                ExpressionBody::ArrayComp(x) => ExpressionBody::ArrayComp(x.deep_clone()),
+                ExpressionBody::ObjectComp(x) => ExpressionBody::ObjectComp(x.deep_clone()),
+                ExpressionBody::Match(x) => ExpressionBody::Match(x.deep_clone()),
+                ExpressionBody::Condition(x) => ExpressionBody::Condition(x.deep_clone()),
             }
-            ExpressionBody::Binary(b) => ExpressionBody::Binary(b.deep_clone()),
-            ExpressionBody::Identifier(i) => ExpressionBody::Identifier(i.deep_clone()),
-            ExpressionBody::Literal(l) => ExpressionBody::Literal(l.deep_clone()),
-            ExpressionBody::Logical(l) => ExpressionBody::Logical(l.deep_clone()),
-            ExpressionBody::Member(x) => ExpressionBody::Member(x.deep_clone()),
-            ExpressionBody::Object(x) => {
-                ExpressionBody::Object(x.iter().map(|e| e.deep_clone()).collect())
-            }
-            ExpressionBody::Unary(x) => ExpressionBody::Unary(x.deep_clone()),
-            ExpressionBody::Call(x) => ExpressionBody::Call(x.deep_clone()),
-            ExpressionBody::Template(x) => ExpressionBody::Template(x.deep_clone()),
-            ExpressionBody::Abstraction(x) => ExpressionBody::Abstraction(x.deep_clone()),
-            ExpressionBody::Application(x) => ExpressionBody::Application(x.deep_clone()),
-            ExpressionBody::ArrayComp(x) => ExpressionBody::ArrayComp(x.deep_clone()),
-            ExpressionBody::ObjectComp(x) => ExpressionBody::ObjectComp(x.deep_clone()),
-            ExpressionBody::Match(x) => ExpressionBody::Match(x.deep_clone()),
-            ExpressionBody::Condition(x) => ExpressionBody::Condition(x.deep_clone()),
-        })
+        }
     }
 }
 

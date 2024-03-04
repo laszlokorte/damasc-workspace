@@ -17,9 +17,28 @@ impl std::fmt::Display for Assignment<'_, '_> {
     }
 }
 
+
+impl<'a,'b> Assignment<'a, 'b> {
+    pub fn deep_clone<'x,'y>(&self) -> Assignment<'x, 'y> {
+        Assignment {
+            pattern: self.pattern.deep_clone(),
+            expression: self.expression.deep_clone(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct AssignmentSet<'a, 'b> {
     pub assignments: Vec<Assignment<'a, 'b>>,
+}
+
+
+impl<'a,'b> AssignmentSet<'a, 'b> {
+    pub fn deep_clone<'x,'y>(&self) -> AssignmentSet<'x, 'y> {
+        AssignmentSet {
+            assignments: self.assignments.iter().map(|a|a.deep_clone()).collect(),
+        }
+    }
 }
 
 impl<'a, 'b> AssignmentSet<'a, 'b> {
