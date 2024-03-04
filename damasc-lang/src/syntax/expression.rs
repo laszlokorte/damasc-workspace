@@ -119,7 +119,7 @@ impl std::fmt::Display for Expression<'_> {
                         ArrayItem::Spread(i) => write!(f, "...({i}),")?,
                     }
                 }
-                write!(f, "[")
+                write!(f, "]")
             }
             ExpressionBody::Binary(BinaryExpression {
                 operator,
@@ -257,7 +257,7 @@ impl std::fmt::Display for Expression<'_> {
                     }
                 }
 
-                write!(f, "[")
+                write!(f, "]")
             }
             ExpressionBody::ObjectComp(ObjectComprehension {
                 sources,

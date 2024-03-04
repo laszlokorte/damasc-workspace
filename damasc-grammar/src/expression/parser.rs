@@ -1,4 +1,9 @@
 
+use damasc_lang::syntax::pattern::Pattern;
+use chumsky::recursive::Indirect;
+use damasc_lang::syntax::expression::ObjectComprehension;
+use damasc_lang::syntax::expression::ComprehensionSource;
+use damasc_lang::syntax::expression::ArrayComprehension;
 use damasc_lang::literal::Literal;
 use damasc_lang::syntax::expression::LambdaApplication;
 use damasc_lang::syntax::expression::MemberExpression;
@@ -17,7 +22,6 @@ use damasc_lang::syntax::expression::LambdaAbstraction;
 use damasc_lang::syntax::expression::IfElseExpression;
 use damasc_lang::syntax::expression::MatchCase;
 use damasc_lang::syntax::expression::MatchExpression;
-use crate::pattern::parser::single_pattern;
 use crate::util::meta_to_location;
 use damasc_lang::syntax::expression::ExpressionBody;
 use damasc_lang::syntax::expression::Expression;
@@ -31,18 +35,16 @@ use chumsky::Parser;
 
 use chumsky::prelude::*;
 
-pub fn single_expression<'s>() -> impl Parser<'s, &'s str, Expression<'s>, extra::Err<Rich<'s, char>>>  {
-    recursive(|expression| {
+pub fn single_expression<'s>() -> (Boxed<'s, 's, &'s str, Expression<'s>, extra::Err<Rich<'s, char>>>, Recursive<Indirect<'s, 's, &'s str, Pattern<'s>, extra::Err<Rich<'s, char>>>>)  {
+
+    let pattern_declaration = Recursive::declare();
+
+    let expression_declaration = recursive(|expression| {
         let boxed_expression = expression.clone().map(Box::new);
-        // let object = ...;
-        // let array = ...;
-        // let abstraction = ...;
-        // let maching = ...;
-        // let condition = ...;
 
         let literal = single_literal().map_with(|l, meta| Expression::new_with_location(ExpressionBody::Literal(l), meta_to_location(meta))).boxed();
 
-        let matching_case = single_pattern()
+        let matching_case = pattern_declaration.clone()
             .labelled("case_pattern")
             .as_context()
             .then(just("if").padded().ignore_then(boxed_expression.clone()).or_not())
@@ -98,13 +100,37 @@ pub fn single_expression<'s>() -> impl Parser<'s, &'s str, Expression<'s>, extra
                     )).boxed();
 
         let abstraction = just("fn")
-        .ignore_then(single_pattern())
+        .ignore_then(pattern_declaration.clone())
         .then(just("=>").padded().ignore_then(boxed_expression.clone()))
         .map_with(|(arguments, body), meta| Expression::new_with_location(ExpressionBody::Abstraction(LambdaAbstraction {
                     arguments,
                     body,
                 }), meta_to_location(meta))).boxed();
 
+
+
+        let expression_comprehension_source = just("for").padded()
+        .ignore_then(just("match").or_not().map(|ref o| Option::is_none(o)).padded())
+        .then(pattern_declaration.clone()
+            .labelled("pattern")
+            .as_context())
+        .then_ignore(just("in"))
+        .then(boxed_expression.clone()
+            .labelled("expression")
+            .as_context())
+        .then(just("if").padded().ignore_then(boxed_expression.clone()
+            .labelled("guard")
+            .as_context()).or_not())
+        .map(|(((strong_pattern, pattern), collection), predicate)| {
+            ComprehensionSource {  
+                collection,
+                pattern,
+                strong_pattern,
+                predicate,
+            }
+        })
+            .labelled("comprehension")
+            .as_context().boxed();
 
         let array = choice((expression.clone().map(ArrayItem::Single), just("...").ignore_then(expression.clone()).map(ArrayItem::Spread)))
             .clone()
@@ -115,6 +141,7 @@ pub fn single_expression<'s>() -> impl Parser<'s, &'s str, Expression<'s>, extra
             .allow_trailing()
             .collect()
             .padded()
+            .then(expression_comprehension_source.clone().repeated().at_least(1).collect().or_not())
             .delimited_by(
                 just('['),
                 just(']')
@@ -122,7 +149,13 @@ pub fn single_expression<'s>() -> impl Parser<'s, &'s str, Expression<'s>, extra
                     .recover_with(via_parser(end()))
                     .recover_with(skip_then_retry_until(any().ignored(), end())),
             )
-            .map_with(|elements, meta| Expression::new_with_location(ExpressionBody::Array(elements), meta_to_location(meta)))
+            .map_with(|(elements, comprehension), meta| {
+                if let Some(comp) = comprehension {
+                    Expression::new_with_location(ExpressionBody::ArrayComp(ArrayComprehension{projection: elements, sources: comp}), meta_to_location(meta))
+                } else {
+                    Expression::new_with_location(ExpressionBody::Array(elements), meta_to_location(meta))
+                }
+            })
             .labelled("array")
             .as_context()
             .boxed();
@@ -150,6 +183,7 @@ pub fn single_expression<'s>() -> impl Parser<'s, &'s str, Expression<'s>, extra
             )))
             .allow_trailing()
             .collect()
+            .then(expression_comprehension_source.clone().repeated().at_least(1).collect().or_not())
             .padded()
             .delimited_by(
                 just('{'),
@@ -158,7 +192,13 @@ pub fn single_expression<'s>() -> impl Parser<'s, &'s str, Expression<'s>, extra
                     .recover_with(via_parser(end()))
                     .recover_with(skip_then_retry_until(any().ignored(), end())),
             )
-            .map_with(|entries, meta| Expression::new_with_location(ExpressionBody::Object(entries), meta_to_location(meta)))
+            .map_with(|(entries, comprehension), meta| {
+                if let Some(comp) = comprehension {
+                    Expression::new_with_location(ExpressionBody::ObjectComp(ObjectComprehension{projection: entries, sources: comp}), meta_to_location(meta))
+                } else {
+                    Expression::new_with_location(ExpressionBody::Object(entries), meta_to_location(meta))
+                }
+            })
             .labelled("object")
             .as_context()
             .boxed();
@@ -197,7 +237,7 @@ pub fn single_expression<'s>() -> impl Parser<'s, &'s str, Expression<'s>, extra
                     .recover_with(via_parser(end()))
                     .recover_with(skip_then_retry_until(any().ignored(), end())),);
 
-        
+
 
 
         enum PathSegment<'a> {
@@ -227,9 +267,9 @@ pub fn single_expression<'s>() -> impl Parser<'s, &'s str, Expression<'s>, extra
 
         let path_base = choice((
             abstraction, matching, condition, literal, array, object, string_template, ident, parenthesis
-        ));
+        )).boxed();
 
-        let path = path_base.foldl_with(choice((
+        let path = path_base.clone().foldl_with(choice((
             path_property,
             path_apply,
             path_indexed,
@@ -251,8 +291,14 @@ pub fn single_expression<'s>() -> impl Parser<'s, &'s str, Expression<'s>, extra
                 }),
             }, meta_to_location(meta))
         });
+
+        // TODO:
+        // binary operators: numeric, logic, type-perdicate
+        // unary prefix operators: numeric, logic
   
 
         path.padded()
-    })
+    }).boxed();
+
+    (expression_declaration, pattern_declaration)
 }

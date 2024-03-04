@@ -21,6 +21,7 @@ fn main() {
             "foo = (a",
             "foo = )a",
             "foo = (a]",
+            "y = [x,y,z for x in y]",
         ] {
             let result = single_assignment().parse(src).into_result();
             match result {

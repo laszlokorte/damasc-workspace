@@ -46,6 +46,21 @@ pub fn single_string_literal<'s>(
     string
 }
 
+
+pub fn single_type_literal<'s>(
+) -> impl Parser<'s, &'s str, ValueType, extra::Err<Rich<'s, char>>> {
+    choice((
+        just("Type").to(ValueType::Type).labelled("Type"),
+        just("Null").to(ValueType::Null).labelled("Null"),
+        just("Boolean").to(ValueType::Boolean).labelled("Boolean"),
+        just("Integer").to(ValueType::Integer).labelled("Integer"),
+        just("Array").to(ValueType::Array).labelled("Array"),
+        just("Object").to(ValueType::Object).labelled("Object"),
+        just("String").to(ValueType::String).labelled("String"),
+        just("Lambda").to(ValueType::Lambda).labelled("Lambda"),
+    )).boxed()
+}
+
 pub fn single_literal<'s>() -> impl Parser<'s, &'s str, Literal<'s>, extra::Err<Rich<'s, char>>> {
     let integer = just('-')
         .or_not()
@@ -60,16 +75,7 @@ pub fn single_literal<'s>() -> impl Parser<'s, &'s str, Literal<'s>, extra::Err<
         just("false").to(false).labelled("false"),
     )).map(Literal::Boolean).boxed();
 
-    let value_type = choice((
-        just("Type").to(ValueType::Type).labelled("Type"),
-        just("Null").to(ValueType::Null).labelled("Null"),
-        just("Boolean").to(ValueType::Boolean).labelled("Boolean"),
-        just("Integer").to(ValueType::Integer).labelled("Integer"),
-        just("Array").to(ValueType::Array).labelled("Array"),
-        just("Object").to(ValueType::Object).labelled("Object"),
-        just("String").to(ValueType::String).labelled("String"),
-        just("Lambda").to(ValueType::Lambda).labelled("Lambda"),
-    )).map(Literal::Type).boxed();
+    let value_type = single_type_literal().map(Literal::Type).boxed();
 
     let null = just("null").to(Literal::Null).labelled("null");
 
