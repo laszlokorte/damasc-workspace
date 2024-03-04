@@ -41,7 +41,7 @@ impl<'i: 's, 's, 'v: 's, 'e> AssignmentEvaluation<'i, 's, 'v, 'e> {
                     expression,
                 } in sorted_set.assignments
                 {
-                    let matcher = Matcher::new(&collected_env);
+                    let matcher = Matcher::new(&local_env);
                     let evaluation = Evaluation::new(&local_env);
 
                     let value = match evaluation.eval_expr(&expression) {
@@ -49,10 +49,10 @@ impl<'i: 's, 's, 'v: 's, 'e> AssignmentEvaluation<'i, 's, 'v, 'e> {
                         Err(e) => return Err(AssignmentError::EvalError(e)),
                     };
 
-                    match matcher.match_pattern(local_env, &pattern, &value) {
+                    match matcher.match_pattern(collected_env, &pattern, &value) {
                         Ok(new_env) => {
-                            collected_env.bindings.append(&mut new_env.bindings.clone());
-                            local_env = new_env;
+                            local_env.bindings.append(&mut new_env.bindings.clone());
+                            collected_env = new_env;
                         }
                         Err(e) => return Err(AssignmentError::MatchError(e)),
                     }
