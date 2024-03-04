@@ -21,15 +21,16 @@ pub fn single_command<'s,'a,'b>() -> impl Parser<'s, &'s str, Command<'a,'b>, ex
     	just(".env").map(|_| Command::ShowEnv),
     	just(".clearenv").map(|_| Command::ClearEnv),
     	just(".ce").map(|_| Command::ClearEnv),
+    	just(".pipe").padded().ignore_then(single_transformation()).map(Command::Transform),
 
     	just("let").padded().ignore_then(assignment_set_non_empty().then(just("with").padded().ignore_then(assignment_set_non_empty()).or_not()).map(|(assignments, locals)| {
     		Command::Assign(assignments, locals)
     	})),
+    	assignment_set_non_empty().map(|assgns| Command::Match(assgns)),
+
     	expression_set_non_empty().then(just("with").ignore_then(assignment_set_non_empty().padded()).or_not()).map(|(exprs, assgns)| {
     		Command::Eval(assgns.unwrap_or_else(|| AssignmentSet::default()), exprs)
     	}),
-    	assignment_set_non_empty().map(|assgns| Command::Match(assgns)),
 
-    	single_transformation().map(Command::Transform)
     )).padded()
 }

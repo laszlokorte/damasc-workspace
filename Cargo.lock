@@ -597,7 +597,11 @@ dependencies = [
 name = "damasc-wasm"
 version = "0.1.0"
 dependencies = [
+ "ariadne",
  "cfg-if",
+ "chumsky",
+ "damasc-grammar",
+ "damasc-lang",
  "damasc-repl",
  "wasm-bindgen",
 ]

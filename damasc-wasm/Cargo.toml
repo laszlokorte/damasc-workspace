@@ -11,4 +11,8 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 cfg-if = {version="1.0.0"}
 wasm-bindgen = {version="0.2.91"}
+damasc-lang = { path = "../damasc-lang" }
 damasc-repl = {path="../damasc-repl"}
+damasc-grammar = {path="../damasc-grammar"}
+chumsky = {version = "1.0.0-alpha.0", features = ["label"]}
+ariadne = "0.4.0"

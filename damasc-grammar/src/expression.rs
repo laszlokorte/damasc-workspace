@@ -73,7 +73,10 @@ pub fn single_expression<'s,'x>(
     expr_decl.define(single_expr.clone());
     pat_decl.define(single_pat.clone());
 
-    single_expr.map(|e| e.deep_clone())
+    single_expr.map(|e| e.deep_clone()).recover_with(skip_then_retry_until(
+        any().ignored(),
+        choice((just(";"), just("with"))).padded().ignored(),
+    ))
 }
 
 pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s, 's,'s> {

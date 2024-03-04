@@ -74,7 +74,7 @@ pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s,'s> {
 
         let discard = just("_")
             .ignore_then(
-                just("as")
+                just("is")
                     .padded()
                     .ignore_then(single_type_literal())
                     .or_not(),
@@ -106,7 +106,7 @@ pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s,'s> {
             .boxed();
 
         let typed_identifier = single_identifier()
-            .then(just("as").padded().ignore_then(single_type_literal()))
+            .then(just("is").padded().ignore_then(single_type_literal()))
             .map_with(move |(id, value_type), meta| {
                 Pattern::new_with_location(
                     PatternBody::TypedIdentifier(id, value_type),

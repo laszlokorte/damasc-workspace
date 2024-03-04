@@ -44,9 +44,9 @@ pub fn single_transformation<'s, 'a,'b>() -> impl Parser<'s, &'s str, Transforma
 
 
 fn projection<'s, 'a>() -> impl Parser<'s, &'s str, MultiProjection<'a>, extra::Err<Rich<'s, char>>> {
-	let map = just("map").ignore_then(pattern_set_non_empty()).or_not();
-	let guard = just("where").ignore_then(single_expression()).or_not();
-	let into = just("into").ignore_then(expression_set_non_empty()).or_not();
+	let map = just("map").padded().ignore_then(pattern_set_non_empty()).or_not();
+	let guard = just("where").padded().ignore_then(single_expression()).or_not();
+	let into = just("into").padded().ignore_then(expression_set_non_empty()).or_not();
 
 	map.then(guard).then(into).map(move |((patterns, guard), proj)| {
 		let pats = patterns.unwrap_or(PatternSet {
