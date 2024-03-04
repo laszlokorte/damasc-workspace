@@ -68,7 +68,7 @@ pub enum EvalErrorReason<'s, 'v> {
     InvalidNumber(String),
     MathDivisionByZero,
     KeyNotDefined(Value<'s, 'v>, Value<'s, 'v>),
-    OutOfBound(usize, usize),
+    OutOfBound(usize, isize),
     IntegerOverflow,
     UnknownFunction(Identifier<'s>),
     PatternError(Box<PatternFail<'s, 'v>>),
@@ -612,7 +612,16 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                     )));
                 };
                 let index = if *i < 0 {
-                    a.len() - i.unsigned_abs() as usize
+                    let sub = i.unsigned_abs() as usize;
+                    let len = a.len();
+                    if len < sub {
+                        return Err(EvalErrorPropagation::Shallow(EvalErrorReason::OutOfBound(
+                            len,
+                            *i as isize,
+                        )));
+                        
+                    }
+                    len - sub
                 } else {
                     *i as usize
                 };
@@ -620,7 +629,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 let Some(val) = a.get(index).map(|v| v.clone().into_owned()) else {
                     return Err(EvalErrorPropagation::Shallow(EvalErrorReason::OutOfBound(
                         a.len(),
-                        index,
+                        index as isize,
                     )));
                 };
 
@@ -642,7 +651,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 let Some(val) = s.chars().nth(index).map(|v| v.clone().to_string()) else {
                     return Err(EvalErrorPropagation::Shallow(EvalErrorReason::OutOfBound(
                         s.len(),
-                        index,
+                        index as isize,
                     )));
                 };
 
@@ -723,7 +732,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                     Value::Array(arr) => {
                         let Some(x) = arr.first() else {
                             return Err(EvalErrorPropagation::Shallow(
-                                EvalErrorReason::OutOfBound(1, arr.len()),
+                                EvalErrorReason::OutOfBound(arr.len(), 1),
                             ));
                         };
 
@@ -736,7 +745,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
 
                         let Some(y) = arr.get(1) else {
                             return Err(EvalErrorPropagation::Shallow(
-                                EvalErrorReason::OutOfBound(2, arr.len()),
+                                EvalErrorReason::OutOfBound(arr.len(), 2),
                             ));
                         };
 
