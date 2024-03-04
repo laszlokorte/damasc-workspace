@@ -13,3 +13,7 @@
 * refactor move evaluation and matcher into own crate, separate from expression and pattern
 * refactor move assignments and topology into own crate
 * refactor move assignment evaluation 
+* IMPORTANT: fix parsing for array/object splatting and comprehension separators
+* IMPORTANT: Fix lifetimes in new grammar implementation to get rid of deep cloning
+* Clean up parser error API to no expose parser library internals across crates
+* Use new grammar crate for wasm

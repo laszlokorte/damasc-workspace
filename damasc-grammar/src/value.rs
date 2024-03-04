@@ -14,7 +14,7 @@ use damasc_lang::value::Value;
 
 use chumsky::prelude::*;
 
-pub fn single_value<'s>() -> impl Parser<'s, &'s str, Value<'s, 's>, extra::Err<Rich<'s, char>>> {
+pub fn single_value<'s,'a:'s+'b,'b:'s>() -> impl Parser<'s, &'s str, Value<'a, 'b>, extra::Err<Rich<'s, char>>> {
     recursive(|value| {
         let value = value.labelled("value");
 

@@ -9,8 +9,8 @@ use damasc_lang::literal::Literal;
 
 use chumsky::prelude::*;
 
-pub fn single_string_literal<'s>(
-) -> impl Parser<'s, &'s str, Cow<'s, str>, extra::Err<Rich<'s, char>>> {
+pub fn single_string_literal<'s, 'x>(
+) -> impl Parser<'s, &'s str, Cow<'x, str>, extra::Err<Rich<'s, char>>> {
     let escape = just('\\')
         .then(choice((
             just('\\'),
@@ -38,7 +38,7 @@ pub fn single_string_literal<'s>(
         .or(escape)
         .repeated()
         .to_slice()
-        .map(Cow::Borrowed)
+        .map(|s: &str| Cow::Owned(s.to_string()))
         .delimited_by(just('"'), just('"'))
         .labelled("string")
         .as_context()
@@ -59,14 +59,13 @@ pub fn single_type_literal<'s>() -> impl Parser<'s, &'s str, ValueType, extra::E
     .boxed()
 }
 
-pub fn single_literal<'s>() -> impl Parser<'s, &'s str, Literal<'s>, extra::Err<Rich<'s, char>>> {
+pub fn single_literal<'s, 'x>() -> impl Parser<'s, &'s str, Literal<'x>, extra::Err<Rich<'s, char>>> {
     let integer = just('-')
         .or_not()
         .then(text::int(10))
         .to_slice()
-        .map(Cow::Borrowed)
-        .map(Literal::Number)
-        .boxed();
+        .map(|s: &str| Cow::Owned(s.to_string()))
+        .map(Literal::Number);
 
     let boolean = choice((
         just("true").to(true).labelled("true"),

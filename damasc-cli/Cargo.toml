@@ -10,4 +10,6 @@ ariadne = "0.4.0"
 damasc-lang = { path = "../damasc-lang" }
 damasc-query = { path = "../damasc-query" }
 damasc-repl = { path = "../damasc-repl" }
+damasc-grammar = { path = "../damasc-grammar", features=["repl"] }
+chumsky = {version = "1.0.0-alpha.0", features = ["label"]}
 rustyline = "10.1.1"

@@ -13,7 +13,7 @@ pub(crate) fn print_error(input: &str, e: ReplError) {
         ReplError::ParseError => eprintln!("Parse Error"),
         ReplError::EvalError(eval_error) => {
             let Some(source_location) = eval_error.location else {
-                eprintln!("EvalError");
+                eprintln!("Evaluation Error at unknown source location.");
                 return;
             };
 
@@ -53,8 +53,8 @@ pub(crate) fn print_error(input: &str, e: ReplError) {
                     format!("Object {} has no key {}.", val, key)
                 }
                 EvalErrorReason::OutOfBound(expected_lengnth, actual_length) => format!(
-                    "Tried to access index {} of value that has a length of {}..",
-                    expected_lengnth, actual_length
+                    "Tried to access index {} of value that has a length of {}.",
+                    actual_length, expected_lengnth,
                 ),
                 EvalErrorReason::IntegerOverflow => "Integer overflow".to_string(),
                 EvalErrorReason::UnknownFunction(fun) => {

@@ -1,3 +1,4 @@
+use damasc_lang::syntax::expression::ExpressionSet;
 use crate::pattern::decl_single_pattern;
 use chumsky::recursive::Indirect;
 use damasc_lang::identifier::Identifier;
@@ -43,23 +44,39 @@ use chumsky::Parser;
 
 use chumsky::prelude::*;
 
-type ExpressionParserDelc<'s> = (
-    Boxed<'s, 's, &'s str, Expression<'s>, extra::Err<Rich<'s, char>>>,
-    Recursive<Indirect<'s, 's, &'s str, Pattern<'s>, extra::Err<Rich<'s, char>>>>,
+type ExpressionParserDelc<'s,'a,'b> = (
+    Boxed<'s, 's, &'s str, Expression<'a>, extra::Err<Rich<'s, char>>>,
+    Recursive<Indirect<'s, 's, &'s str, Pattern<'b>, extra::Err<Rich<'s, char>>>>,
 );
 
-pub fn single_expression<'a>(
-) -> impl Parser<'a, &'a str, Expression<'a>, extra::Err<Rich<'a, char>>> {
+pub fn expression_set<'s,'x>(
+) -> impl Parser<'s, &'s str, ExpressionSet<'x>, extra::Err<Rich<'s, char>>> {
+	single_expression().map(|e| e.deep_clone()).separated_by(just(";").padded().recover_with(skip_then_retry_until(
+        any().ignored(),
+        choice((just(";"), just("with"))).padded().ignored(),
+    ))).collect().map(|expressions| ExpressionSet {expressions})
+}
+
+pub fn expression_set_non_empty<'s,'x>(
+) -> impl Parser<'s, &'s str, ExpressionSet<'x>, extra::Err<Rich<'s, char>>> {
+	single_expression().map(|e| e.deep_clone()).separated_by(just(";").padded().recover_with(skip_then_retry_until(
+        any().ignored(),
+        choice((just(";"), just("with"))).padded().ignored(),
+    ))).at_least(1).collect().map(|expressions| ExpressionSet {expressions})
+}
+
+pub fn single_expression<'s,'x>(
+) -> impl Parser<'s, &'s str, Expression<'x>, extra::Err<Rich<'s, char>>> {
     let (single_pat, mut expr_decl) = decl_single_pattern();
     let (single_expr, mut pat_decl) = decl_single_expression();
 
     expr_decl.define(single_expr.clone());
     pat_decl.define(single_pat.clone());
 
-    single_expr
+    single_expr.map(|e| e.deep_clone())
 }
 
-pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s> {
+pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s, 's,'s> {
     let pattern_declaration = Recursive::declare();
 
     let expression_declaration = recursive(|expression| {
@@ -435,7 +452,7 @@ pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s> {
         let string_template_part = string_template_part_static
             .then(string_template_part_dynamic)
             .map(|(fixed_start, dynamic_end)| StringTemplatePart {
-                fixed_start: Cow::Borrowed(fixed_start),
+                fixed_start: Cow::Owned(fixed_start.to_string()),
                 dynamic_end,
             });
 
@@ -555,7 +572,7 @@ pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s> {
         ));
 
         let unary_op = unary_operator
-            .then(boxed_expression.clone())
+            .then(boxed_expression.clone().labelled("operand").as_context())
             .map_with(|(operator, argument), meta| {
                 Expression::new_with_location(
                     ExpressionBody::Unary(UnaryExpression { operator, argument }),
@@ -570,7 +587,7 @@ pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s> {
             .clone()
             .foldl_with(
                 choice((just("^").padded().map(|_| BinaryOperator::PowerOf),))
-                    .then(binary_atom.clone())
+                    .then(binary_atom.clone().labelled("operand").as_context())
                     .repeated(),
                 |lhs, (operator, rhs), meta| {
                     Expression::new_with_location(
@@ -592,7 +609,7 @@ pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s> {
                     just("*").padded().map(|_| BinaryOperator::Times),
                     just("/").padded().map(|_| BinaryOperator::Over),
                 ))
-                .then(num_exponential.clone())
+                .then(num_exponential.clone().labelled("operand").as_context())
                 .repeated(),
                 |lhs, (operator, rhs), meta| {
                     Expression::new_with_location(
@@ -614,7 +631,7 @@ pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s> {
                     just("+").padded().map(|_| BinaryOperator::Plus),
                     just("-").padded().map(|_| BinaryOperator::Minus),
                 ))
-                .then(num_mul.clone())
+                .then(num_mul.clone().labelled("operand").as_context())
                 .repeated(),
                 |lhs, (operator, rhs), meta| {
                     Expression::new_with_location(
@@ -643,7 +660,7 @@ pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s> {
                     just("<").padded().map(|_| BinaryOperator::LessThan),
                     just("in").padded().map(|_| BinaryOperator::In),
                 ))
-                .then(num_add.clone())
+                .then(num_add.clone().labelled("operand").as_context())
                 .repeated(),
                 |lhs, (operator, rhs), meta| {
                     Expression::new_with_location(
@@ -662,7 +679,7 @@ pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s> {
             .clone()
             .foldl_with(
                 choice((just("as").padded().map(|_| BinaryOperator::Cast),))
-                    .then(num_pred.clone())
+                    .then(num_pred.clone().labelled("operand").as_context())
                     .repeated(),
                 |lhs, (operator, rhs), meta| {
                     Expression::new_with_location(
@@ -681,7 +698,7 @@ pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s> {
             .clone()
             .foldl_with(
                 choice((just("is").padded().map(|_| BinaryOperator::Is),))
-                    .then(type_add.clone())
+                    .then(type_add.clone().labelled("operand").as_context())
                     .repeated(),
                 |lhs, (operator, rhs), meta| {
                     Expression::new_with_location(
@@ -700,7 +717,7 @@ pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s> {
             .clone()
             .foldl_with(
                 choice((just("&&").padded().map(|_| LogicalOperator::And),))
-                    .then(type_pred.clone())
+                    .then(type_pred.clone().labelled("operand").as_context())
                     .repeated(),
                 |lhs, (operator, rhs), meta| {
                     Expression::new_with_location(
@@ -719,7 +736,7 @@ pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s> {
             .clone()
             .foldl_with(
                 choice((just("||").padded().map(|_| LogicalOperator::Or),))
-                    .then(logic_mul.clone())
+                    .then(logic_mul.clone().labelled("operand").as_context())
                     .repeated(),
                 |lhs, (operator, rhs), meta| {
                     Expression::new_with_location(
@@ -735,8 +752,7 @@ pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s> {
             .boxed();
 
         logic_add.padded()
-    })
-    .boxed();
+    }).boxed();
 
     (expression_declaration, pattern_declaration)
 }

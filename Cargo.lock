@@ -521,6 +521,8 @@ name = "damasc-cli"
 version = "0.1.0"
 dependencies = [
  "ariadne",
+ "chumsky",
+ "damasc-grammar",
  "damasc-lang",
  "damasc-query",
  "damasc-repl",
@@ -533,7 +535,10 @@ version = "0.1.0"
 dependencies = [
  "ariadne",
  "chumsky",
+ "damasc-join",
  "damasc-lang",
+ "damasc-query",
+ "damasc-repl",
 ]
 
 [[package]]

@@ -1,3 +1,4 @@
+use damasc_lang::syntax::pattern::PatternSet;
 use crate::expression::decl_single_expression;
 use crate::identifier::single_identifier;
 use crate::literal::single_string_literal;
@@ -24,28 +25,47 @@ use chumsky::Parser;
 
 use chumsky::prelude::*;
 
-type ExpressionParserDelc<'s> = (
-    Boxed<'s, 's, &'s str, Pattern<'s>, extra::Err<Rich<'s, char>>>,
-    Recursive<Indirect<'s, 's, &'s str, Expression<'s>, extra::Err<Rich<'s, char>>>>,
+type ExpressionParserDelc<'s,'a> = (
+    Boxed<'s, 's, &'s str, Pattern<'a>, extra::Err<Rich<'s, char>>>,
+    Recursive<Indirect<'s, 's, &'s str, Expression<'a>, extra::Err<Rich<'s, char>>>>,
 );
 
-pub fn single_pattern<'a>() -> impl Parser<'a, &'a str, Pattern<'a>, extra::Err<Rich<'a, char>>> {
+
+
+pub fn pattern_set<'s>(
+) -> impl Parser<'s, &'s str, PatternSet<'s>, extra::Err<Rich<'s, char>>> {
+	single_pattern().separated_by(just(';').padded().recover_with(skip_then_retry_until(
+        any().ignored(),
+        one_of(";").ignored(),
+    ))).collect().map(move |patterns| PatternSet {patterns})
+}
+
+pub fn pattern_set_non_empty<'s>(
+) -> impl Parser<'s, &'s str, PatternSet<'s>, extra::Err<Rich<'s, char>>> {
+	single_pattern().separated_by(just(';').padded().recover_with(skip_then_retry_until(
+        any().ignored(),
+        one_of(";").ignored(),
+    ))).at_least(1).collect().map(move |patterns| PatternSet {patterns})
+}
+
+
+pub fn single_pattern<'s>() -> impl Parser<'s, &'s str, Pattern<'s>, extra::Err<Rich<'s, char>>> {
     let (single_pat, mut expr_decl) = decl_single_pattern();
     let (single_expr, mut pat_decl) = decl_single_expression();
 
     expr_decl.define(single_expr.clone());
     pat_decl.define(single_pat.clone());
 
-    single_pat
+    single_pat.map(move |p|p.clone())
 }
 
-pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s> {
+pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s,'s> {
     let expression_declaration = Recursive::declare();
 
     let pattern_declartion = recursive(|pattern| {
         let literal = single_literal()
             .boxed()
-            .map_with(|l, meta| {
+            .map_with(move |l, meta| {
                 Pattern::new_with_location(PatternBody::Literal(l), meta_to_location(meta))
             })
             .labelled("literal")
@@ -59,7 +79,7 @@ pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s> {
                     .ignore_then(single_type_literal())
                     .or_not(),
             )
-            .map_with(|value_type, meta| {
+            .map_with(move |value_type, meta| {
                 if let Some(t) = value_type {
                     Pattern::new_with_location(PatternBody::TypedDiscard(t), meta_to_location(meta))
                 } else {
@@ -71,7 +91,7 @@ pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s> {
         let capture = single_identifier()
             .then(just("@").ignore_then(pattern.clone()).or_not())
             .boxed()
-            .map_with(|(id, pat), meta| {
+            .map_with(move |(id, pat), meta| {
                 if let Some(p) = pat {
                     Pattern::new_with_location(
                         PatternBody::Capture(id, Box::new(p)),
@@ -87,7 +107,7 @@ pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s> {
 
         let typed_identifier = single_identifier()
             .then(just("as").padded().ignore_then(single_type_literal()))
-            .map_with(|(id, value_type), meta| {
+            .map_with(move |(id, value_type), meta| {
                 Pattern::new_with_location(
                     PatternBody::TypedIdentifier(id, value_type),
                     meta_to_location(meta),
@@ -97,7 +117,7 @@ pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s> {
 
         let pinned = just("^")
             .ignore_then(choice((
-                single_identifier().map_with(|id, meta| {
+                single_identifier().map_with(move |id, meta| {
                     Expression::new_with_location(
                         ExpressionBody::Identifier(id),
                         meta_to_location(meta),
@@ -111,7 +131,7 @@ pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s> {
                         .recover_with(skip_then_retry_until(any().ignored(), end())),
                 ),
             )))
-            .map_with(|expr, meta| {
+            .map_with(move |expr, meta| {
                 Pattern::new_with_location(
                     PatternBody::PinnedExpression(Box::new(expr)),
                     meta_to_location(meta),
@@ -137,7 +157,7 @@ pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s> {
                             .map(Box::new)
                             .map(Rest::Collect)
                             .or_not()
-                            .map(|s| s.unwrap_or(Rest::Discard)),
+                            .map(move |s| s.unwrap_or(Rest::Discard)),
                     )
                     .or_not(),
             )
@@ -149,7 +169,7 @@ pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s> {
                     .recover_with(via_parser(end()))
                     .recover_with(skip_then_retry_until(any().ignored(), end())),
             )
-            .map_with(|(elements, rest), meta| {
+            .map_with(move |(elements, rest), meta| {
                 Pattern::new_with_location(
                     PatternBody::Array(elements, rest.unwrap_or(Rest::Exact)),
                     meta_to_location(meta),
@@ -161,7 +181,7 @@ pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s> {
 
         let member = choice((
             single_string_literal()
-                .map(|name| Identifier { name })
+                .map(move |name| Identifier { name })
                 .map(PropertyKey::Identifier),
             single_identifier().map(PropertyKey::Identifier),
             expression_declaration
@@ -174,7 +194,7 @@ pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s> {
         .as_context()
         .then_ignore(just(':').padded())
         .then(pattern.clone().labelled("value").as_context())
-        .map(|(key, value)| PropertyPattern { key, value })
+        .map(move |(key, value)| PropertyPattern { key, value })
         .map(ObjectPropertyPattern::Match)
         .or(single_identifier().map(ObjectPropertyPattern::Single))
         .boxed();
@@ -196,7 +216,7 @@ pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s> {
                             .map(Box::new)
                             .map(Rest::Collect)
                             .or_not()
-                            .map(|s| s.unwrap_or(Rest::Discard)),
+                            .map(move |s| s.unwrap_or(Rest::Discard)),
                     )
                     .or_not(),
             )
@@ -208,7 +228,7 @@ pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s> {
                     .recover_with(via_parser(end()))
                     .recover_with(skip_then_retry_until(any().ignored(), end())),
             )
-            .map_with(|(entries, rest), meta| {
+            .map_with(move |(entries, rest), meta| {
                 Pattern::new_with_location(
                     PatternBody::Object(entries, rest.unwrap_or(Rest::Exact)),
                     meta_to_location(meta),

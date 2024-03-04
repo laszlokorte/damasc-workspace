@@ -4,15 +4,19 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["assignment"]
+default = ["assignment","query","repl"]
 value = []
 expression = ["value"]
 pattern = []
 assignment = ["expression", "pattern"]
-query = ["assignment"]
-join = ["assignment"]
+query = ["assignment", "dep:damasc-query"]
+join = ["assignment", "dep:damasc-query"]
+repl = ["assignment", "query", "dep:damasc-repl"]
 
 [dependencies]
 damasc-lang = { path = "../damasc-lang" }
+damasc-query = { path = "../damasc-query", optional = true }
+damasc-join = { path = "../damasc-join", optional = true }
+damasc-repl = { path = "../damasc-repl", optional = true }
 chumsky = {version = "1.0.0-alpha.0", features = ["label"]}
 ariadne = "0.4.0"

@@ -9,8 +9,8 @@ use damasc_lang::identifier::Identifier;
 
 use chumsky::Parser;
 
-pub fn single_identifier<'s>(
-) -> impl Parser<'s, &'s str, Identifier<'s>, extra::Err<Rich<'s, char>>> {
+pub fn single_identifier<'s, 'x>(
+) -> impl Parser<'s, &'s str, Identifier<'x>, extra::Err<Rich<'s, char>>> {
     ident()
         .try_map(move |c: &'s str, span| {
             if matches!(
@@ -23,8 +23,8 @@ pub fn single_identifier<'s>(
             }
         })
         .or(just("#").ignore_then(ident()))
-        .map(Identifier::new)
-        .or(just("#")
-            .ignore_then(single_string_literal())
-            .map(Identifier::new_cow))
+        .to_slice()
+        .map(|ident:&str| Identifier::new_owned(ident.to_string()))
+        .or(just("#").ignore_then(single_string_literal()).map(|ident| Identifier::new_owned(ident.to_string())))
+        
 }
