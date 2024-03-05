@@ -13,7 +13,7 @@ pub mod ast {
   pub enum Expression {
     Integer(i64),
     Variable(String),
-    BinaryOperation { lhs: Box<Expression>, operator: Operator, rhs: Box<Expression> },
+    BinaryOperation { lhs: Box<Expression>, operator: Operator, rhs: Box<Expression>, left: usize, right: usize },
   }
 
   #[derive(Clone, Debug, PartialEq)]

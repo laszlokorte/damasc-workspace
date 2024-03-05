@@ -25,38 +25,46 @@ pub Expression: Box<ast::Expression> = {
 
   #[precedence(level="2")] 
   #[assoc(side="left")]
-  <lhs:Expression> "*" <rhs:Expression> => {
+  <l: @L> <lhs:Expression> "*" <rhs:Expression> <r: @R> => {
     Box::new(ast::Expression::BinaryOperation {
       lhs,
       operator: ast::Operator::Mul,
-      rhs
+      rhs,
+      left: l,
+      right: r,
     })
   },
-  <lhs:Expression> "/" <rhs:Expression> => {
+  <l: @L> <lhs:Expression> "/" <rhs:Expression> <r: @R> => {
     Box::new(ast::Expression::BinaryOperation {
       lhs,
       operator: ast::Operator::Div,
-      rhs
+      rhs,
+      left: l,
+      right: r,
     })
   },
 
   #[precedence(level="3")]
   #[assoc(side="left")]
-  <lhs:Expression> "+" <rhs:Expression> => {
+  <l: @L> <lhs:Expression> "+" <rhs:Expression> <r: @R> => {
     Box::new(ast::Expression::BinaryOperation {
       lhs,
       operator: ast::Operator::Add,
-      rhs
+      rhs,
+      left: l,
+      right: r,
     })
   },
 
   #[precedence(level="3")]
   #[assoc(side="left")]
-  <lhs:Expression> "-" <rhs:Expression> => {
+  <l: @L> <lhs:Expression> "-" <rhs:Expression> <r: @R> => {
     Box::new(ast::Expression::BinaryOperation {
       lhs,
       operator: ast::Operator::Sub,
-      rhs
+      rhs,
+      left: l,
+      right: r,
     })
   },
 }

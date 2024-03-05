@@ -5,10 +5,12 @@ use damasc_grammar::experiment::grammar::ExpressionParser;
 
 #[test]
 fn foo() {
-  let source_code = "500+5";
+  let source_code = "5+(5*5)";
   let lexer = Lexer::new(&source_code[..]);
   let parser = ExpressionParser::new();
   let ast = parser.parse(lexer);
+
+  dbg!(&ast);
 
   assert_matches!(ast, Ok(_));
 }
