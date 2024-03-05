@@ -10,51 +10,51 @@ use damasc_lang::identifier::Identifier;
 grammar<'input, 'output>(input: &'input str);
 
 
-pub Expression: Box<ast::Expression<'output>> = {
+pub Expression: ast::Expression<'output> = {
   #[precedence(level="1")]
   Term,
 
   #[precedence(level="2")] 
   #[assoc(side="left")]
   <l: @L> <lhs:Expression> "*" <rhs:Expression> <r: @R> => {
-    Box::new(ast::Expression::new_with_location(ast::ExpressionBody::Binary(ast::BinaryExpression {
+    ast::Expression::new_with_location(ast::ExpressionBody::Binary(ast::BinaryExpression {
       operator: ast::BinaryOperator::Times,
-      left: lhs,
-      right: rhs,
-    }), Location::new(l,r)))
+      left: Box::new(lhs),
+      right: Box::new(rhs),
+    }), Location::new(l,r))
   },
   <l: @L> <lhs:Expression> "/" <rhs:Expression> <r: @R> => {
-    Box::new(ast::Expression::new_with_location(ast::ExpressionBody::Binary(ast::BinaryExpression {
+    ast::Expression::new_with_location(ast::ExpressionBody::Binary(ast::BinaryExpression {
       operator: ast::BinaryOperator::Over,
-      left: lhs,
-      right: rhs,
-    }), Location::new(l,r)))
+      left: Box::new(lhs),
+      right: Box::new(rhs),
+    }), Location::new(l,r))
   },
 
   #[precedence(level="3")]
   #[assoc(side="left")]
   <l: @L> <lhs:Expression> "+" <rhs:Expression> <r: @R> => {
-    Box::new(ast::Expression::new_with_location(ast::ExpressionBody::Binary(ast::BinaryExpression {
+    ast::Expression::new_with_location(ast::ExpressionBody::Binary(ast::BinaryExpression {
       operator: ast::BinaryOperator::Plus,
-      left: lhs,
-      right: rhs,
-    }), Location::new(l,r)))
+      left: Box::new(lhs),
+      right: Box::new(rhs),
+    }), Location::new(l,r))
   },
 
   #[precedence(level="3")]
   #[assoc(side="left")]
   <l: @L> <lhs:Expression> "-" <rhs:Expression> <r: @R> => {
-    Box::new(ast::Expression::new_with_location(ast::ExpressionBody::Binary(ast::BinaryExpression {
+    ast::Expression::new_with_location(ast::ExpressionBody::Binary(ast::BinaryExpression {
       operator: ast::BinaryOperator::Minus,
-      left: lhs,
-      right: rhs,
-    }), Location::new(l,r)))
+      left: Box::new(lhs),
+      right: Box::new(rhs),
+    }), Location::new(l,r))
   },
 }
 
-pub Term: Box<ast::Expression<'output>> = {
+pub Term: ast::Expression<'output> = {
   <l: @L> <name:"identifier"> <r: @R>  => {
-    Box::new(ast::Expression::new_with_location(ast::ExpressionBody::Identifier(Identifier::new_owned(name.to_string())), Location::new(l,r)))
+    ast::Expression::new_with_location(ast::ExpressionBody::Identifier(Identifier::new_owned(name.to_string())), Location::new(l,r))
   },
   "(" <e:Expression> ")" => e,
 }
