@@ -1,0 +1,121 @@
+use crate::lpop::{
+  tokens::Token,
+  lexer::LexicalError,
+};
+
+use damasc_lang::syntax::expression as ast;
+use damasc_lang::syntax::location::Location;
+use damasc_lang::identifier::Identifier;
+
+grammar<'input, 'output>(input: &'input str);
+
+
+pub Expression: Box<ast::Expression<'output>> = {
+  #[precedence(level="1")]
+  Term,
+
+  #[precedence(level="2")] 
+  #[assoc(side="left")]
+  <l: @L> <lhs:Expression> "*" <rhs:Expression> <r: @R> => {
+    Box::new(ast::Expression::new_with_location(ast::ExpressionBody::Binary(ast::BinaryExpression {
+      operator: ast::BinaryOperator::Times,
+      left: lhs,
+      right: rhs,
+    }), Location::new(l,r)))
+  },
+  <l: @L> <lhs:Expression> "/" <rhs:Expression> <r: @R> => {
+    Box::new(ast::Expression::new_with_location(ast::ExpressionBody::Binary(ast::BinaryExpression {
+      operator: ast::BinaryOperator::Over,
+      left: lhs,
+      right: rhs,
+    }), Location::new(l,r)))
+  },
+
+  #[precedence(level="3")]
+  #[assoc(side="left")]
+  <l: @L> <lhs:Expression> "+" <rhs:Expression> <r: @R> => {
+    Box::new(ast::Expression::new_with_location(ast::ExpressionBody::Binary(ast::BinaryExpression {
+      operator: ast::BinaryOperator::Plus,
+      left: lhs,
+      right: rhs,
+    }), Location::new(l,r)))
+  },
+
+  #[precedence(level="3")]
+  #[assoc(side="left")]
+  <l: @L> <lhs:Expression> "-" <rhs:Expression> <r: @R> => {
+    Box::new(ast::Expression::new_with_location(ast::ExpressionBody::Binary(ast::BinaryExpression {
+      operator: ast::BinaryOperator::Minus,
+      left: lhs,
+      right: rhs,
+    }), Location::new(l,r)))
+  },
+}
+
+pub Term: Box<ast::Expression<'output>> = {
+  <l: @L> <name:"identifier"> <r: @R>  => {
+    Box::new(ast::Expression::new_with_location(ast::ExpressionBody::Identifier(Identifier::new_owned(name.to_string())), Location::new(l,r)))
+  },
+  "(" <e:Expression> ")" => e,
+}
+
+extern {
+  type Location = usize;
+  type Error = LexicalError;
+
+  enum Token<'input> {
+    "for" => Token::KeywordFor,
+    "if" => Token::KeywordIf,
+    "else" => Token::KeywordElse,
+    "match" => Token::KeywordMatch,
+    "fn" => Token::KeywordFn,
+    "where" => Token::KeywordWhere,
+    "into" => Token::KeywordInto,
+    "limit" => Token::KeywordLimit,
+    "with" => Token::KeywordWith,
+    "in" => Token::KeywordIn,
+    "as" => Token::KeywordAs,
+    "action" => Token::KeywordAction,
+    "bag" => Token::KeywordBag,
+
+    "identifier" => Token::Identifier(<&'input str>),
+    "integer" => Token::Int(<&'input str>),
+
+    "(" => Token::LParen,
+    ")" => Token::RParen,
+
+    "{" => Token::LCurly,
+    "}" => Token::RCurly,
+
+    "[" => Token::LBrack,
+    "]" => Token::RBrack,
+
+
+    "=>" => Token::Rocket,
+    "," => Token::Comma,
+    "." => Token::Period,
+    "`" => Token::Tick,
+
+    "=" => Token::Assign,
+    ";" => Token::Semicolon,
+    ":" => Token::Colon,
+
+    "+" => Token::OperatorAdd,
+    "-" => Token::OperatorSub,
+    "*" => Token::OperatorMul,
+    "/" => Token::OperatorDiv,
+    "^" => Token::OperatorExp,
+
+
+    "&&" => Token::OperatorLogicAnd,
+    "||" => Token::OperatorLogicOr,
+    "!" => Token::OperatorLogicNot,
+
+    "==" => Token::OperatorEqual,
+    "!=" => Token::OperatorNotEqual,
+    "<" => Token::OperatorLess,
+    ">" => Token::OperatorGreater,
+    "<=" => Token::OperatorLessOrEqual,
+    ">=" => Token::OperatorGreaterOrEqual,
+  }
+}

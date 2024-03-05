@@ -1,6 +1,6 @@
 use lalrpop_util::lalrpop_mod;
 
-lalrpop_mod!(pub grammar);
+lalrpop_mod!(pub grammar, "/experiment.rs");
 
 pub mod ast {
   #[derive(Clone, Debug, PartialEq)]
