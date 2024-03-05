@@ -17,3 +17,5 @@
 * IMPORTANT: Fix lifetimes in new grammar implementation to get rid of deep cloning
 * Clean up parser error API to no expose parser library internals across crates
 * Use new grammar crate for wasm
+* Reimplement the grammar another time: LaLrPop
+* add Dropdown/Mode to simply Repl Parsing
