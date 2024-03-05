@@ -1,24 +1,25 @@
 use ariadne::Config;
-use std::io::Write;
 use ariadne::ReportBuilder;
 use ariadne::{Label, Report, ReportKind, Source};
 use damasc_lang::runtime::evaluation::EvalErrorReason;
 use damasc_lang::runtime::matching::PatternFailReason;
 use damasc_repl::io::ReplError;
+use std::io::Write;
 use std::ops::Range;
 
 pub(crate) fn print_error(input: &str, e: &ReplError, out_buffer: &mut Vec<u8>) -> bool {
     match e {
         ReplError::ParseError => write!(out_buffer, "Parse Error").is_ok(),
         ReplError::EvalError(eval_error) => {
-            
             let Some(source_location) = eval_error.location else {
-                return write!(out_buffer, "Evaluation Error at unknown source location.").is_ok()
+                return write!(out_buffer, "Evaluation Error at unknown source location.").is_ok();
             };
 
             let builder = Report::build(ReportKind::Error, "REPL", source_location.start);
 
-            let builder = builder.with_code("Evaluation").with_config(Config::default().with_color(false));
+            let builder = builder
+                .with_code("Evaluation")
+                .with_config(Config::default().with_color(false));
 
             let builder = builder.with_message(match &eval_error.reason {
                 EvalErrorReason::KindError(actual) => {
@@ -74,14 +75,16 @@ pub(crate) fn print_error(input: &str, e: &ReplError, out_buffer: &mut Vec<u8>) 
 
             builder
                 .finish()
-                .write(("REPL", Source::from(input)), out_buffer).is_ok()
+                .write(("REPL", Source::from(input)), out_buffer)
+                .is_ok()
         }
         ReplError::MatchError(pattern_fail) => {
             let Some(source_location) = pattern_fail.location else {
-                return write!(out_buffer, "Match Failed").is_ok()
+                return write!(out_buffer, "Match Failed").is_ok();
             };
 
-            let builder = Report::build(ReportKind::Error, "REPL", source_location.start).with_config(Config::default().with_color(false));
+            let builder = Report::build(ReportKind::Error, "REPL", source_location.start)
+                .with_config(Config::default().with_color(false));
 
             let builder = builder.with_code("Matching");
 
@@ -104,11 +107,13 @@ pub(crate) fn print_error(input: &str, e: &ReplError, out_buffer: &mut Vec<u8>) 
 
             builder
                 .finish()
-                .write(("REPL", Source::from(input)), out_buffer).is_ok()
+                .write(("REPL", Source::from(input)), out_buffer)
+                .is_ok()
         }
         ReplError::TopologyError(cycle) => {
             let builder: ReportBuilder<(&str, Range<usize>)> =
-                Report::build(ReportKind::Error, "REPL", 0).with_config(Config::default().with_color(false));
+                Report::build(ReportKind::Error, "REPL", 0)
+                    .with_config(Config::default().with_color(false));
 
             let builder = builder.with_code("Topology");
 
@@ -123,7 +128,8 @@ pub(crate) fn print_error(input: &str, e: &ReplError, out_buffer: &mut Vec<u8>) 
 
             builder
                 .finish()
-                .write(("REPL", Source::from(input)), out_buffer).is_ok()
+                .write(("REPL", Source::from(input)), out_buffer)
+                .is_ok()
         }
         ReplError::TransformError => write!(out_buffer, "Error During Transformation").is_ok(),
     }

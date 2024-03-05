@@ -24,7 +24,7 @@ impl<'a> Identifier<'a> {
 }
 
 impl Identifier<'_> {
-    pub(crate) fn deep_clone<'y>(&self) -> Identifier<'y> {
+    pub fn deep_clone<'y>(&self) -> Identifier<'y> {
         Identifier {
             name: Cow::Owned(self.name.as_ref().into()),
         }

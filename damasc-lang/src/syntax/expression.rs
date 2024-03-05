@@ -105,7 +105,7 @@ impl<'s> Expression<'s> {
                 ExpressionBody::ObjectComp(x) => ExpressionBody::ObjectComp(x.deep_clone()),
                 ExpressionBody::Match(x) => ExpressionBody::Match(x.deep_clone()),
                 ExpressionBody::Condition(x) => ExpressionBody::Condition(x.deep_clone()),
-            }
+            },
         }
     }
 }

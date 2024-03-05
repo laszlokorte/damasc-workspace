@@ -619,7 +619,6 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                             len,
                             *i as isize,
                         )));
-                        
                     }
                     len - sub
                 } else {

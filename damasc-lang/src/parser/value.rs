@@ -20,7 +20,7 @@ use nom::{
     sequence::{delimited, separated_pair, terminated},
 };
 
-pub fn single_value<'x, 'v>(input: &'x str) -> Option<Value<'x, 'v>> {
+pub fn single_value<'v>(input: &str) -> Option<Value<'_, 'v>> {
     match all_consuming(value_literal::<Error<ParserInput>>)(ParserInput::new(input)) {
         Ok((_, r)) => Some(r),
         Err(_) => None,

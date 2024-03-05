@@ -20,3 +20,9 @@ damasc-join = { path = "../damasc-join", optional = true }
 damasc-repl = { path = "../damasc-repl", optional = true }
 chumsky = {version = "1.0.0-alpha.0", features = ["label"]}
 ariadne = "0.4.0"
+lalrpop-util = "0.20.2"
+logos = "0.14.0"
+
+# Add a build-time dependency on the lalrpop library:
+[build-dependencies]
+lalrpop = "0.20.2"

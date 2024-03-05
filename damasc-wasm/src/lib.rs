@@ -2,13 +2,13 @@
 
 use crate::error::print_error;
 use ariadne::Config;
-use ariadne::Source;
+use ariadne::Label;
 use ariadne::Report;
 use ariadne::ReportKind;
-use ariadne::Label;
+use ariadne::Source;
 use chumsky::Parser;
-use damasc_repl::{state::State};
 use damasc_grammar::repl::single_command;
+use damasc_repl::state::State;
 use wasm_bindgen::prelude::*;
 
 mod error;
@@ -43,7 +43,6 @@ impl WasmRepl {
 
     #[wasm_bindgen]
     pub fn eval(&mut self, input: &str) {
-
         let mut out_buffer = Vec::new();
 
         let parser = single_command();
@@ -69,9 +68,9 @@ impl WasmRepl {
                 });
 
                 return match std::str::from_utf8(&out_buffer) {
-                    Ok(r) => show_error(input, &r),
+                    Ok(r) => show_error(input, r),
                     Err(_e) => show_error(input, "unexpected error"),
-                }
+                };
             }
         };
 
@@ -81,10 +80,10 @@ impl WasmRepl {
             Err(eval_err) => {
                 print_error(input, &eval_err, &mut out_buffer);
                 match std::str::from_utf8(&out_buffer) {
-                    Ok(r) => show_error(input, &r),
+                    Ok(r) => show_error(input, r),
                     Err(_e) => show_error(input, "unexpected error"),
                 }
-            },
+            }
         }
     }
 }

@@ -76,7 +76,9 @@ impl<'s> Pattern<'s> {
                 }
                 PatternBody::Identifier(i) => PatternBody::Identifier(i.deep_clone()),
                 PatternBody::TypedDiscard(t) => PatternBody::TypedDiscard(*t),
-                PatternBody::TypedIdentifier(i, t) => PatternBody::TypedIdentifier(i.deep_clone(), *t),
+                PatternBody::TypedIdentifier(i, t) => {
+                    PatternBody::TypedIdentifier(i.deep_clone(), *t)
+                }
                 PatternBody::Literal(l) => PatternBody::Literal(l.deep_clone()),
                 PatternBody::Object(pat, rst) => PatternBody::Object(
                     pat.iter().map(|e| e.deep_clone()).collect(),
@@ -89,7 +91,7 @@ impl<'s> Pattern<'s> {
                 PatternBody::PinnedExpression(e) => {
                     PatternBody::PinnedExpression(Box::new(e.deep_clone()))
                 }
-            }
+            },
         }
     }
 }
