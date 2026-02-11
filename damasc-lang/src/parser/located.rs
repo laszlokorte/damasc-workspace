@@ -6,19 +6,18 @@ use crate::syntax::location::Location;
 use crate::syntax::pattern::Pattern;
 use crate::syntax::pattern::PatternBody;
 use nom::combinator::map;
-use nom::sequence::tuple;
+use nom::Parser;
 
-use nom::IResult;
 use nom_locate::position;
 
 pub fn located_expression<'s, 'v, F, E: ParserError<'s>>(
     expression_body: F,
-) -> impl FnMut(ParserInput<'s>) -> IResult<ParserInput<'s>, Expression<'v>, E>
+) -> impl Parser<ParserInput<'s>, Output = Expression<'v>, Error = E>
 where
-    F: FnMut(ParserInput<'s>) -> IResult<ParserInput<'s>, ExpressionBody<'v>, E>,
+    F: Parser<ParserInput<'s>, Output = ExpressionBody<'v>, Error = E>,
 {
     map(
-        tuple((position, expression_body, position)),
+        (position, expression_body, position),
         |(start, body, end)| {
             Expression::new_with_location(
                 body,
@@ -30,17 +29,14 @@ where
 
 pub fn located_pattern<'s, 'v, F, E: ParserError<'s>>(
     pattern_body: F,
-) -> impl FnMut(ParserInput<'s>) -> IResult<ParserInput<'s>, Pattern<'v>, E>
+) -> impl Parser<ParserInput<'s>, Output = Pattern<'v>, Error = E>
 where
-    F: FnMut(ParserInput<'s>) -> IResult<ParserInput<'s>, PatternBody<'v>, E>,
+    F: Parser<ParserInput<'s>, Output = PatternBody<'v>, Error = E>,
 {
-    map(
-        tuple((position, pattern_body, position)),
-        |(start, body, end)| {
-            Pattern::new_with_location(
-                body,
-                Location::new(start.location_offset(), end.location_offset()),
-            )
-        },
-    )
+    map((position, pattern_body, position), |(start, body, end)| {
+        Pattern::new_with_location(
+            body,
+            Location::new(start.location_offset(), end.location_offset()),
+        )
+    })
 }

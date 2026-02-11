@@ -8,17 +8,16 @@ use damasc_lang::{
     syntax::assignment::AssignmentSet,
 };
 use damasc_query::parser::transformation;
-use nom::combinator::opt;
-use nom::sequence::tuple;
 use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::space0,
     combinator::{all_consuming, cut, map, value},
-    error::{context, convert_error, VerboseError},
+    error::context,
     sequence::{pair, preceded},
     Finish,
 };
+use nom::{combinator::opt, Parser};
 
 use crate::command::Command;
 
@@ -56,10 +55,10 @@ pub(crate) fn command<'a, 'b, 's, E: ParserError<'s>>(
                 context(
                     "cmd_let",
                     map(
-                        all_consuming(tuple((
+                        all_consuming((
                             preceded(ws(tag("let ")), assignment_set1),
                             opt(preceded(ws(tag("with")), assignment_set1)),
-                        ))),
+                        )),
                         |(assignments, locals)| Command::Assign(assignments, locals),
                     ),
                 ),
@@ -85,24 +84,19 @@ pub(crate) fn command<'a, 'b, 's, E: ParserError<'s>>(
                 ),
             ))),
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn command_all_consuming<'a, 'b>(input: &str) -> Result<Command<'a, 'b>, String> {
-    match all_consuming(command::<VerboseError<ParserInput>>)(ParserInput::new(input)).finish() {
+    match all_consuming(command::<nom::error::Error<ParserInput>>)
+        .parse(ParserInput::new(input))
+        .finish()
+    {
         Ok((_, s)) => Ok(s),
         Err(e) => {
-            let errors = e
-                .errors
-                .into_iter()
-                .filter_map(|(input, error)| match error {
-                    nom::error::VerboseErrorKind::Context(_) => Some((*input.fragment(), error)),
-                    nom::error::VerboseErrorKind::Char(_) => Some((*input.fragment(), error)),
-                    nom::error::VerboseErrorKind::Nom(_) => None,
-                })
-                .collect();
-
-            Err(convert_error(input, VerboseError { errors }))
+            Err(e.to_string())
+            //Err(convert_error(input, ParseError { errors }))
         }
     }
 }

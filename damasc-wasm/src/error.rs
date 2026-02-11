@@ -15,7 +15,10 @@ pub(crate) fn print_error(input: &str, e: &ReplError, out_buffer: &mut Vec<u8>) 
                 return write!(out_buffer, "Evaluation Error at unknown source location.").is_ok();
             };
 
-            let builder = Report::build(ReportKind::Error, "REPL", source_location.start);
+            let builder = Report::build(
+                ReportKind::Error,
+                source_location.start..source_location.end,
+            );
 
             let builder = builder
                 .with_code("Evaluation")
@@ -69,13 +72,13 @@ pub(crate) fn print_error(input: &str, e: &ReplError, out_buffer: &mut Vec<u8>) 
             });
 
             let builder = builder.with_label(
-                Label::new(("REPL", source_location.start..(source_location.end)))
+                Label::new(source_location.start..source_location.end)
                     .with_message("This expression failed to evaluate."),
             );
 
             builder
                 .finish()
-                .write(("REPL", Source::from(input)), out_buffer)
+                .write(Source::from(input), out_buffer)
                 .is_ok()
         }
         ReplError::MatchError(pattern_fail) => {
@@ -83,8 +86,11 @@ pub(crate) fn print_error(input: &str, e: &ReplError, out_buffer: &mut Vec<u8>) 
                 return write!(out_buffer, "Match Failed").is_ok();
             };
 
-            let builder = Report::build(ReportKind::Error, "REPL", source_location.start)
-                .with_config(Config::default().with_color(false));
+            let builder = Report::build(
+                ReportKind::Error,
+                source_location.start..source_location.start,
+            )
+            .with_config(Config::default().with_color(false));
 
             let builder = builder.with_code("Matching");
 
@@ -101,18 +107,18 @@ pub(crate) fn print_error(input: &str, e: &ReplError, out_buffer: &mut Vec<u8>) 
             });
 
             let builder = builder.with_label(
-                Label::new(("REPL", source_location.start..(source_location.end)))
+                Label::new(source_location.start..source_location.end)
                     .with_message("This pattern failed to match."),
             );
 
             builder
                 .finish()
-                .write(("REPL", Source::from(input)), out_buffer)
+                .write(Source::from(input), out_buffer)
                 .is_ok()
         }
         ReplError::TopologyError(cycle) => {
             let builder: ReportBuilder<(&str, Range<usize>)> =
-                Report::build(ReportKind::Error, "REPL", 0)
+                Report::build(ReportKind::Error, ("REPL", 0..0))
                     .with_config(Config::default().with_color(false));
 
             let builder = builder.with_code("Topology");

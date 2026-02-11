@@ -6,6 +6,7 @@ use nom::{
     error::{context, Error},
     multi::{separated_list0, separated_list1},
     sequence::{separated_pair, terminated},
+    Parser,
 };
 
 use crate::syntax::assignment::{Assignment, AssignmentSet};
@@ -38,7 +39,8 @@ pub fn assignment_set0<'v, 'w, 's, E: ParserError<'s>>(
             ),
             |assignments| AssignmentSet { assignments },
         ),
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn assignment_set1<'v, 'w, 's, E: ParserError<'s>>(
@@ -62,7 +64,8 @@ pub fn assignment_set1<'v, 'w, 's, E: ParserError<'s>>(
             ),
             |assignments| AssignmentSet { assignments },
         ),
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn assignment<'v, 'w, 's, E: ParserError<'s>>(
@@ -77,17 +80,19 @@ pub fn assignment<'v, 'w, 's, E: ParserError<'s>>(
                 expression,
             },
         ),
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn assignment_all_consuming(input: ParserInput<'_>) -> Option<Assignment<'_, '_>> {
-    let Ok((_, r)) = all_consuming(assignment::<Error<ParserInput>>)(input) else {
+    let Ok((_, r)) = all_consuming(assignment::<Error<ParserInput>>).parse(input) else {
         return None;
     };
     Some(r)
 }
 pub fn assignment_set1_all_consuming(input: &str) -> Option<AssignmentSet<'_, '_>> {
-    let Ok((_, r)) = all_consuming(assignment_set1::<Error<ParserInput>>)(ParserInput::new(input))
+    let Ok((_, r)) =
+        all_consuming(assignment_set1::<Error<ParserInput>>).parse(ParserInput::new(input))
     else {
         return None;
     };

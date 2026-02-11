@@ -13,6 +13,7 @@ use crate::syntax::location::Location;
 use crate::syntax::pattern::Pattern;
 use crate::syntax::pattern::PatternBody;
 use nom::multi::many1;
+use nom::Parser;
 use nom_locate::position;
 
 use std::borrow::Cow;
@@ -24,7 +25,7 @@ use nom::{
     combinator::{all_consuming, map, not, opt, peek, recognize, value},
     error::{context, Error},
     multi::{fold_many0, many0, separated_list0, separated_list1},
-    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
+    sequence::{delimited, pair, preceded, separated_pair, terminated},
 };
 
 use crate::{
@@ -44,7 +45,7 @@ use super::{
 };
 
 pub fn expression_all_consuming<'v>(input: &str) -> Option<Expression<'v>> {
-    match all_consuming(expression::<Error<ParserInput>>)(ParserInput::new(input)) {
+    match all_consuming(expression::<Error<ParserInput>>).parse(ParserInput::new(input)) {
         Ok((_, r)) => Some(r),
         Err(_) => None,
     }
@@ -62,18 +63,19 @@ pub fn expression_many1<'v, 's, E: ParserError<'s>>(
             }),
             opt(ws(tag(";"))),
         ),
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn expression_many1_all_consuming<'v>(input: &str) -> Option<ExpressionSet<'v>> {
-    match all_consuming(expression_many1::<Error<ParserInput>>)(ParserInput::new(input)) {
+    match all_consuming(expression_many1::<Error<ParserInput>>).parse(ParserInput::new(input)) {
         Ok((_, r)) => Some(r),
         Err(_) => None,
     }
 }
 
 pub fn expression_many0_all_consuming<'v>(input: &str) -> Option<ExpressionSet<'v>> {
-    match all_consuming(expression_many0::<Error<ParserInput>>)(ParserInput::new(input)) {
+    match all_consuming(expression_many0::<Error<ParserInput>>).parse(ParserInput::new(input)) {
         Ok((_, r)) => Some(r),
         Err(_) => None,
     }
@@ -91,7 +93,8 @@ pub fn expression_many0<'v, 's, E: ParserError<'s>>(
             }),
             ws(opt(tag(";"))),
         ),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_array_item<'v, 's, E: ParserError<'s>>(
@@ -103,7 +106,8 @@ fn expression_array_item<'v, 's, E: ParserError<'s>>(
             map(preceded(ws(tag("...")), expression), ArrayItem::Spread),
             map(expression, ArrayItem::Single),
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_call<'v, 's, E: ParserError<'s>>(
@@ -123,7 +127,8 @@ fn expression_call<'v, 's, E: ParserError<'s>>(
                 })
             },
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_array<'v, 's, E: ParserError<'s>>(
@@ -145,7 +150,8 @@ fn expression_array<'v, 's, E: ParserError<'s>>(
             ),
             ws(tag("]")),
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_array_comprehension<'v, 's, E: ParserError<'s>>(
@@ -156,13 +162,13 @@ fn expression_array_comprehension<'v, 's, E: ParserError<'s>>(
         located_expression(map(
             delimited(
                 ws(tag("[")),
-                tuple((
+                (
                     terminated(
                         separated_list1(ws(tag(",")), expression_array_item),
                         opt(ws(tag(","))),
                     ),
                     expression_comprehension_source,
-                )),
+                ),
                 ws(tag("]")),
             ),
             |(projection, sources)| {
@@ -172,7 +178,8 @@ fn expression_array_comprehension<'v, 's, E: ParserError<'s>>(
                 })
             },
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_object_property<'v, 's, E: ParserError<'s>>(
@@ -215,7 +222,8 @@ fn expression_object_property<'v, 's, E: ParserError<'s>>(
             map(preceded(ws(tag("...")), expression), ObjectProperty::Spread),
             map(identifier, ObjectProperty::Single),
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_object<'v, 's, E: ParserError<'s>>(
@@ -237,7 +245,8 @@ fn expression_object<'v, 's, E: ParserError<'s>>(
             ),
             ws(tag("}")),
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_comprehension_source<'v, 's, E: ParserError<'s>>(
@@ -246,11 +255,11 @@ fn expression_comprehension_source<'v, 's, E: ParserError<'s>>(
     context(
         "expression_comprehension_source",
         many1(map(
-            tuple((
-                preceded(ws(tag("for")), tuple((opt(ws(tag("match"))), pattern))),
+            (
+                preceded(ws(tag("for")), (opt(ws(tag("match"))), pattern)),
                 preceded(ws(tag("in")), expression),
                 opt(preceded(ws(tag("if")), expression)),
-            )),
+            ),
             |((weak, pattern), collection, predicate)| ComprehensionSource {
                 strong_pattern: weak.is_none(),
                 pattern,
@@ -258,7 +267,8 @@ fn expression_comprehension_source<'v, 's, E: ParserError<'s>>(
                 predicate: predicate.map(Box::new),
             },
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_object_comprehension<'v, 's, E: ParserError<'s>>(
@@ -269,13 +279,13 @@ fn expression_object_comprehension<'v, 's, E: ParserError<'s>>(
         located_expression(map(
             delimited(
                 ws(tag("{")),
-                tuple((
+                (
                     terminated(
                         separated_list1(ws(tag(",")), expression_object_property),
                         opt(ws(tag(","))),
                     ),
                     expression_comprehension_source,
-                )),
+                ),
                 ws(tag("}")),
             ),
             |(projection, sources)| {
@@ -285,7 +295,8 @@ fn expression_object_comprehension<'v, 's, E: ParserError<'s>>(
                 })
             },
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_lambda_abstraction<'v, 's, E: ParserError<'s>>(
@@ -294,13 +305,13 @@ fn expression_lambda_abstraction<'v, 's, E: ParserError<'s>>(
     context(
         "expression_lambda_abstraction",
         located_expression(map(
-            tuple((
+            (
                 preceded(
                     ws(tag("fn")),
                     alt((delimited(ws(tag("(")), pattern, ws(tag(")"))), pattern)),
                 ),
                 preceded(ws(tag("=>")), expression),
-            )),
+            ),
             |(arg, body)| {
                 ExpressionBody::Abstraction(LambdaAbstraction {
                     arguments: arg,
@@ -308,7 +319,8 @@ fn expression_lambda_abstraction<'v, 's, E: ParserError<'s>>(
                 })
             },
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_match_arm<'v, 's, E: ParserError<'s>>(
@@ -316,10 +328,10 @@ fn expression_match_arm<'v, 's, E: ParserError<'s>>(
 ) -> ParserResult<'s, MatchCase<'v>, E> {
     map(
         separated_pair(
-            tuple((
+            (
                 alt((delimited(ws(tag("(")), pattern, ws(tag(")"))), pattern)),
                 opt(preceded(ws(tag("if")), expression)),
-            )),
+            ),
             ws(tag("=>")),
             expression,
         ),
@@ -328,7 +340,8 @@ fn expression_match_arm<'v, 's, E: ParserError<'s>>(
             guard: guard.map(Box::new),
             body: Box::new(body),
         },
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_match<'v, 's, E: ParserError<'s>>(
@@ -337,7 +350,7 @@ fn expression_match<'v, 's, E: ParserError<'s>>(
     context(
         "expression_match",
         located_expression(map(
-            tuple((
+            (
                 preceded(
                     ws(tag("match")),
                     alt((
@@ -353,7 +366,7 @@ fn expression_match<'v, 's, E: ParserError<'s>>(
                     )),
                     ws(tag("}")),
                 ),
-            )),
+            ),
             |(subject, cases)| {
                 ExpressionBody::Match(MatchExpression {
                     subject: Box::new(subject),
@@ -361,7 +374,8 @@ fn expression_match<'v, 's, E: ParserError<'s>>(
                 })
             },
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_condition<'v, 's, E: ParserError<'s>>(
@@ -370,7 +384,7 @@ fn expression_condition<'v, 's, E: ParserError<'s>>(
     context(
         "expression_condition",
         located_expression(map(
-            tuple((
+            (
                 preceded(
                     ws(tag("if")),
                     alt((
@@ -383,7 +397,7 @@ fn expression_condition<'v, 's, E: ParserError<'s>>(
                     ws(tag("else")),
                     delimited(ws(tag("{")), expression, ws(tag("}"))),
                 )),
-            )),
+            ),
             |(condition, true_branch, false_branch)| {
                 ExpressionBody::Condition(IfElseExpression {
                     condition: Box::new(condition),
@@ -392,7 +406,8 @@ fn expression_condition<'v, 's, E: ParserError<'s>>(
                 })
             },
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_lambda_match_abstraction<'v, 's, E: ParserError<'s>>(
@@ -425,7 +440,8 @@ fn expression_lambda_match_abstraction<'v, 's, E: ParserError<'s>>(
                 })
             },
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_literal<'v, 's, E: ParserError<'s>>(
@@ -442,7 +458,8 @@ fn expression_literal<'v, 's, E: ParserError<'s>>(
             expression_call,
             expression_atom,
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_atom<'v, 's, E: ParserError<'s>>(
@@ -451,7 +468,8 @@ fn expression_atom<'v, 's, E: ParserError<'s>>(
     context(
         "expression_atom",
         located_expression(map(literal, ExpressionBody::Literal)),
-    )(input)
+    )
+    .parse(input)
 }
 
 pub(crate) fn expression_identifier<'v, 's, E: ParserError<'s>>(
@@ -460,7 +478,8 @@ pub(crate) fn expression_identifier<'v, 's, E: ParserError<'s>>(
     context(
         "expression_identifier",
         located_expression(map(identifier, ExpressionBody::Identifier)),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn string_template_part<'v, 's, E: ParserError<'s>>(
@@ -469,20 +488,21 @@ fn string_template_part<'v, 's, E: ParserError<'s>>(
     context(
         "expression_string_template_part",
         map(
-            tuple((
+            (
                 recognize(take_until("${")),
                 delimited(
                     tag("${"),
                     context("expression_string_template_part_dynamic", expression),
                     tag("}"),
                 ),
-            )),
+            ),
             |(fixed_start, dynamic_end)| StringTemplatePart {
                 fixed_start: Cow::Owned(fixed_start.fragment().to_owned().into()),
                 dynamic_end: Box::new(dynamic_end),
             },
         ),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_string_template<'v, 's, E: ParserError<'s>>(
@@ -493,7 +513,7 @@ fn expression_string_template<'v, 's, E: ParserError<'s>>(
         located_expression(map(
             delimited(
                 tag("`"),
-                tuple((many0(string_template_part), recognize(many0(is_not("`"))))),
+                (many0(string_template_part), recognize(many0(is_not("`")))),
                 tag("`"),
             ),
             |(parts, s)| {
@@ -503,7 +523,8 @@ fn expression_string_template<'v, 's, E: ParserError<'s>>(
                 })
             },
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_logic_additive_operator<'s, E: ParserError<'s>>(
@@ -512,7 +533,8 @@ fn expression_logic_additive_operator<'s, E: ParserError<'s>>(
     context(
         "expression_logic_operator",
         alt((value(LogicalOperator::Or, tag("||")),)),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_logic_additive<'v, 's, E: ParserError<'s>>(
@@ -521,7 +543,8 @@ fn expression_logic_additive<'v, 's, E: ParserError<'s>>(
     let (input, init) = context(
         "expression_logic_additive_lhs",
         expression_logic_multiplicative,
-    )(input)?;
+    )
+    .parse(input)?;
 
     fold_many0(
         pair(
@@ -546,7 +569,8 @@ fn expression_logic_additive<'v, 's, E: ParserError<'s>>(
                 outer_location,
             )
         },
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_logic_multiplicative_operator<'s, E: ParserError<'s>>(
@@ -555,7 +579,8 @@ fn expression_logic_multiplicative_operator<'s, E: ParserError<'s>>(
     context(
         "expression_logic_operator",
         alt((value(LogicalOperator::And, tag("&&")),)),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_logic_multiplicative<'v, 's, E: ParserError<'s>>(
@@ -564,7 +589,8 @@ fn expression_logic_multiplicative<'v, 's, E: ParserError<'s>>(
     let (input, init) = context(
         "expression_logic_multiplicative_lhs",
         expression_type_predicate,
-    )(input)?;
+    )
+    .parse(input)?;
 
     fold_many0(
         pair(
@@ -589,7 +615,8 @@ fn expression_logic_multiplicative<'v, 's, E: ParserError<'s>>(
                 outer_location,
             )
         },
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_type_predicate_operator<'s, E: ParserError<'s>>(
@@ -598,18 +625,22 @@ fn expression_type_predicate_operator<'s, E: ParserError<'s>>(
     context(
         "expression_type_predicate_operator",
         alt((value(BinaryOperator::Is, tag("is")),)),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_type_predicate<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<'s, Expression<'v>, E> {
-    let (input, init) = context("expression_type_predicate_lhs", expression_type_additive)(input)?;
+    let (input, init) =
+        context("expression_type_predicate_lhs", expression_type_additive).parse(input)?;
 
-    let Ok((input, (op, t))) = tuple((
+    let Ok((input, (op, t))) = (
         ws(expression_type_predicate_operator::<E>),
         expression_numeric_predicative,
-    ))(input) else {
+    )
+        .parse(input)
+    else {
         return Ok((input, init));
     };
 
@@ -636,13 +667,15 @@ fn expression_type_additive_operator<'s, E: ParserError<'s>>(
     context(
         "expression_type_additive_operator",
         alt((value(BinaryOperator::Cast, tag("as")),)),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_type_additive<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<'s, Expression<'v>, E> {
-    let (input, init) = context("expression_type_additive", expression_numeric_predicative)(input)?;
+    let (input, init) =
+        context("expression_type_additive", expression_numeric_predicative).parse(input)?;
 
     fold_many0(
         pair(
@@ -667,7 +700,8 @@ fn expression_type_additive<'v, 's, E: ParserError<'s>>(
                 outer_location,
             )
         },
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_numeric_predicative_operator<'s, E: ParserError<'s>>(
@@ -684,7 +718,8 @@ fn expression_numeric_predicative_operator<'s, E: ParserError<'s>>(
             value(BinaryOperator::StrictNotEqual, tag("!=")),
             value(BinaryOperator::In, pair(tag("in"), peek(not(alpha1)))),
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_numeric_predicative<'v, 's, E: ParserError<'s>>(
@@ -693,7 +728,8 @@ fn expression_numeric_predicative<'v, 's, E: ParserError<'s>>(
     let (input, init) = context(
         "expression_numeric_predicative_lhs",
         expression_numeric_additive,
-    )(input)?;
+    )
+    .parse(input)?;
 
     fold_many0(
         pair(
@@ -718,7 +754,8 @@ fn expression_numeric_predicative<'v, 's, E: ParserError<'s>>(
                 outer_location,
             )
         },
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_numeric_additive_operator<'s, E: ParserError<'s>>(
@@ -730,7 +767,8 @@ fn expression_numeric_additive_operator<'s, E: ParserError<'s>>(
             value(BinaryOperator::Plus, tag("+")),
             value(BinaryOperator::Minus, tag("-")),
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_numeric_additive<'v, 's, E: ParserError<'s>>(
@@ -739,7 +777,8 @@ fn expression_numeric_additive<'v, 's, E: ParserError<'s>>(
     let (input, init) = context(
         "expression_numeric_additive_lhs",
         expression_numeric_multiplicative,
-    )(input)?;
+    )
+    .parse(input)?;
 
     fold_many0(
         pair(
@@ -764,7 +803,8 @@ fn expression_numeric_additive<'v, 's, E: ParserError<'s>>(
                 outer_location,
             )
         },
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_numeric_multiplicative_operator<'s, E: ParserError<'s>>(
@@ -777,7 +817,8 @@ fn expression_numeric_multiplicative_operator<'s, E: ParserError<'s>>(
             value(BinaryOperator::Over, tag("/")),
             value(BinaryOperator::Mod, tag("%")),
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_numeric_multiplicative<'v, 's, E: ParserError<'s>>(
@@ -786,7 +827,8 @@ fn expression_numeric_multiplicative<'v, 's, E: ParserError<'s>>(
     let (input, init) = context(
         "expression_numeric_multiplicative_lhs",
         expression_numeric_exponential,
-    )(input)?;
+    )
+    .parse(input)?;
 
     fold_many0(
         pair(
@@ -811,7 +853,8 @@ fn expression_numeric_multiplicative<'v, 's, E: ParserError<'s>>(
                 outer_location,
             )
         },
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_numeric_exponential_operator<'s, E: ParserError<'s>>(
@@ -820,13 +863,15 @@ fn expression_numeric_exponential_operator<'s, E: ParserError<'s>>(
     context(
         "expression_numeric_exponential_operator",
         alt((value(BinaryOperator::PowerOf, tag("^")),)),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_numeric_exponential<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<'s, Expression<'v>, E> {
-    let (input, init) = context("expression_numeric_exponential_lhs", expression_path)(input)?;
+    let (input, init) =
+        context("expression_numeric_exponential_lhs", expression_path).parse(input)?;
 
     fold_many0(
         pair(
@@ -848,7 +893,8 @@ fn expression_numeric_exponential<'v, 's, E: ParserError<'s>>(
                 outer_location,
             )
         },
-    )(input)
+    )
+    .parse(input)
 }
 
 enum PathSegment<'a> {
@@ -860,12 +906,12 @@ enum PathSegment<'a> {
 fn expression_path<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<'s, Expression<'v>, E> {
-    let (input, init) = context("expression_path_lhs", expression_primary)(input)?;
+    let (input, init) = context("expression_path_lhs", expression_primary).parse(input)?;
 
     fold_many0(
         alt((
             map(
-                tuple((
+                (
                     position,
                     delimited(
                         ws(tag("[")),
@@ -873,7 +919,7 @@ fn expression_path<'v, 's, E: ParserError<'s>>(
                         ws(tag("]")),
                     ),
                     position,
-                )),
+                ),
                 |(ls, expr, rs)| {
                     PathSegment::Index(
                         expr,
@@ -884,10 +930,7 @@ fn expression_path<'v, 's, E: ParserError<'s>>(
             map(
                 preceded(
                     ws(tag(".")),
-                    context(
-                        "expression_member_rhs",
-                        tuple((position, identifier, position)),
-                    ),
+                    context("expression_member_rhs", (position, identifier, position)),
                 ),
                 |(ls, id, rs)| {
                     PathSegment::Prop(
@@ -897,11 +940,11 @@ fn expression_path<'v, 's, E: ParserError<'s>>(
                 },
             ),
             map(
-                tuple((
+                (
                     ws(terminated(position, tag("."))),
                     expression_with_paren,
                     position,
-                )),
+                ),
                 |(ls, expr, rs)| {
                     PathSegment::Application(
                         expr,
@@ -945,7 +988,8 @@ fn expression_path<'v, 's, E: ParserError<'s>>(
                 outer_location,
             )
         },
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_primary<'v, 's, E: ParserError<'s>>(
@@ -959,7 +1003,8 @@ fn expression_primary<'v, 's, E: ParserError<'s>>(
             expression_identifier,
             expression_unary,
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_with_paren<'v, 's, E: ParserError<'s>>(
@@ -968,7 +1013,8 @@ fn expression_with_paren<'v, 's, E: ParserError<'s>>(
     context(
         "expression_with_paren",
         delimited(tag("("), expression, tag(")")),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_unary<'v, 's, E: ParserError<'s>>(
@@ -977,7 +1023,8 @@ fn expression_unary<'v, 's, E: ParserError<'s>>(
     context(
         "expression_unary",
         alt((expression_unary_logic, expression_unary_numeric)),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_unary_logic_operator<'s, E: ParserError<'s>>(
@@ -986,7 +1033,8 @@ fn expression_unary_logic_operator<'s, E: ParserError<'s>>(
     context(
         "expression_unary_logic_operator",
         alt((value(UnaryOperator::Not, tag("!")),)),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_unary_logic<'v, 's, E: ParserError<'s>>(
@@ -1003,7 +1051,8 @@ fn expression_unary_logic<'v, 's, E: ParserError<'s>>(
                 argument: Box::new(argument),
             })
         },
-    ))(input)
+    ))
+    .parse(input)
 }
 
 fn expression_unary_numeric_operator<'s, E: ParserError<'s>>(
@@ -1015,7 +1064,8 @@ fn expression_unary_numeric_operator<'s, E: ParserError<'s>>(
             value(UnaryOperator::Minus, tag("-")),
             value(UnaryOperator::Plus, tag("+")),
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn expression_unary_numeric<'v, 's, E: ParserError<'s>>(
@@ -1032,7 +1082,8 @@ fn expression_unary_numeric<'v, 's, E: ParserError<'s>>(
                 argument: Box::new(argument),
             })
         },
-    ))(input)
+    ))
+    .parse(input)
 }
 
 pub fn expression<'v, 's, E: ParserError<'s>>(
@@ -1047,5 +1098,6 @@ pub fn expression<'v, 's, E: ParserError<'s>>(
             expression_condition,
             expression_logic_additive,
         )),
-    )(input)
+    )
+    .parse(input)
 }

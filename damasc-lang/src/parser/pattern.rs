@@ -8,7 +8,8 @@ use nom::{
     combinator::{all_consuming, map, opt, value},
     error::{context, Error},
     multi::{separated_list0, separated_list1},
-    sequence::{delimited, preceded, separated_pair, tuple},
+    sequence::{delimited, preceded, separated_pair},
+    Parser,
 };
 
 use crate::syntax::{
@@ -32,7 +33,8 @@ fn pattern_discard<'v, 's, E: ParserError<'s>>(
     context(
         "pattern_discard",
         located_pattern(value(PatternBody::Discard, tag("_"))),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn pattern_typed_discard<'v, 's, E: ParserError<'s>>(
@@ -44,7 +46,8 @@ fn pattern_typed_discard<'v, 's, E: ParserError<'s>>(
             preceded(ws(tag("_")), preceded(ws(tag(":")), literal_type_raw)),
             PatternBody::TypedDiscard,
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn pattern_identifier<'v, 's, E: ParserError<'s>>(
@@ -53,7 +56,8 @@ fn pattern_identifier<'v, 's, E: ParserError<'s>>(
     context(
         "pattern_identifier",
         located_pattern(map(identifier, PatternBody::Identifier)),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn pattern_typed_identifier<'v, 's, E: ParserError<'s>>(
@@ -65,7 +69,8 @@ fn pattern_typed_identifier<'v, 's, E: ParserError<'s>>(
             separated_pair(identifier, ws(tag(":")), literal_type_raw),
             |(i, t)| PatternBody::TypedIdentifier(i, t),
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn pattern_object_prop<'v, 's, E: ParserError<'s>>(
@@ -98,7 +103,8 @@ fn pattern_object_prop<'v, 's, E: ParserError<'s>>(
             ),
             map(identifier, ObjectPropertyPattern::Single),
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn pattern_object<'v, 's, E: ParserError<'s>>(
@@ -111,10 +117,10 @@ fn pattern_object<'v, 's, E: ParserError<'s>>(
             alt((
                 map(pattern_rest, |r| PatternBody::Object(vec![], r)),
                 map(
-                    tuple((
+                    (
                         separated_list0(ws(ws(tag(","))), pattern_object_prop),
                         opt(preceded(ws(tag(",")), opt(pattern_rest))),
-                    )),
+                    ),
                     |(props, rest)| {
                         PatternBody::Object(props, rest.flatten().unwrap_or(Rest::Exact))
                     },
@@ -122,7 +128,8 @@ fn pattern_object<'v, 's, E: ParserError<'s>>(
             )),
             ws(tag("}")),
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn pattern_rest<'v, 's, E: ParserError<'s>>(
@@ -136,31 +143,28 @@ fn pattern_rest<'v, 's, E: ParserError<'s>>(
             }),
             value(Rest::Discard, ws(tag("..."))),
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn pattern_array<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<'s, Pattern<'v>, E> {
+    let l = (
+        map(pattern_rest, |r| PatternBody::Array(vec![], r)),
+        map(
+            (
+                separated_list0(ws(tag(",")), map(pattern, ArrayPatternItem::Pattern)),
+                opt(preceded(ws(tag(",")), opt(pattern_rest))),
+            ),
+            |(items, rest)| PatternBody::Array(items, rest.flatten().unwrap_or(Rest::Exact)),
+        ),
+    );
     context(
         "pattern_array",
-        located_pattern(delimited(
-            ws(tag("[")),
-            alt((
-                map(pattern_rest, |r| PatternBody::Array(vec![], r)),
-                map(
-                    tuple((
-                        separated_list0(ws(tag(",")), map(pattern, ArrayPatternItem::Pattern)),
-                        opt(preceded(ws(tag(",")), opt(pattern_rest))),
-                    )),
-                    |(items, rest)| {
-                        PatternBody::Array(items, rest.flatten().unwrap_or(Rest::Exact))
-                    },
-                ),
-            )),
-            ws(tag("]")),
-        )),
-    )(input)
+        located_pattern(delimited(ws(tag("[")), alt(l), ws(tag("]")))),
+    )
+    .parse(input)
 }
 
 fn pattern_capture<'v, 's, E: ParserError<'s>>(
@@ -181,7 +185,8 @@ fn pattern_capture<'v, 's, E: ParserError<'s>>(
             ),
             |(id, pat)| PatternBody::Capture(id, Box::new(pat)),
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn pattern_atom<'v, 's, E: ParserError<'s>>(
@@ -190,7 +195,8 @@ fn pattern_atom<'v, 's, E: ParserError<'s>>(
     context(
         "pattern_atom",
         located_pattern(map(literal, PatternBody::Literal)),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn pattern_pinned_expression<'v, 's, E: ParserError<'s>>(
@@ -208,7 +214,8 @@ fn pattern_pinned_expression<'v, 's, E: ParserError<'s>>(
             ),
             |expr| PatternBody::PinnedExpression(Box::new(expr)),
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn pattern<'v, 's, E: ParserError<'s>>(
@@ -227,11 +234,12 @@ pub fn pattern<'v, 's, E: ParserError<'s>>(
             pattern_discard,
             pattern_object,
         )),
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn pattern_all_consuming<'v>(input: &str) -> Option<Pattern<'v>> {
-    match all_consuming(pattern::<Error<ParserInput>>)(ParserInput::new(input)) {
+    match all_consuming(pattern::<Error<ParserInput>>).parse(ParserInput::new(input)) {
         Ok((_, r)) => Some(r),
         Err(_) => None,
     }
@@ -246,7 +254,8 @@ pub fn many0_pattern<'v, 's, E: ParserError<'s>>(
             PatternSet { patterns }
         }),
         ws(opt(tag(";"))),
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn many1_pattern<'v, 's, E: ParserError<'s>>(
@@ -258,5 +267,6 @@ pub fn many1_pattern<'v, 's, E: ParserError<'s>>(
             PatternSet { patterns }
         }),
         ws(opt(tag(";"))),
-    )(input)
+    )
+    .parse(input)
 }

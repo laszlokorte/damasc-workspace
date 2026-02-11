@@ -31,7 +31,7 @@ fn main() {
                 Ok(expr) => println!("{}: {}", "Success".fg(Color::Green), expr),
                 Err(errs) => {
                     errs.into_iter().for_each(|e| {
-                        Report::build(ReportKind::Error, "Inline", e.span().start)
+                        Report::build(ReportKind::Error, ("1", e.span().into_range()))
                             .with_code("Parse Error")
                             .with_message(e.to_string())
                             .with_label(
@@ -88,7 +88,7 @@ fn main() {
                 Ok(expr) => println!("{}: {}", "Success".fg(Color::Green), expr),
                 Err(errs) => {
                     errs.into_iter().for_each(|e| {
-                        Report::build(ReportKind::Error, "Inline", e.span().start)
+                        Report::build(ReportKind::Error, ("REPL", e.span().into_range()))
                             .with_code("Parse Error")
                             .with_message(e.to_string())
                             .with_label(

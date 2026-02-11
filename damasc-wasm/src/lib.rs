@@ -50,7 +50,7 @@ impl WasmRepl {
             Ok(cmd) => cmd,
             Err(errs) => {
                 errs.into_iter().for_each(|e| {
-                    Report::build(ReportKind::Error, "Inline", e.span().start)
+                    Report::build(ReportKind::Error, ("REPL", e.span().start..e.span().end))
                         .with_config(Config::default().with_color(false))
                         .with_code("Parse Error")
                         .with_message(e.to_string())

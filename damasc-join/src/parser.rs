@@ -21,7 +21,8 @@ use nom::{
     combinator::{all_consuming, map, opt, value},
     error::Error,
     multi::{fold_many0, many0},
-    sequence::{delimited, pair, preceded, separated_pair, tuple},
+    sequence::{delimited, pair, preceded, separated_pair},
+    Parser,
 };
 
 use crate::{
@@ -48,13 +49,15 @@ pub fn bag_bundle<'v, 's, E: ParserError<'s>>(
                 Ok(h)
             })
         },
-    )(input)?;
+    )
+    .parse(input)?;
 
     bags.map(|bags| (leftover, BagBundle { bags }))
 }
 
 pub fn bag_bundle_all_consuming(bundle_string: &str) -> Option<BagBundle<'_, '_>> {
-    match all_consuming(ws(bag_bundle::<Error<ParserInput>>))(ParserInput::new(bundle_string)) {
+    match all_consuming(ws(bag_bundle::<Error<ParserInput>>)).parse(ParserInput::new(bundle_string))
+    {
         Ok((_, r)) => Some(r),
         Err(_) => None,
     }
@@ -66,7 +69,8 @@ fn join_source<'v, 's, E: ParserError<'s>>(
     alt((
         map(preceded(tag("$"), identifier), JoinSource::Named),
         map(preceded(tag("$!"), value_bag), JoinSource::Constant),
-    ))(input)
+    ))
+    .parse(input)
 }
 
 fn join_sink<'v, 's, E: ParserError<'s>>(
@@ -75,16 +79,18 @@ fn join_sink<'v, 's, E: ParserError<'s>>(
     alt((
         map(preceded(tag("$"), identifier), JoinSink::Named),
         value(JoinSink::Print, preceded(tag("$!"), ws(tag("print")))),
-    ))(input)
+    ))
+    .parse(input)
 }
 
 fn join<'v, 's, E: ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<'s, Join<'s, 's>, E> {
-    let (rest, (ins, outs, assigns, guard)) = ws(tuple((
+    let (rest, (ins, outs, assigns, guard)) = ws((
         many0(separated_pair(join_source, ws(tag(">>")), multi_predicate)),
         many0(separated_pair(join_sink, ws(tag("<<")), expression_many1)),
         opt(preceded(ws(tag("with ")), assignment_set1)),
         opt(preceded(ws(tag("guard ")), expression)),
-    )))(input)?;
+    ))
+    .parse(input)?;
 
     Ok((
         rest,
@@ -116,7 +122,7 @@ fn join<'v, 's, E: ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<'s, 
 }
 
 pub fn join_all_consuming(bundle_string: &str) -> Option<Join<'_, '_>> {
-    match all_consuming(join::<Error<ParserInput>>)(ParserInput::new(bundle_string)) {
+    match all_consuming(join::<Error<ParserInput>>).parse(ParserInput::new(bundle_string)) {
         Ok((_, r)) => Some(r),
         Err(e) => {
             dbg!(e);

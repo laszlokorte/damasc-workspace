@@ -17,7 +17,10 @@ pub(crate) fn print_error(input: &str, e: ReplError) {
                 return;
             };
 
-            let builder = Report::build(ReportKind::Error, "REPL", source_location.start);
+            let builder = Report::build(
+                ReportKind::Error,
+                source_location.start..source_location.end,
+            );
 
             let builder = builder.with_code("Evaluation");
 
@@ -69,15 +72,12 @@ pub(crate) fn print_error(input: &str, e: ReplError) {
             });
 
             let builder = builder.with_label(
-                Label::new(("REPL", source_location.start..(source_location.end)))
+                Label::new(source_location.start..(source_location.end))
                     .with_message("This expression failed to evaluate.")
                     .with_color(a),
             );
 
-            builder
-                .finish()
-                .print(("REPL", Source::from(input)))
-                .unwrap();
+            builder.finish().print(Source::from(input)).unwrap();
         }
         ReplError::MatchError(pattern_fail) => {
             let Some(source_location) = pattern_fail.location else {
@@ -85,7 +85,10 @@ pub(crate) fn print_error(input: &str, e: ReplError) {
                 return;
             };
 
-            let builder = Report::build(ReportKind::Error, "REPL", source_location.start);
+            let builder = Report::build(
+                ReportKind::Error,
+                source_location.start..source_location.end,
+            );
 
             let builder = builder.with_code("Matching");
 
@@ -102,19 +105,16 @@ pub(crate) fn print_error(input: &str, e: ReplError) {
             });
 
             let builder = builder.with_label(
-                Label::new(("REPL", source_location.start..(source_location.end)))
+                Label::new(source_location.start..(source_location.end))
                     .with_message("This pattern failed to match.")
                     .with_color(a),
             );
 
-            builder
-                .finish()
-                .print(("REPL", Source::from(input)))
-                .unwrap();
+            builder.finish().print(Source::from(input)).unwrap();
         }
         ReplError::TopologyError(cycle) => {
             let builder: ReportBuilder<(&str, Range<usize>)> =
-                Report::build(ReportKind::Error, "REPL", 0);
+                Report::build(ReportKind::Error, ("REPL", 0..0));
 
             let builder = builder.with_code("Topology");
 

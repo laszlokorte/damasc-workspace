@@ -18,10 +18,11 @@ use nom::{
     error::{context, Error},
     multi::{separated_list0, separated_list1},
     sequence::{delimited, separated_pair, terminated},
+    Parser,
 };
 
 pub fn single_value<'v>(input: &str) -> Option<Value<'_, 'v>> {
-    match all_consuming(value_literal::<Error<ParserInput>>)(ParserInput::new(input)) {
+    match all_consuming(value_literal::<Error<ParserInput>>).parse(ParserInput::new(input)) {
         Ok((_, r)) => Some(r),
         Err(_) => None,
     }
@@ -36,11 +37,12 @@ pub fn value_bag<'v, 's, E: ParserError<'s>>(
             ValueBag::new(values)
         }),
         alt((ws(tag(";")), space0)),
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn value_bag_all_consuming<'v>(input: &str) -> Option<ValueBag<'_, 'v>> {
-    match all_consuming(value_bag::<Error<_>>)(ParserInput::new(input)) {
+    match all_consuming(value_bag::<Error<_>>).parse(ParserInput::new(input)) {
         Ok((_, r)) => Some(r),
         Err(_) => None,
     }
@@ -62,7 +64,8 @@ fn value_array<'v, 's, E: ParserError<'s>>(
             ),
             ws(tag("]")),
         ),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn value_object<'v, 's, E: ParserError<'s>>(
@@ -91,7 +94,8 @@ fn value_object<'v, 's, E: ParserError<'s>>(
             ),
             |props| Value::Object(props.into_iter().collect()),
         ),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn value_literal<'v, 's, E: ParserError<'s>>(
@@ -100,7 +104,8 @@ fn value_literal<'v, 's, E: ParserError<'s>>(
     context(
         "value_literal",
         alt((value_object, value_array, value_literal_atom)),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn value_literal_atom<'v, 's, E: ParserError<'s>>(
@@ -115,5 +120,6 @@ fn value_literal_atom<'v, 's, E: ParserError<'s>>(
             Literal::Boolean(b) => Value::Boolean(b),
             Literal::Type(t) => Value::Type(t),
         }),
-    )(input)
+    )
+    .parse(input)
 }

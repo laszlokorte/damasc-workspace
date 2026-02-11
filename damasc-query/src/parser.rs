@@ -14,11 +14,12 @@ use damasc_lang::{
         pattern::{Pattern, PatternSet},
     },
 };
+use nom::Parser;
 use nom::{
     bytes::complete::tag,
     combinator::{all_consuming, map, opt},
     error::{context, Error},
-    sequence::{delimited, pair, preceded, tuple},
+    sequence::{delimited, pair, preceded},
 };
 
 use crate::{
@@ -32,27 +33,29 @@ pub fn query_bag<'x, 's, E: ParserError<'s>>(
     context(
         "query_bag",
         delimited(ws(tag(r"{")), expression_many1, ws(tag(r"}"))),
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn query_bag_allow_empty(input: ParserInput) -> ParserResult<ExpressionSet> {
     context(
         "query_bag_allow_empty",
         delimited(ws(tag(r"{")), expression_many0, ws(tag(r"}"))),
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn multi_predicate<'x, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
 ) -> ParserResult<'s, MultiPredicate<'x>, E> {
     map(
-        tuple((
+        (
             context("query_projection_capture", ws(many1_pattern)),
             opt(preceded(
                 ws(tag("where")),
                 context("query_projection_guard", ws(expression)),
             )),
-        )),
+        ),
         |(pattern_set, guard)| MultiPredicate {
             capture: MultiCapture {
                 patterns: pattern_set,
@@ -61,7 +64,8 @@ pub fn multi_predicate<'x, 's, E: ParserError<'s>>(
                 true,
             )))),
         },
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn projection<'x, 's, E: ParserError<'s>>(
@@ -72,7 +76,7 @@ pub fn projection<'x, 's, E: ParserError<'s>>(
         map(
             preceded(
                 ws(tag("|>")),
-                tuple((
+                (
                     opt(preceded(
                         ws(tag("map")),
                         context("query_projection_capture", ws(many1_pattern)),
@@ -85,7 +89,7 @@ pub fn projection<'x, 's, E: ParserError<'s>>(
                         ws(tag("into")),
                         context("query_projection_expression", ws(expression_many1)),
                     )),
-                )),
+                ),
             ),
             |(patterns, guard, proj)| {
                 let pats = patterns.unwrap_or(PatternSet {
@@ -126,7 +130,8 @@ pub fn projection<'x, 's, E: ParserError<'s>>(
                 }
             },
         ),
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn transformation<'a, 'b, 's, E: ParserError<'s>>(
@@ -140,25 +145,26 @@ pub fn transformation<'a, 'b, 's, E: ParserError<'s>>(
                 projection: projection.unwrap_or_default(),
             }
         }),
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn transformation_all_consuming<'a, 'b>(input: &str) -> Option<Transformation<'a, 'b>> {
-    match all_consuming(transformation::<Error<ParserInput>>)(ParserInput::new(input)) {
+    match all_consuming(transformation::<Error<ParserInput>>).parse(ParserInput::new(input)) {
         Ok((_, r)) => Some(r),
         Err(_e) => None,
     }
 }
 
 pub fn query_bag_all_consuming(input: ParserInput) -> Option<ExpressionSet> {
-    match all_consuming(query_bag::<Error<ParserInput>>)(input) {
+    match all_consuming(query_bag::<Error<ParserInput>>).parse(input) {
         Ok((_, r)) => Some(r),
         Err(_e) => None,
     }
 }
 
 pub fn query_bag_allow_empty_all_consuming(input: &str) -> Option<ExpressionSet<'_>> {
-    match all_consuming(query_bag_allow_empty)(ParserInput::new(input)) {
+    match all_consuming(query_bag_allow_empty).parse(ParserInput::new(input)) {
         Ok((_, r)) => Some(r),
         Err(_e) => None,
     }

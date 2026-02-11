@@ -15,4 +15,4 @@ damasc-lang = { path = "../damasc-lang" }
 damasc-repl = {path="../damasc-repl"}
 damasc-grammar = {path="../damasc-grammar"}
 chumsky = {version = "1.0.0-alpha.0", features = ["label"]}
-ariadne = "0.4.0"
+ariadne = "0.6.0"

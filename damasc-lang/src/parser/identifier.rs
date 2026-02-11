@@ -8,6 +8,7 @@ use nom::{
     error::context,
     multi::{many0_count, many1_count},
     sequence::{pair, preceded},
+    Parser,
 };
 
 use crate::identifier::Identifier;
@@ -27,7 +28,8 @@ fn identifier_name<'e, E: ParserError<'e>>(
     recognize(alt((
         pair(alpha1, many0_count(alt((alphanumeric1, tag("_"))))),
         pair(tag("_"), many1_count(alt((alphanumeric1, tag("_"))))),
-    )))(input)
+    )))
+    .parse(input)
 }
 
 fn identifier_no_keyword<'v, 'e, E: ParserError<'e>>(
@@ -38,7 +40,8 @@ fn identifier_no_keyword<'v, 'e, E: ParserError<'e>>(
         map(verify(identifier_name, no_keyword), |name| Identifier {
             name: Cow::Owned(name.fragment().to_owned().to_owned()),
         }),
-    )(input)
+    )
+    .parse(input)
 }
 
 fn identifier_raw<'v, 'e, E: ParserError<'e>>(
@@ -51,11 +54,12 @@ fn identifier_raw<'v, 'e, E: ParserError<'e>>(
                 name: Cow::Owned(name.to_string()),
             }
         }),
-    )(input)
+    )
+    .parse(input)
 }
 
 pub fn identifier<'v, 'e, E: ParserError<'e>>(
     input: ParserInput<'e>,
 ) -> ParserResult<'e, Identifier<'v>, E> {
-    context("identifier", alt((identifier_raw, identifier_no_keyword)))(input)
+    context("identifier", alt((identifier_raw, identifier_no_keyword))).parse(input)
 }
