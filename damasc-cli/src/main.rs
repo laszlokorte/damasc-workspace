@@ -29,7 +29,7 @@ fn main() -> rustyline::Result<()> {
         let readline = rl.readline(">> ");
         match readline {
             Ok(line) => {
-                rl.add_history_entry(line.as_str());
+                let _ = rl.add_history_entry(line.as_str());
 
                 let repl_parser = single_command();
                 let cmd = match repl_parser.parse(&line).into_result() {
