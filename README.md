@@ -17,7 +17,7 @@ cargo run --bin damasc-cli
 ### Run HTTP Server
 
 ```shell
-cargo run --bin damasc-http
+DAMASC_PORT=9090 cargo run --bin damasc-http
 ```
 
 ### Run as WASM in Browser
