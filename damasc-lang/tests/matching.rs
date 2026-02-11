@@ -1,6 +1,6 @@
 #![feature(assert_matches)]
 
-use core::assert_matches::assert_matches;
+use core::assert_matches;
 use damasc_lang::parser;
 use damasc_lang::runtime::assignment::AssignmentEvaluation;
 use damasc_lang::runtime::env::Environment;

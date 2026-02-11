@@ -105,7 +105,7 @@ impl<'s, 'v> std::fmt::Display for Value<'s, 'v> {
             Value::Object(o) => {
                 let _ = write!(f, "{{");
                 for (k, v) in o {
-                    if k.chars().next().map_or(false, |c| c.is_alphabetic())
+                    if k.chars().next().is_some_and(|c| c.is_alphabetic())
                         && k.chars().all(|x| x.is_alphanumeric())
                     {
                         write!(f, "{}: {v},", k)?;
@@ -168,7 +168,7 @@ impl<'s, 'v> LambdaBinding<'s, 'v> {
         self.bindings.clear();
     }
 
-    pub fn identifiers(&self) -> std::collections::HashSet<&Identifier> {
+    pub fn identifiers(&self) -> std::collections::HashSet<&Identifier<'_>> {
         self.bindings.keys().collect()
     }
 

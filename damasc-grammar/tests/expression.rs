@@ -1,6 +1,6 @@
 #![feature(assert_matches)]
 use chumsky::Parser;
-use core::assert_matches::assert_matches;
+use core::assert_matches;
 use damasc_grammar::expression::single_expression;
 
 #[test]

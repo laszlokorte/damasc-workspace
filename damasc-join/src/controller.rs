@@ -20,7 +20,7 @@ impl<'s, 'v> Controller<'s, 'v> {
     pub fn query<'x: 's, 'slf: 's>(
         &'slf self,
         join: &'x Join<'s, 'v>,
-    ) -> impl Iterator<Item = Transaction<'_, '_>> {
+    ) -> impl Iterator<Item = Transaction<'slf, 'slf>> {
         use itertools::Itertools;
 
         join.input

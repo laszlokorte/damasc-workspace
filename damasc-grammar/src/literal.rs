@@ -59,7 +59,8 @@ pub fn single_type_literal<'s>() -> impl Parser<'s, &'s str, ValueType, extra::E
     .boxed()
 }
 
-pub fn single_literal<'s, 'x>() -> impl Parser<'s, &'s str, Literal<'x>, extra::Err<Rich<'s, char>>> {
+pub fn single_literal<'s, 'x>() -> impl Parser<'s, &'s str, Literal<'x>, extra::Err<Rich<'s, char>>>
+{
     let integer = just('-')
         .or_not()
         .then(text::int(10))

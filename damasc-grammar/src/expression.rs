@@ -1,4 +1,3 @@
-use damasc_lang::syntax::expression::ExpressionSet;
 use crate::pattern::decl_single_pattern;
 use chumsky::recursive::Indirect;
 use damasc_lang::identifier::Identifier;
@@ -8,6 +7,7 @@ use damasc_lang::syntax::expression::BinaryExpression;
 use damasc_lang::syntax::expression::BinaryOperator;
 use damasc_lang::syntax::expression::CallExpression;
 use damasc_lang::syntax::expression::ComprehensionSource;
+use damasc_lang::syntax::expression::ExpressionSet;
 use damasc_lang::syntax::expression::LambdaApplication;
 use damasc_lang::syntax::expression::LogicalExpression;
 use damasc_lang::syntax::expression::LogicalOperator;
@@ -44,28 +44,37 @@ use chumsky::Parser;
 
 use chumsky::prelude::*;
 
-type ExpressionParserDelc<'s,'a,'b> = (
+type ExpressionParserDelc<'s, 'a, 'b> = (
     Boxed<'s, 's, &'s str, Expression<'a>, extra::Err<Rich<'s, char>>>,
     Recursive<Indirect<'s, 's, &'s str, Pattern<'b>, extra::Err<Rich<'s, char>>>>,
 );
 
-pub fn expression_set<'s,'x>(
+pub fn expression_set<'s, 'x>(
 ) -> impl Parser<'s, &'s str, ExpressionSet<'x>, extra::Err<Rich<'s, char>>> {
-	single_expression().map(|e| e.deep_clone()).separated_by(just(";").padded().recover_with(skip_then_retry_until(
-        any().ignored(),
-        choice((just(";"), just("with"))).padded().ignored(),
-    ))).collect().map(|expressions| ExpressionSet {expressions})
+    single_expression()
+        .map(|e| e.deep_clone())
+        .separated_by(just(";").padded().recover_with(skip_then_retry_until(
+            any().ignored(),
+            choice((just(";"), just("with"))).padded().ignored(),
+        )))
+        .collect()
+        .map(|expressions| ExpressionSet { expressions })
 }
 
-pub fn expression_set_non_empty<'s,'x>(
+pub fn expression_set_non_empty<'s, 'x>(
 ) -> impl Parser<'s, &'s str, ExpressionSet<'x>, extra::Err<Rich<'s, char>>> {
-	single_expression().map(|e| e.deep_clone()).separated_by(just(";").padded().recover_with(skip_then_retry_until(
-        any().ignored(),
-        choice((just(";"), just("with"))).padded().ignored(),
-    ))).at_least(1).collect().map(|expressions| ExpressionSet {expressions})
+    single_expression()
+        .map(|e| e.deep_clone())
+        .separated_by(just(";").padded().recover_with(skip_then_retry_until(
+            any().ignored(),
+            choice((just(";"), just("with"))).padded().ignored(),
+        )))
+        .at_least(1)
+        .collect()
+        .map(|expressions| ExpressionSet { expressions })
 }
 
-pub fn single_expression<'s,'x>(
+pub fn single_expression<'s, 'x>(
 ) -> impl Parser<'s, &'s str, Expression<'x>, extra::Err<Rich<'s, char>>> {
     let (single_pat, mut expr_decl) = decl_single_pattern();
     let (single_expr, mut pat_decl) = decl_single_expression();
@@ -73,13 +82,15 @@ pub fn single_expression<'s,'x>(
     expr_decl.define(single_expr.clone());
     pat_decl.define(single_pat.clone());
 
-    single_expr.map(|e| e.deep_clone()).recover_with(skip_then_retry_until(
-        any().ignored(),
-        choice((just(";"), just("with"))).padded().ignored(),
-    ))
+    single_expr
+        .map(|e| e.deep_clone())
+        .recover_with(skip_then_retry_until(
+            any().ignored(),
+            choice((just(";"), just("with"))).padded().ignored(),
+        ))
 }
 
-pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s, 's,'s> {
+pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s, 's, 's> {
     let pattern_declaration = Recursive::declare();
 
     let expression_declaration = recursive(|expression| {
@@ -755,7 +766,8 @@ pub(crate) fn decl_single_expression<'s>() -> ExpressionParserDelc<'s, 's,'s> {
             .boxed();
 
         logic_add.padded()
-    }).boxed();
+    })
+    .boxed();
 
     (expression_declaration, pattern_declaration)
 }

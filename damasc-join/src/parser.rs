@@ -32,7 +32,7 @@ use crate::{
 
 pub fn bag_bundle<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<BagBundle<'_, '_>, E> {
+) -> ParserResult<'s, BagBundle<'s, 's>, E> {
     let (leftover, bags) = fold_many0(
         pair(
             ws(delimited(tag("$"), identifier::identifier, tag(":"))),
@@ -62,21 +62,23 @@ pub fn bag_bundle_all_consuming(bundle_string: &str) -> Option<BagBundle<'_, '_>
 
 fn join_source<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<JoinSource<'_, '_>, E> {
+) -> ParserResult<'s, JoinSource<'s, 's>, E> {
     alt((
         map(preceded(tag("$"), identifier), JoinSource::Named),
         map(preceded(tag("$!"), value_bag), JoinSource::Constant),
     ))(input)
 }
 
-fn join_sink<'v, 's, E: ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<JoinSink<'_>, E> {
+fn join_sink<'v, 's, E: ParserError<'s>>(
+    input: ParserInput<'s>,
+) -> ParserResult<'s, JoinSink<'s>, E> {
     alt((
         map(preceded(tag("$"), identifier), JoinSink::Named),
         value(JoinSink::Print, preceded(tag("$!"), ws(tag("print")))),
     ))(input)
 }
 
-fn join<'v, 's, E: ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Join<'_, '_>, E> {
+fn join<'v, 's, E: ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<'s, Join<'s, 's>, E> {
     let (rest, (ins, outs, assigns, guard)) = ws(tuple((
         many0(separated_pair(join_source, ws(tag(">>")), multi_predicate)),
         many0(separated_pair(join_sink, ws(tag("<<")), expression_many1)),

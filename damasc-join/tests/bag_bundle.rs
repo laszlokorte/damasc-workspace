@@ -1,6 +1,6 @@
 #![feature(assert_matches)]
 
-use std::assert_matches::assert_matches;
+use std::assert_matches;
 
 use damasc_join::parser;
 use damasc_lang::identifier::Identifier;

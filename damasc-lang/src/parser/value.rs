@@ -29,7 +29,7 @@ pub fn single_value<'v>(input: &str) -> Option<Value<'_, 'v>> {
 
 pub fn value_bag<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<ValueBag<'s, 'v>, E> {
+) -> ParserResult<'s, ValueBag<'s, 'v>, E> {
     delimited(
         space0,
         map(separated_list1(ws(tag(";")), value_literal), |values| {
@@ -48,7 +48,7 @@ pub fn value_bag_all_consuming<'v>(input: &str) -> Option<ValueBag<'_, 'v>> {
 
 fn value_array<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<Value<'s, 'v>, E> {
+) -> ParserResult<'s, Value<'s, 'v>, E> {
     context(
         "value_array",
         delimited(
@@ -67,7 +67,7 @@ fn value_array<'v, 's, E: ParserError<'s>>(
 
 fn value_object<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<Value<'s, 'v>, E> {
+) -> ParserResult<'s, Value<'s, 'v>, E> {
     context(
         "value_object",
         map(
@@ -96,7 +96,7 @@ fn value_object<'v, 's, E: ParserError<'s>>(
 
 fn value_literal<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<Value<'s, 'v>, E> {
+) -> ParserResult<'s, Value<'s, 'v>, E> {
     context(
         "value_literal",
         alt((value_object, value_array, value_literal_atom)),
@@ -105,7 +105,7 @@ fn value_literal<'v, 's, E: ParserError<'s>>(
 
 fn value_literal_atom<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<Value<'_, 'v>, E> {
+) -> ParserResult<'s, Value<'s, 'v>, E> {
     context(
         "value_lteral_atom",
         map(literal, |l| match l {

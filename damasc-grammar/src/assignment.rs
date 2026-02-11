@@ -12,7 +12,7 @@ use damasc_lang::syntax::assignment::AssignmentSet;
 
 use chumsky::Parser;
 
-pub fn single_assignment<'s,'a,'b>(
+pub fn single_assignment<'a>(
 ) -> impl Parser<'a, &'a str, Assignment<'a, 'a>, extra::Err<Rich<'a, char>>> {
     let (single_pat, mut expr_decl) = decl_single_pattern();
     let (single_expr, mut pat_decl) = decl_single_expression();
@@ -20,7 +20,8 @@ pub fn single_assignment<'s,'a,'b>(
     expr_decl.define(single_expr.clone());
     pat_decl.define(single_pat.clone());
 
-    single_pat.padded()
+    single_pat
+        .padded()
         .labelled("pattern")
         .as_context()
         .then_ignore(just("=").padded())
@@ -33,7 +34,7 @@ pub fn single_assignment<'s,'a,'b>(
         .as_context()
 }
 
-pub fn assignment_set<'s,'a,'b>(
+pub fn assignment_set<'s, 'a, 'b>(
 ) -> impl Parser<'s, &'s str, AssignmentSet<'a, 'b>, extra::Err<Rich<'s, char>>> {
     single_assignment()
         .separated_by(just(';').padded().recover_with(skip_then_retry_until(
@@ -45,10 +46,10 @@ pub fn assignment_set<'s,'a,'b>(
         .map(|assignments| AssignmentSet { assignments })
         .labelled("assignment_set")
         .as_context()
-        .map(move |a|a.deep_clone())
+        .map(move |a| a.deep_clone())
 }
 
-pub fn assignment_set_non_empty<'s,'a,'b>(
+pub fn assignment_set_non_empty<'s, 'a, 'b>(
 ) -> impl Parser<'s, &'s str, AssignmentSet<'a, 'b>, extra::Err<Rich<'s, char>>> {
     single_assignment()
         .separated_by(just(';').padded().recover_with(skip_then_retry_until(
@@ -61,5 +62,5 @@ pub fn assignment_set_non_empty<'s,'a,'b>(
         .map(|assignments| AssignmentSet { assignments })
         .labelled("assignment_set")
         .as_context()
-        .map(move |a|a.deep_clone())
+        .map(move |a| a.deep_clone())
 }

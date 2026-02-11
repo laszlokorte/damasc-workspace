@@ -12,7 +12,7 @@ impl<'i, 's, 'v> Environment<'i, 's, 'v> {
         self.bindings.clear();
     }
 
-    pub fn identifiers(&self) -> std::collections::HashSet<&Identifier> {
+    pub fn identifiers(&self) -> std::collections::HashSet<&Identifier<'_>> {
         self.bindings.keys().collect()
     }
 

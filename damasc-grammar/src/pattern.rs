@@ -1,4 +1,3 @@
-use damasc_lang::syntax::pattern::PatternSet;
 use crate::expression::decl_single_expression;
 use crate::identifier::single_identifier;
 use crate::literal::single_string_literal;
@@ -13,6 +12,7 @@ use damasc_lang::syntax::pattern::ArrayPatternItem;
 use damasc_lang::syntax::pattern::ObjectPropertyPattern;
 use damasc_lang::syntax::pattern::Pattern;
 use damasc_lang::syntax::pattern::PatternBody;
+use damasc_lang::syntax::pattern::PatternSet;
 use damasc_lang::syntax::pattern::PropertyPattern;
 use damasc_lang::syntax::pattern::Rest;
 
@@ -25,29 +25,32 @@ use chumsky::Parser;
 
 use chumsky::prelude::*;
 
-type ExpressionParserDelc<'s,'a> = (
+type ExpressionParserDelc<'s, 'a> = (
     Boxed<'s, 's, &'s str, Pattern<'a>, extra::Err<Rich<'s, char>>>,
     Recursive<Indirect<'s, 's, &'s str, Expression<'a>, extra::Err<Rich<'s, char>>>>,
 );
 
-
-
-pub fn pattern_set<'s>(
-) -> impl Parser<'s, &'s str, PatternSet<'s>, extra::Err<Rich<'s, char>>> {
-	single_pattern().separated_by(just(';').padded().recover_with(skip_then_retry_until(
-        any().ignored(),
-        one_of(";").ignored(),
-    ))).collect().map(move |patterns| PatternSet {patterns})
+pub fn pattern_set<'s>() -> impl Parser<'s, &'s str, PatternSet<'s>, extra::Err<Rich<'s, char>>> {
+    single_pattern()
+        .separated_by(just(';').padded().recover_with(skip_then_retry_until(
+            any().ignored(),
+            one_of(";").ignored(),
+        )))
+        .collect()
+        .map(move |patterns| PatternSet { patterns })
 }
 
 pub fn pattern_set_non_empty<'s>(
 ) -> impl Parser<'s, &'s str, PatternSet<'s>, extra::Err<Rich<'s, char>>> {
-	single_pattern().separated_by(just(';').padded().recover_with(skip_then_retry_until(
-        any().ignored(),
-        one_of(";").ignored(),
-    ))).at_least(1).collect().map(move |patterns| PatternSet {patterns})
+    single_pattern()
+        .separated_by(just(';').padded().recover_with(skip_then_retry_until(
+            any().ignored(),
+            one_of(";").ignored(),
+        )))
+        .at_least(1)
+        .collect()
+        .map(move |patterns| PatternSet { patterns })
 }
-
 
 pub fn single_pattern<'s>() -> impl Parser<'s, &'s str, Pattern<'s>, extra::Err<Rich<'s, char>>> {
     let (single_pat, mut expr_decl) = decl_single_pattern();
@@ -56,10 +59,10 @@ pub fn single_pattern<'s>() -> impl Parser<'s, &'s str, Pattern<'s>, extra::Err<
     expr_decl.define(single_expr.clone());
     pat_decl.define(single_pat.clone());
 
-    single_pat.map(move |p|p.clone())
+    single_pat.map(move |p| p.clone())
 }
 
-pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s,'s> {
+pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s, 's> {
     let expression_declaration = Recursive::declare();
 
     let pattern_declartion = recursive(|pattern| {
@@ -74,7 +77,7 @@ pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s,'s> {
 
         let discard = just("_")
             .ignore_then(
-                just("is")
+                just(":")
                     .padded()
                     .ignore_then(single_type_literal())
                     .or_not(),
@@ -106,7 +109,7 @@ pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s,'s> {
             .boxed();
 
         let typed_identifier = single_identifier()
-            .then(just("is").padded().ignore_then(single_type_literal()))
+            .then(just(":").padded().ignore_then(single_type_literal()))
             .map_with(move |(id, value_type), meta| {
                 Pattern::new_with_location(
                     PatternBody::TypedIdentifier(id, value_type),
@@ -240,9 +243,9 @@ pub(crate) fn decl_single_pattern<'s>() -> ExpressionParserDelc<'s,'s> {
 
         choice((
             literal,
+            typed_identifier,
             capture,
             discard,
-            typed_identifier,
             pinned,
             array,
             object,

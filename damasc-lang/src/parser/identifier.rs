@@ -21,7 +21,9 @@ fn no_keyword(input: &ParserInput) -> bool {
     )
 }
 
-fn identifier_name<'e, E: ParserError<'e>>(input: ParserInput<'e>) -> ParserResult<ParserInput, E> {
+fn identifier_name<'e, E: ParserError<'e>>(
+    input: ParserInput<'e>,
+) -> ParserResult<'e, ParserInput<'e>, E> {
     recognize(alt((
         pair(alpha1, many0_count(alt((alphanumeric1, tag("_"))))),
         pair(tag("_"), many1_count(alt((alphanumeric1, tag("_"))))),
@@ -30,7 +32,7 @@ fn identifier_name<'e, E: ParserError<'e>>(input: ParserInput<'e>) -> ParserResu
 
 fn identifier_no_keyword<'v, 'e, E: ParserError<'e>>(
     input: ParserInput<'e>,
-) -> ParserResult<Identifier<'v>, E> {
+) -> ParserResult<'e, Identifier<'v>, E> {
     context(
         "identifier_plain",
         map(verify(identifier_name, no_keyword), |name| Identifier {
@@ -41,7 +43,7 @@ fn identifier_no_keyword<'v, 'e, E: ParserError<'e>>(
 
 fn identifier_raw<'v, 'e, E: ParserError<'e>>(
     input: ParserInput<'e>,
-) -> ParserResult<Identifier<'v>, E> {
+) -> ParserResult<'e, Identifier<'v>, E> {
     context(
         "identifier_raw",
         map(preceded(tag("#"), identifier_name), |name: ParserInput| {
@@ -54,6 +56,6 @@ fn identifier_raw<'v, 'e, E: ParserError<'e>>(
 
 pub fn identifier<'v, 'e, E: ParserError<'e>>(
     input: ParserInput<'e>,
-) -> ParserResult<Identifier<'v>, E> {
+) -> ParserResult<'e, Identifier<'v>, E> {
     context("identifier", alt((identifier_raw, identifier_no_keyword)))(input)
 }

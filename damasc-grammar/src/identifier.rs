@@ -24,7 +24,8 @@ pub fn single_identifier<'s, 'x>(
         })
         .or(just("#").ignore_then(ident()))
         .to_slice()
-        .map(|ident:&str| Identifier::new_owned(ident.to_string()))
-        .or(just("#").ignore_then(single_string_literal()).map(|ident| Identifier::new_owned(ident.to_string())))
-        
+        .map(|ident: &str| Identifier::new_owned(ident.to_string()))
+        .or(just("#")
+            .ignore_then(single_string_literal())
+            .map(|ident| Identifier::new_owned(ident.to_string())))
 }

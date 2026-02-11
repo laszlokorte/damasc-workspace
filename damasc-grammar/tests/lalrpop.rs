@@ -1,16 +1,16 @@
 #![feature(assert_matches)]
-use core::assert_matches::assert_matches;
-use damasc_grammar::experiment::lexer::Lexer;
+use core::assert_matches;
 use damasc_grammar::experiment::grammar::ExpressionParser;
+use damasc_grammar::experiment::lexer::Lexer;
 
 #[test]
 fn foo() {
-  let source_code = "5+(5*5)";
-  let lexer = Lexer::new(&source_code[..]);
-  let parser = ExpressionParser::new();
-  let ast = parser.parse(lexer);
+    let source_code = "5+(5*5)";
+    let lexer = Lexer::new(&source_code[..]);
+    let parser = ExpressionParser::new();
+    let ast = parser.parse(lexer);
 
-  dbg!(&ast);
+    dbg!(&ast);
 
-  assert_matches!(ast, Ok(_));
+    assert_matches!(ast, Ok(_));
 }

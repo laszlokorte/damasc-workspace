@@ -19,7 +19,7 @@ use super::{
 
 pub fn assignment_set0<'v, 'w, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<AssignmentSet<'v, 'w>, E> {
+) -> ParserResult<'s, AssignmentSet<'v, 'w>, E> {
     context(
         "assignment_set",
         map(
@@ -43,7 +43,7 @@ pub fn assignment_set0<'v, 'w, 's, E: ParserError<'s>>(
 
 pub fn assignment_set1<'v, 'w, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<AssignmentSet<'v, 'w>, E> {
+) -> ParserResult<'s, AssignmentSet<'v, 'w>, E> {
     context(
         "assignment_set",
         map(
@@ -67,7 +67,7 @@ pub fn assignment_set1<'v, 'w, 's, E: ParserError<'s>>(
 
 pub fn assignment<'v, 'w, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<Assignment<'v, 'w>, E> {
+) -> ParserResult<'s, Assignment<'v, 'w>, E> {
     context(
         "assignment",
         map(
@@ -80,7 +80,7 @@ pub fn assignment<'v, 'w, 's, E: ParserError<'s>>(
     )(input)
 }
 
-pub fn assignment_all_consuming(input: ParserInput) -> Option<Assignment<'_, '_>> {
+pub fn assignment_all_consuming(input: ParserInput<'_>) -> Option<Assignment<'_, '_>> {
     let Ok((_, r)) = all_consuming(assignment::<Error<ParserInput>>)(input) else {
         return None;
     };

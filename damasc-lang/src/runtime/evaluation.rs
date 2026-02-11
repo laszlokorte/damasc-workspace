@@ -579,7 +579,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
                 right_value.clone(),
             )));
         };
-        return Ok(Value::Boolean(right_bool));
+        Ok(Value::Boolean(right_bool))
     }
 
     fn eval_member<'x: 'v>(
@@ -812,7 +812,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
             .chain(Some(Ok(Cow::Owned(template.suffix.as_ref().into()))))
             .collect::<Result<Vec<Cow<'s, str>>, _>>()?;
 
-        return Ok(Value::String(Cow::Owned(joined.join(""))));
+        Ok(Value::String(Cow::Owned(joined.join(""))))
     }
 
     fn eval_application<'x: 's>(
@@ -1027,7 +1027,7 @@ impl<'e, 'i: 's, 's, 'v: 's> Evaluation<'e, 'i, 's, 'v> {
         } else if let Some(ref fb) = &if_else.false_branch {
             self.eval_expr(fb).map_err(EvalErrorPropagation::Nested)
         } else {
-            return Ok(Value::Null);
+            Ok(Value::Null)
         }
     }
 }

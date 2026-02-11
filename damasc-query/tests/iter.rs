@@ -17,7 +17,7 @@ use damasc_query::{
     predicate::{Predicate, PredicateError},
     projection::ProjectionError,
 };
-use std::assert_matches::assert_matches;
+use std::assert_matches;
 
 #[test]
 fn test_predicate_iteration() {

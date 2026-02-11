@@ -24,7 +24,7 @@ use crate::command::Command;
 
 pub(crate) fn command<'a, 'b, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<Command<'a, 'b>, E> {
+) -> ParserResult<'s, Command<'a, 'b>, E> {
     context(
         "command",
         alt((

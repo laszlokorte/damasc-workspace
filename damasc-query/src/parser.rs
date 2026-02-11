@@ -28,7 +28,7 @@ use crate::{
 
 pub fn query_bag<'x, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<ExpressionSet<'x>, E> {
+) -> ParserResult<'s, ExpressionSet<'x>, E> {
     context(
         "query_bag",
         delimited(ws(tag(r"{")), expression_many1, ws(tag(r"}"))),
@@ -44,7 +44,7 @@ pub fn query_bag_allow_empty(input: ParserInput) -> ParserResult<ExpressionSet> 
 
 pub fn multi_predicate<'x, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<MultiPredicate<'x>, E> {
+) -> ParserResult<'s, MultiPredicate<'x>, E> {
     map(
         tuple((
             context("query_projection_capture", ws(many1_pattern)),
@@ -66,7 +66,7 @@ pub fn multi_predicate<'x, 's, E: ParserError<'s>>(
 
 pub fn projection<'x, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<MultiProjection<'x>, E> {
+) -> ParserResult<'s, MultiProjection<'x>, E> {
     context(
         "query_projection",
         map(
@@ -131,7 +131,7 @@ pub fn projection<'x, 's, E: ParserError<'s>>(
 
 pub fn transformation<'a, 'b, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<Transformation<'a, 'b>, E> {
+) -> ParserResult<'s, Transformation<'a, 'b>, E> {
     context(
         "transformation",
         map(pair(query_bag, opt(projection)), |(bag, projection)| {
@@ -157,7 +157,7 @@ pub fn query_bag_all_consuming(input: ParserInput) -> Option<ExpressionSet> {
     }
 }
 
-pub fn query_bag_allow_empty_all_consuming(input: &str) -> Option<ExpressionSet> {
+pub fn query_bag_allow_empty_all_consuming(input: &str) -> Option<ExpressionSet<'_>> {
     match all_consuming(query_bag_allow_empty)(ParserInput::new(input)) {
         Ok((_, r)) => Some(r),
         Err(_e) => None,

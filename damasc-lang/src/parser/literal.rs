@@ -15,13 +15,13 @@ use super::io::{ParserError, ParserInput, ParserResult};
 
 fn literal_null<'v, 'e, E: ParserError<'e>>(
     input: ParserInput<'e>,
-) -> ParserResult<Literal<'v>, E> {
+) -> ParserResult<'e, Literal<'v>, E> {
     context("literal_null", value(Literal::Null, tag("null")))(input)
 }
 
 pub(crate) fn literal_string_raw<'v, 'e, E: ParserError<'e>>(
     input: ParserInput<'e>,
-) -> ParserResult<Cow<'v, str>, E> {
+) -> ParserResult<'e, Cow<'v, str>, E> {
     map(
         delimited(tag("\""), take_until("\""), tag("\"")),
         |s: ParserInput| Cow::Owned(s.fragment().to_owned().to_owned()),
@@ -30,13 +30,13 @@ pub(crate) fn literal_string_raw<'v, 'e, E: ParserError<'e>>(
 
 fn literal_string<'v, 'e, E: ParserError<'e>>(
     input: ParserInput<'e>,
-) -> ParserResult<Literal<'v>, E> {
+) -> ParserResult<'e, Literal<'v>, E> {
     context("literal_string", map(literal_string_raw, Literal::String))(input)
 }
 
 fn literal_bool<'v, 'e, E: ParserError<'e>>(
     input: ParserInput<'e>,
-) -> ParserResult<Literal<'v>, E> {
+) -> ParserResult<'e, Literal<'v>, E> {
     context(
         "literal_bool",
         alt((
@@ -48,7 +48,7 @@ fn literal_bool<'v, 'e, E: ParserError<'e>>(
 
 fn literal_number<'v, 'e, E: ParserError<'e>>(
     input: ParserInput<'e>,
-) -> ParserResult<Literal<'v>, E> {
+) -> ParserResult<'e, Literal<'v>, E> {
     context(
         "literal_number",
         map(
@@ -60,7 +60,7 @@ fn literal_number<'v, 'e, E: ParserError<'e>>(
 
 pub(crate) fn literal<'v, 'e, E: ParserError<'e>>(
     input: ParserInput<'e>,
-) -> ParserResult<Literal<'v>, E> {
+) -> ParserResult<'e, Literal<'v>, E> {
     context(
         "literal",
         alt((
@@ -75,7 +75,7 @@ pub(crate) fn literal<'v, 'e, E: ParserError<'e>>(
 
 pub(crate) fn literal_type_raw<'s, E: ParseError<ParserInput<'s>>>(
     input: ParserInput<'s>,
-) -> ParserResult<ValueType, E> {
+) -> ParserResult<'s, ValueType, E> {
     alt((
         value(ValueType::Type, tag("Type")),
         value(ValueType::Null, tag("Null")),
@@ -90,6 +90,6 @@ pub(crate) fn literal_type_raw<'s, E: ParseError<ParserInput<'s>>>(
 
 fn literal_type<'v, 'e, E: ParserError<'e>>(
     input: ParserInput<'e>,
-) -> ParserResult<Literal<'v>, E> {
+) -> ParserResult<'e, Literal<'v>, E> {
     context("literal_type", map(literal_type_raw, Literal::Type))(input)
 }

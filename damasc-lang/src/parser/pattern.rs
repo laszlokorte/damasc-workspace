@@ -28,7 +28,7 @@ use super::{
 
 fn pattern_discard<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<Pattern<'v>, E> {
+) -> ParserResult<'s, Pattern<'v>, E> {
     context(
         "pattern_discard",
         located_pattern(value(PatternBody::Discard, tag("_"))),
@@ -37,11 +37,11 @@ fn pattern_discard<'v, 's, E: ParserError<'s>>(
 
 fn pattern_typed_discard<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<Pattern<'v>, E> {
+) -> ParserResult<'s, Pattern<'v>, E> {
     context(
         "pattern_typed_discard",
         located_pattern(map(
-            preceded(ws(tag("_ is ")), literal_type_raw),
+            preceded(ws(tag("_")), preceded(ws(tag(":")), literal_type_raw)),
             PatternBody::TypedDiscard,
         )),
     )(input)
@@ -49,7 +49,7 @@ fn pattern_typed_discard<'v, 's, E: ParserError<'s>>(
 
 fn pattern_identifier<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<Pattern<'v>, E> {
+) -> ParserResult<'s, Pattern<'v>, E> {
     context(
         "pattern_identifier",
         located_pattern(map(identifier, PatternBody::Identifier)),
@@ -58,11 +58,11 @@ fn pattern_identifier<'v, 's, E: ParserError<'s>>(
 
 fn pattern_typed_identifier<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<Pattern<'v>, E> {
+) -> ParserResult<'s, Pattern<'v>, E> {
     context(
         "pattern_typed_identifier",
         located_pattern(map(
-            separated_pair(identifier, tag(" is "), literal_type_raw),
+            separated_pair(identifier, ws(tag(":")), literal_type_raw),
             |(i, t)| PatternBody::TypedIdentifier(i, t),
         )),
     )(input)
@@ -70,7 +70,7 @@ fn pattern_typed_identifier<'v, 's, E: ParserError<'s>>(
 
 fn pattern_object_prop<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<ObjectPropertyPattern<'v>, E> {
+) -> ParserResult<'s, ObjectPropertyPattern<'v>, E> {
     context(
         "pattern_object_prop",
         alt((
@@ -103,7 +103,7 @@ fn pattern_object_prop<'v, 's, E: ParserError<'s>>(
 
 fn pattern_object<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<Pattern<'v>, E> {
+) -> ParserResult<'s, Pattern<'v>, E> {
     context(
         "pattern_object",
         located_pattern(delimited(
@@ -125,7 +125,9 @@ fn pattern_object<'v, 's, E: ParserError<'s>>(
     )(input)
 }
 
-fn pattern_rest<'v, 's, E: ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Rest<'v>, E> {
+fn pattern_rest<'v, 's, E: ParserError<'s>>(
+    input: ParserInput<'s>,
+) -> ParserResult<'s, Rest<'v>, E> {
     context(
         "pattern_rest",
         alt((
@@ -139,7 +141,7 @@ fn pattern_rest<'v, 's, E: ParserError<'s>>(input: ParserInput<'s>) -> ParserRes
 
 fn pattern_array<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<Pattern<'v>, E> {
+) -> ParserResult<'s, Pattern<'v>, E> {
     context(
         "pattern_array",
         located_pattern(delimited(
@@ -163,7 +165,7 @@ fn pattern_array<'v, 's, E: ParserError<'s>>(
 
 fn pattern_capture<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<Pattern<'v>, E> {
+) -> ParserResult<'s, Pattern<'v>, E> {
     context(
         "pattern_capture",
         located_pattern(map(
@@ -184,7 +186,7 @@ fn pattern_capture<'v, 's, E: ParserError<'s>>(
 
 fn pattern_atom<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<Pattern<'v>, E> {
+) -> ParserResult<'s, Pattern<'v>, E> {
     context(
         "pattern_atom",
         located_pattern(map(literal, PatternBody::Literal)),
@@ -193,7 +195,7 @@ fn pattern_atom<'v, 's, E: ParserError<'s>>(
 
 fn pattern_pinned_expression<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<Pattern<'v>, E> {
+) -> ParserResult<'s, Pattern<'v>, E> {
     context(
         "pattern_pinned_expression",
         located_pattern(map(
@@ -209,7 +211,9 @@ fn pattern_pinned_expression<'v, 's, E: ParserError<'s>>(
     )(input)
 }
 
-pub fn pattern<'v, 's, E: ParserError<'s>>(input: ParserInput<'s>) -> ParserResult<Pattern<'v>, E> {
+pub fn pattern<'v, 's, E: ParserError<'s>>(
+    input: ParserInput<'s>,
+) -> ParserResult<'s, Pattern<'v>, E> {
     context(
         "pattern",
         alt((
@@ -235,7 +239,7 @@ pub fn pattern_all_consuming<'v>(input: &str) -> Option<Pattern<'v>> {
 
 pub fn many0_pattern<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<PatternSet<'v>, E> {
+) -> ParserResult<'s, PatternSet<'v>, E> {
     delimited(
         space0,
         map(separated_list0(ws(tag(";")), pattern), |patterns| {
@@ -247,7 +251,7 @@ pub fn many0_pattern<'v, 's, E: ParserError<'s>>(
 
 pub fn many1_pattern<'v, 's, E: ParserError<'s>>(
     input: ParserInput<'s>,
-) -> ParserResult<PatternSet<'v>, E> {
+) -> ParserResult<'s, PatternSet<'v>, E> {
     delimited(
         space0,
         map(separated_list1(ws(tag(";")), pattern), |patterns| {

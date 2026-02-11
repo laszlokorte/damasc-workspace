@@ -20,7 +20,7 @@ use super::{
 };
 
 impl Pattern<'_> {
-    pub(crate) fn get_identifiers(&self) -> impl Iterator<Item = &Identifier> {
+    pub(crate) fn get_identifiers(&self) -> impl Iterator<Item = &Identifier<'_>> {
         PatternIterator::new(self).flat_map(|p| match &p.body {
             PatternBody::Capture(id, _) => Either::Left(Some(id).into_iter()),
             PatternBody::Identifier(id) => Either::Left(Some(id).into_iter()),
@@ -40,7 +40,7 @@ impl Pattern<'_> {
         })
     }
 
-    pub(crate) fn get_expressions(&self) -> impl Iterator<Item = &Expression> {
+    pub(crate) fn get_expressions(&self) -> impl Iterator<Item = &Expression<'_>> {
         PatternIterator::new(self).flat_map(|p| match &p.body {
             PatternBody::Object(props, _) => {
                 Either::Left(Box::new(props.iter().filter_map(|p| match p {
@@ -324,7 +324,7 @@ impl<'s, 'e: 's> Iterator for ExpressionIterator<'e, 's> {
 }
 
 impl Expression<'_> {
-    pub(crate) fn get_identifiers(&self) -> impl Iterator<Item = &Identifier> {
+    pub(crate) fn get_identifiers(&self) -> impl Iterator<Item = &Identifier<'_>> {
         ExpressionIterator::new(self, false).flat_map(|e| match &e.body {
             ExpressionBody::Object(props) => Left(Box::new(props.iter().filter_map(|p| match p {
                 ObjectProperty::Single(id) => Some(id),
