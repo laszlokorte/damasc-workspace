@@ -102,10 +102,10 @@ impl<'a> std::fmt::Display for Pattern<'a> {
             PatternBody::Discard => write!(f, "_"),
             PatternBody::Literal(l) => write!(f, "{l}"),
             PatternBody::Capture(id, pat) => write!(f, "{id} @ {pat}"),
-            PatternBody::TypedDiscard(t) => write!(f, "_ is {t}"),
+            PatternBody::TypedDiscard(t) => write!(f, "_ : {t}"),
             PatternBody::Identifier(id) => write!(f, "{id}"),
             PatternBody::PinnedExpression(expr) => write!(f, "^{expr}"),
-            PatternBody::TypedIdentifier(id, t) => write!(f, "{id} is {t}"),
+            PatternBody::TypedIdentifier(id, t) => write!(f, "{id} : {t}"),
             PatternBody::Object(props, rest) => {
                 let _ = write!(f, "{{");
 

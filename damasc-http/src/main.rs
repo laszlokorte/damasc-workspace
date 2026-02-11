@@ -51,7 +51,7 @@ const EXAMPLES: [&str; 10] = [
     r#"{x:32,y:42}"#,
     r#""hello""#,
     r#"[_,m,_]=[1,2,3]"#,
-    r#"t=type(x);{x:[_ is Integer, x]}={x:[23,true]}"#,
+    r#"t=type(x);{x:[_ : Integer, x]}={x:[23,true]}"#,
     r#"let [x,y] = [23,42]"#,
     r#"{ 3;4;4;2 } |> map x;y where x!=y into [x,y, x*y]"#,
 ];
